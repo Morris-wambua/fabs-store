@@ -1,48 +1,91 @@
 package com.morrislabs.fabs_store.ui.screens
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkVertically
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Event
+import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material.icons.filled.Logout
+import androidx.compose.material.icons.filled.Message
+import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.People
+import androidx.compose.material.icons.filled.RateReview
 import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.filled.Share
+import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.filled.StoreMallDirectory
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.ScrollableTabRow
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Tab
+import androidx.compose.material3.TabRow
+import androidx.compose.material3.TabRowDefaults
 import androidx.compose.material3.Text
+import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.input.nestedscroll.nestedScroll
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import coil.compose.AsyncImage
+import coil.request.ImageRequest
 import com.morrislabs.fabs_store.ui.viewmodel.StoreViewModel
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun HomeScreen(
     onNavigateToReservations: () -> Unit = {},
@@ -54,6 +97,11 @@ fun HomeScreen(
     storeViewModel: StoreViewModel = viewModel()
 ) {
     val storeState by storeViewModel.storeState.collectAsState()
+    var selectedTabIndex by rememberSaveable { mutableIntStateOf(0) }
+    val tabs = listOf("Reservations", "Employees", "Services", "Reviews")
+
+    // Create scroll behavior for collapsing toolbar
+    val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
 
     LaunchedEffect(Unit) {
         storeViewModel.fetchUserStore()
@@ -70,33 +118,72 @@ fun HomeScreen(
             }
             is StoreViewModel.StoreState.Success -> {
                 val store = (storeState as StoreViewModel.StoreState.Success).data
-                Column(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .verticalScroll(rememberScrollState())
-                ) {
-                    HeaderSection(
-                        storeName = store.name,
-                        onLogout = onLogout,
-                        onSettings = onNavigateToSettings
-                    )
 
-                    QuickStatsSection(
-                        modifier = Modifier.padding(16.dp)
-                    )
+                Scaffold(
+                    modifier = Modifier.nestedScroll(scrollBehavior.nestedScrollConnection),
+                    topBar = {
+                        StoreCollapsingTopAppBar(
+                            title = store.name,
+                            onSettings = onNavigateToSettings,
+                            scrollBehavior = scrollBehavior
+                        )
+                    }
+                ) { paddingValues ->
+                    Column(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(paddingValues)
+                    ) {
+                        // Store Hero Section - Animates based on scroll
+                        AnimatedVisibility(
+                            visible = scrollBehavior.state.collapsedFraction < 0.9f,
+                            enter = fadeIn() + expandVertically(),
+                            exit = fadeOut() + shrinkVertically()
+                        ) {
+                            Column {
+                                StoreCoverHeader(store)
+                                StoreProfileInfo(store)
+                            }
+                        }
 
-                    ManagementCardsSection(
-                        onNavigateToReservations = onNavigateToReservations,
-                        onNavigateToEmployees = onNavigateToEmployees,
-                        onNavigateToServices = onNavigateToServices,
-                        modifier = Modifier.padding(horizontal = 16.dp)
-                    )
+                        // Tab Row
+                        ScrollableTabRow(
+                            selectedTabIndex = selectedTabIndex,
+                            edgePadding = 16.dp,
+                            indicator = { tabPositions ->
+                                TabRowDefaults.Indicator(
+                                    Modifier.fillMaxWidth()
+                                        .height(3.dp),
+                                    color = MaterialTheme.colorScheme.primary
+                                )
+                            }
+                        ) {
+                            tabs.forEachIndexed { index, title ->
+                                Tab(
+                                    selected = selectedTabIndex == index,
+                                    onClick = { selectedTabIndex = index },
+                                    text = { Text(title) }
+                                )
+                            }
+                        }
 
-                    RecentActivitySection(
-                        modifier = Modifier.padding(16.dp)
-                    )
+                        // Tab Content
+                        Box(
+                            modifier = Modifier
+                                .weight(1f)
+                                .fillMaxWidth()
+                                .verticalScroll(rememberScrollState())
+                        ) {
+                            when (selectedTabIndex) {
+                                0 -> TabContent("Reservations coming soon", onNavigateToReservations)
+                                1 -> TabContent("Employees coming soon", onNavigateToEmployees)
+                                2 -> TabContent("Services coming soon", onNavigateToServices)
+                                3 -> TabContent("Reviews coming soon", {})
+                            }
+                        }
 
-                    Box(modifier = Modifier.height(24.dp))
+                        Box(modifier = Modifier.height(24.dp))
+                    }
                 }
             }
             is StoreViewModel.StoreState.Error.NotFound -> {
@@ -136,6 +223,89 @@ fun HomeScreen(
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun StoreCollapsingTopAppBar(
+    title: String,
+    onSettings: () -> Unit,
+    scrollBehavior: androidx.compose.material3.TopAppBarScrollBehavior
+) {
+    val collapsedFraction = scrollBehavior.state.collapsedFraction
+
+    // Determine container color based on scroll state
+    val containerColor = lerp(
+        Color.Transparent,
+        MaterialTheme.colorScheme.surface,
+        collapsedFraction
+    )
+
+    // Determine content color based on scroll state
+    val contentColor = lerp(
+        MaterialTheme.colorScheme.inverseSurface, // Dark color when expanded
+        MaterialTheme.colorScheme.onSurface,      // Theme color when collapsed
+        collapsedFraction
+    )
+
+    TopAppBar(
+        title = {
+            // Only show the title when the toolbar is collapsed
+            AnimatedVisibility(
+                visible = collapsedFraction > 0.5f,
+                enter = fadeIn(),
+                exit = fadeOut()
+            ) {
+                Text(
+                    text = title,
+                    style = MaterialTheme.typography.titleMedium,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+            }
+        },
+        navigationIcon = {
+            IconButton(
+                onClick = { /* Navigate back */ },
+                modifier = Modifier.semantics { contentDescription = "Navigate back" }
+            ) {
+                Icon(
+                    Icons.Default.ArrowBack,
+                    contentDescription = null,
+                    tint = contentColor
+                )
+            }
+        },
+        actions = {
+            IconButton(
+                onClick = { /* Share */ },
+                modifier = Modifier.semantics { contentDescription = "Share store" }
+            ) {
+                Icon(
+                    Icons.Default.Share,
+                    contentDescription = null,
+                    tint = contentColor
+                )
+            }
+            IconButton(
+                onClick = onSettings,
+                modifier = Modifier.semantics { contentDescription = "Settings" }
+            ) {
+                Icon(
+                    Icons.Default.MoreVert,
+                    contentDescription = null,
+                    tint = contentColor
+                )
+            }
+        },
+        colors = TopAppBarDefaults.topAppBarColors(
+            containerColor = containerColor,
+            navigationIconContentColor = contentColor,
+            titleContentColor = contentColor,
+            actionIconContentColor = contentColor
+        ),
+        scrollBehavior = scrollBehavior
+    )
+}
+
 @Composable
 private fun LoadingScreen() {
     Box(
@@ -143,6 +313,154 @@ private fun LoadingScreen() {
         contentAlignment = Alignment.Center
     ) {
         CircularProgressIndicator()
+    }
+}
+
+@Composable
+private fun StoreCoverHeader(
+    store: com.morrislabs.fabs_store.data.model.FetchStoreResponse
+) {
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(200.dp)
+            .background(Color.White),
+        contentAlignment = Alignment.Center
+    ) {
+        // Default icon (no cover image field in store model)
+        Icon(
+            imageVector = Icons.Default.StoreMallDirectory,
+            contentDescription = null,
+            modifier = Modifier.size(80.dp),
+            tint = MaterialTheme.colorScheme.primary
+        )
+    }
+}
+
+@Composable
+private fun StoreProfileInfo(
+    store: com.morrislabs.fabs_store.data.model.FetchStoreResponse
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(16.dp)
+    ) {
+        // Store name with rating
+        Row(
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                text = store.name,
+                style = MaterialTheme.typography.headlineSmall,
+                fontWeight = FontWeight.Bold
+            )
+        }
+
+        // Quick stats row
+        Row(
+            modifier = Modifier.padding(vertical = 8.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            // Rating
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.padding(end = 16.dp)
+            ) {
+                Icon(
+                    Icons.Default.Star,
+                    contentDescription = "Rating",
+                    tint = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.size(16.dp)
+                )
+                Text(
+                    text = "${String.format("%.1f", store.ratings)}",
+                    style = MaterialTheme.typography.bodyMedium,
+                    fontWeight = FontWeight.Bold,
+                    modifier = Modifier.padding(start = 4.dp)
+                )
+            }
+
+            // Location
+            store.locationDTO?.name?.let { locationName ->
+                Row(
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(
+                        Icons.Default.LocationOn,
+                        contentDescription = "Location",
+                        modifier = Modifier.size(16.dp)
+                    )
+                    Text(
+                        text = locationName,
+                        style = MaterialTheme.typography.bodyMedium,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.padding(start = 4.dp)
+                    )
+                }
+            }
+        }
+
+        // Quick action buttons
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(vertical = 8.dp),
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            OutlinedButton(
+                onClick = { /* Follow */ },
+                modifier = Modifier.weight(1f),
+                contentPadding = PaddingValues(vertical = 8.dp)
+            ) {
+                Icon(
+                    Icons.Default.Add,
+                    contentDescription = null,
+                    modifier = Modifier.size(16.dp)
+                )
+                Spacer(modifier = Modifier.width(4.dp))
+                Text("Follow")
+            }
+
+            OutlinedButton(
+                onClick = { /* Message */ },
+                modifier = Modifier.weight(1f),
+                contentPadding = PaddingValues(vertical = 8.dp)
+            ) {
+                Icon(
+                    Icons.Default.Message,
+                    contentDescription = null,
+                    modifier = Modifier.size(16.dp)
+                )
+                Spacer(modifier = Modifier.width(4.dp))
+                Text("Message")
+            }
+
+            OutlinedButton(
+                onClick = { /* Directions */ },
+                modifier = Modifier.weight(1f),
+                contentPadding = PaddingValues(vertical = 8.dp)
+            ) {
+                Icon(
+                    Icons.Default.LocationOn,
+                    contentDescription = null,
+                    modifier = Modifier.size(16.dp)
+                )
+                Spacer(modifier = Modifier.width(4.dp))
+                Text("Directions")
+            }
+        }
+    }
+}
+
+@Composable
+private fun TabContent(
+    text: String,
+    onClick: () -> Unit
+) {
+    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+        Text(text, style = MaterialTheme.typography.bodyLarge)
     }
 }
 

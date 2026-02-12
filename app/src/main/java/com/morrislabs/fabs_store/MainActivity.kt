@@ -26,6 +26,7 @@ import com.morrislabs.fabs_store.ui.screens.LoginScreen
 import com.morrislabs.fabs_store.ui.screens.RegisterScreen
 import com.morrislabs.fabs_store.ui.screens.ReservationsScreen
 import com.morrislabs.fabs_store.ui.screens.ServicesScreen
+import com.morrislabs.fabs_store.ui.screens.SettingsScreen
 import com.morrislabs.fabs_store.ui.theme.FabsstoreTheme
 import com.morrislabs.fabs_store.ui.viewmodel.AuthViewModel
 
@@ -94,6 +95,7 @@ fun StoreApp(
                 onNavigateToReservations = { navController.navigate("reservations") },
                 onNavigateToEmployees = { navController.navigate("employees") },
                 onNavigateToServices = { navController.navigate("services") },
+                onNavigateToSettings = { navController.navigate("settings") },
                 onNavigateToCreateStore = { navController.navigate("create_store") },
                 onLogout = {
                     authViewModel.logout()
@@ -126,6 +128,19 @@ fun StoreApp(
 
         composable("services") {
             ServicesScreen(onNavigateBack = { navController.popBackStack() })
+        }
+
+        composable("settings") {
+            SettingsScreen(
+                onNavigateBack = { navController.popBackStack() },
+                onLogout = {
+                    authViewModel.logout()
+                    isLoggedIn = false
+                    navController.navigate("login") {
+                        popUpTo("home") { inclusive = true }
+                    }
+                }
+            )
         }
     }
 }
