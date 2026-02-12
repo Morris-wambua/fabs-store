@@ -19,6 +19,7 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import com.morrislabs.fabs_store.ui.screens.CreateStoreScreen
+import com.morrislabs.fabs_store.ui.screens.CreateStoreScreenRefactored
 import com.morrislabs.fabs_store.ui.screens.EmployeesScreen
 import com.morrislabs.fabs_store.ui.screens.HomeScreen
 import com.morrislabs.fabs_store.ui.screens.LoginScreen
@@ -104,7 +105,7 @@ fun StoreApp(
         }
 
         composable("create_store") {
-            CreateStoreScreen(
+            CreateStoreScreenRefactored(
                 onStoreCreated = {
                     navController.navigate("home") {
                         popUpTo("create_store") { inclusive = true }

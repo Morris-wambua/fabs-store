@@ -36,6 +36,12 @@ class StoreViewModel(application: Application) : AndroidViewModel(application) {
     private val _servicesState = MutableStateFlow<LoadingState<List<TypeOfServiceDTO>>>(LoadingState.Idle)
     val servicesState: StateFlow<LoadingState<List<TypeOfServiceDTO>>> = _servicesState.asStateFlow()
 
+    private val _categoriesState = MutableStateFlow<LoadingState<List<com.morrislabs.fabs_store.data.model.MainCategory>>>(LoadingState.Idle)
+    val categoriesState: StateFlow<LoadingState<List<com.morrislabs.fabs_store.data.model.MainCategory>>> = _categoriesState.asStateFlow()
+
+    private val _servicesByCategoryState = MutableStateFlow<LoadingState<List<TypeOfServiceDTO>>>(LoadingState.Idle)
+    val servicesByCategoryState: StateFlow<LoadingState<List<TypeOfServiceDTO>>> = _servicesByCategoryState.asStateFlow()
+
     fun fetchUserStore() {
         _storeState.value = StoreState.Loading
 
@@ -88,6 +94,44 @@ class StoreViewModel(application: Application) : AndroidViewModel(application) {
                     val errorMessage = error.message ?: "Failed to fetch services"
                     Log.e(TAG, "Fetch services failed: $errorMessage", error)
                     _servicesState.value = LoadingState.Error(errorMessage)
+                }
+        }
+    }
+
+    fun fetchCategories() {
+        _categoriesState.value = LoadingState.Loading
+
+        viewModelScope.launch {
+            Log.d(TAG, "Fetching service categories")
+
+            setupApiService.fetchMainCategories()
+                .onSuccess { categories ->
+                    Log.d(TAG, "Categories fetched: ${categories.size} items")
+                    _categoriesState.value = LoadingState.Success(categories)
+                }
+                .onFailure { error ->
+                    val errorMessage = error.message ?: "Failed to fetch categories"
+                    Log.e(TAG, "Fetch categories failed: $errorMessage", error)
+                    _categoriesState.value = LoadingState.Error(errorMessage)
+                }
+        }
+    }
+
+    fun fetchServicesByCategory(category: com.morrislabs.fabs_store.data.model.MainCategory) {
+        _servicesByCategoryState.value = LoadingState.Loading
+
+        viewModelScope.launch {
+            Log.d(TAG, "Fetching services for category: $category")
+
+            setupApiService.fetchServicesByCategory(category)
+                .onSuccess { services ->
+                    Log.d(TAG, "Services fetched for category $category: ${services.size} items")
+                    _servicesByCategoryState.value = LoadingState.Success(services)
+                }
+                .onFailure { error ->
+                    val errorMessage = error.message ?: "Failed to fetch services"
+                    Log.e(TAG, "Fetch services by category failed: $errorMessage", error)
+                    _servicesByCategoryState.value = LoadingState.Error(errorMessage)
                 }
         }
     }

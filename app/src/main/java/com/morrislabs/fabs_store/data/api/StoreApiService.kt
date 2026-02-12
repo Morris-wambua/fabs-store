@@ -36,7 +36,8 @@ class StoreApiService(private val context: Context, private val tokenManager: To
             Log.d(TAG, "Fetch store response: $responseText")
 
             try {
-                val store = Json.decodeFromString<FetchStoreResponse>(responseText)
+                val json = Json { ignoreUnknownKeys = true }
+                val store = json.decodeFromString<FetchStoreResponse>(responseText)
                 Log.d(TAG, "Store found: ${store.name}")
                 Result.success(store)
             } catch (e: Exception) {

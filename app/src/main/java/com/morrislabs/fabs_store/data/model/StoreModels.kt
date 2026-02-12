@@ -4,24 +4,136 @@ import kotlinx.serialization.Serializable
 
 @Serializable
 enum class Badge {
-    GOLD, SILVER, BRONZE, UNRANKED
+    GOLD, SILVER, TOP_RATED, PLATINUM
 }
 
 @Serializable
 enum class MainCategory {
-    BEAUTY, WELLNESS, HAIR_CARE, PERSONAL_CARE, OTHER
+    BARBERSHOP_SERVICES,
+    BEAUTY_PRODUCTS,
+    BODY_SERVICES,
+    HAIR_REMOVAL,
+    HAIR_SERVICES,
+    LASH_AND_BROW,
+    MAKEUP_AND_COSMETICS,
+    NAIL_SERVICES,
+    SKINCARE_SERVICES,
+    WELLNESS_AND_SPA
 }
 
 @Serializable
 enum class SubCategory {
-    HAIRCUT, COLORING, STYLING, MASSAGE, FACIAL, MANICURE, PEDICURE, OTHER
+    // Hair
+    BRAIDING,
+    BLOWOUTS,
+    COLORING,
+    EXTENSIONS,
+    HAIRCUTS,
+    KERATIN_TREATMENTS,
+    LOCS_AND_DREADLOCKS,
+    PERMS,
+    RELAXERS,
+    SCALP_TREATMENTS,
+    STYLING,
+    TREATMENTS,
+    WEAVES,
+
+    // Nails
+    ACRYLIC_NAILS,
+    DIPPING_POWDER,
+    GEL_NAILS,
+    MANICURES,
+    NAIL_ART,
+    NAIL_CARE_PRODUCTS,
+    PARAFFIN_TREATMENTS,
+    PEDICURES,
+
+    // Skincare
+    ACNE_TREATMENTS,
+    ANTI_AGING_TREATMENTS,
+    CHEMICAL_PEELS,
+    DERMAPLANING,
+    FACIALS,
+    HYDRAFACIALS,
+    LED_THERAPY,
+    MICRODERMABRASION,
+    MICRONEEDLING,
+    OXYGEN_FACIALS,
+    SKIN_TIGHTENING,
+    SKINCARE_PRODUCTS,
+
+    // Body
+    BODY_SCRUBS,
+    BODY_WRAPS,
+    HYDROTHERAPY,
+    JACUZZI_TREATMENTS,
+    MASSAGE_THERAPY,
+    HOT_STONE_THERAPY,
+    SAUNA_SESSIONS,
+    STEAM_TREATMENTS,
+
+    // Makeup
+    AIRBRUSH_MAKEUP,
+    BRIDAL_MAKEUP,
+    EVERYDAY_MAKEUP,
+    MAKEUP_CONSULTATION,
+    MAKEUP_LESSONS,
+    MAKEUP_PRODUCTS,
+    PERMANENT_MAKEUP,
+    SPECIAL_OCCASION_MAKEUP,
+    THEATRICAL_MAKEUP,
+
+    // Hair Removal
+    DEPILATORY_CREAMS,
+    ELECTROLYSIS,
+    IPL_TREATMENT,
+    LASER_HAIR_REMOVAL,
+    SUGARING,
+    THREADING,
+    WAXING,
+
+    // Lash & Brow
+    BROW_HENNA,
+    BROW_LAMINATION,
+    BROW_SHAPING,
+    BROW_TINTING,
+    EYELASH_PERMING,
+    LASH_EXTENSIONS,
+    LASH_LIFT_AND_TINT,
+    MICROBLADING,
+
+    // Barbershop
+    BEARD_COLORING,
+    BEARD_TRIMMING,
+    FACIAL_HAIR_DESIGN,
+    HEAD_SHAVES,
+    HOT_TOWEL_SHAVES,
+    MENS_FACIALS,
+    MENS_HAIRCUTS,
+
+    // Wellness
+    AROMATHERAPY,
+    AYURVEDIC_TREATMENTS,
+    FLOTATION_THERAPY,
+    MEDITATION_SESSIONS,
+    MUD_BATHS,
+    REFLEXOLOGY,
+    SALT_THERAPY,
+    SOUND_THERAPY,
+
+    // Beauty Products
+    BATH_AND_BODY_PRODUCTS,
+    FRAGRANCES,
+    HAIR_CARE_PRODUCTS,
+    ORGANIC_AND_NATURAL_PRODUCTS,
+    TOOLS_AND_ACCESSORIES
 }
 
 @Serializable
 data class LocationDTO(
     val id: String,
     val name: String,
-    val description: String,
+    val description: String? = null,
     val latitude: Double,
     val longitude: Double
 )
@@ -53,7 +165,7 @@ data class StoreDTO(
     val noOfExperts: Int = 0,
     val ratings: Double = 5.0,
     val isVerified: Boolean = false,
-    val badge: Badge = Badge.UNRANKED,
+    val badge: Badge = Badge.SILVER,
     val discount: Double = 0.0
 )
 
@@ -63,10 +175,10 @@ data class CreateStorePayload(
     val username: String,
     val noOfExperts: Int = 0,
     val ratings: Double = 5.0,
-    val badge: Badge = Badge.UNRANKED,
+    val badge: Badge = Badge.SILVER,
     val discount: Double = 0.0,
-    val locationId: String,
-    val servicesOfferedIds: Set<String>
+    val location: LocationDTO,
+    val servicesOffered: List<String>
 )
 
 @Serializable
@@ -77,6 +189,21 @@ data class FetchStoreResponse(
     val noOfExperts: Int = 0,
     val ratings: Double = 5.0,
     val isVerified: Boolean = false,
-    val badge: Badge = Badge.UNRANKED,
-    val discount: Double = 0.0
+    val noOfTags: Int = 0,
+    val badge: Badge = Badge.SILVER,
+    val discount: Double = 0.0,
+    val locationDTO: LocationDTO? = null,
+    val servicesOffered: List<TypeOfServiceDTO> = emptyList()
+)
+
+@Serializable
+data class MainCategoryDTO(
+    val name: MainCategory,
+    val label: String = name.name
+)
+
+@Serializable
+data class ServicesByCategoryDTO(
+    val mainCategory: MainCategory,
+    val services: List<TypeOfServiceDTO>
 )
