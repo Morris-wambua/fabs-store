@@ -46,6 +46,7 @@ fun StoreApp(
     authViewModel: AuthViewModel = viewModel()
 ) {
     val navController = rememberNavController()
+    val storeViewModel: com.morrislabs.fabs_store.ui.viewmodel.StoreViewModel = viewModel()
     var isLoggedIn by remember { mutableStateOf(authViewModel.isLoggedIn()) }
 
     LaunchedEffect(Unit) {
@@ -96,6 +97,7 @@ fun StoreApp(
                 onNavigateToCreateStore = { navController.navigate("create_store") },
                 onLogout = {
                     authViewModel.logout()
+                    storeViewModel.resetAllStates()
                     isLoggedIn = false
                     navController.navigate("login") {
                         popUpTo("home") { inclusive = true }

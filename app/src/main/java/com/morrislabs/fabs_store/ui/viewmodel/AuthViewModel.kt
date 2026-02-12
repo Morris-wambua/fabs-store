@@ -116,10 +116,40 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
             }
 
             tokenManager.clearToken()
-
-            _loginState.value = LoginState.Idle
-            _registerState.value = RegisterState.Idle
+            resetAllStates()
+            
+            Log.d(TAG, "Logout completed - all states cleared")
         }
+    }
+
+    fun refreshAccessToken() {
+        viewModelScope.launch {
+            val refreshToken = tokenManager.getRefreshToken()
+            
+            if (refreshToken == null) {
+                Log.w(TAG, "No refresh token available")
+                return@launch
+            }
+            
+            repository.refreshToken(refreshToken)
+                .onSuccess { refreshTokenDTO ->
+                    Log.d(TAG, "Token refreshed successfully")
+                    refreshTokenDTO.accessToken?.let { tokenManager.saveToken(it) }
+                    refreshTokenDTO.refreshToken?.let { tokenManager.saveRefreshToken(it) }
+                }
+                .onFailure { error ->
+                    Log.e(TAG, "Token refresh failed: ${error.message}")
+                    if (error.message?.contains("401") == true || error.message?.contains("Unauthorized") == true) {
+                        tokenManager.clearToken()
+                        resetAllStates()
+                    }
+                }
+        }
+    }
+
+    fun resetAllStates() {
+        _loginState.value = LoginState.Idle
+        _registerState.value = RegisterState.Idle
     }
 
     fun resetLoginState() {

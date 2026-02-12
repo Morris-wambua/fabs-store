@@ -164,6 +164,14 @@ class StoreViewModel(application: Application) : AndroidViewModel(application) {
         _createStoreState.value = CreateStoreState.Idle
     }
 
+    fun resetAllStates() {
+        _storeState.value = StoreState.Idle
+        _createStoreState.value = CreateStoreState.Idle
+        _categoriesState.value = LoadingState.Idle
+        _servicesByCategoryState.value = LoadingState.Idle
+        _servicesState.value = LoadingState.Idle
+    }
+
     sealed class StoreState {
         data object Idle : StoreState()
         data object Loading : StoreState()
