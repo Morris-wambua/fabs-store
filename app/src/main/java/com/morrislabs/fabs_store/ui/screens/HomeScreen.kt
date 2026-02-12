@@ -5,7 +5,6 @@ import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.shrinkVertically
-import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -27,16 +26,12 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Event
 import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material.icons.filled.Logout
 import androidx.compose.material.icons.filled.Message
-import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.People
-import androidx.compose.material.icons.filled.RateReview
 import androidx.compose.material.icons.filled.Settings
-import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.filled.StoreMallDirectory
 import androidx.compose.material3.Button
@@ -50,10 +45,10 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.ScrollableTabRow
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Tab
 import androidx.compose.material3.TabRow
 import androidx.compose.material3.TabRowDefaults
+import androidx.compose.material3.TabRowDefaults.tabIndicatorOffset
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
@@ -144,9 +139,10 @@ fun HomeScreen(
                         ScrollableTabRow(
                             selectedTabIndex = selectedTabIndex,
                             edgePadding = 16.dp,
+                            containerColor = MaterialTheme.colorScheme.background,
                             indicator = { tabPositions ->
                                 TabRowDefaults.Indicator(
-                                    Modifier.fillMaxWidth()
+                                    Modifier.tabIndicatorOffset(tabPositions[selectedTabIndex])
                                         .height(3.dp),
                                     color = MaterialTheme.colorScheme.primary
                                 )
@@ -156,7 +152,15 @@ fun HomeScreen(
                                 Tab(
                                     selected = selectedTabIndex == index,
                                     onClick = { selectedTabIndex = index },
-                                    text = { Text(title) }
+                                    text = {
+                                        Text(
+                                            title,
+                                            color = if (selectedTabIndex == index)
+                                                MaterialTheme.colorScheme.primary
+                                            else
+                                                MaterialTheme.colorScheme.onSurfaceVariant
+                                        )
+                                    }
                                 )
                             }
                         }
@@ -256,35 +260,13 @@ private fun StoreCollapsingTopAppBar(
                 )
             }
         },
-        navigationIcon = {
-            IconButton(
-                onClick = { /* Navigate back */ },
-                modifier = Modifier.semantics { contentDescription = "Navigate back" }
-            ) {
-                Icon(
-                    Icons.Default.ArrowBack,
-                    contentDescription = null,
-                    tint = contentColor
-                )
-            }
-        },
         actions = {
-            IconButton(
-                onClick = { /* Share */ },
-                modifier = Modifier.semantics { contentDescription = "Share store" }
-            ) {
-                Icon(
-                    Icons.Default.Share,
-                    contentDescription = null,
-                    tint = contentColor
-                )
-            }
             IconButton(
                 onClick = onSettings,
                 modifier = Modifier.semantics { contentDescription = "Settings" }
             ) {
                 Icon(
-                    Icons.Default.MoreVert,
+                    Icons.Default.Settings,
                     contentDescription = null,
                     tint = contentColor
                 )
@@ -292,7 +274,6 @@ private fun StoreCollapsingTopAppBar(
         },
         colors = TopAppBarDefaults.topAppBarColors(
             containerColor = containerColor,
-            navigationIconContentColor = contentColor,
             titleContentColor = contentColor,
             actionIconContentColor = contentColor
         ),
