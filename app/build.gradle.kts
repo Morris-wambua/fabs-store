@@ -52,6 +52,7 @@ dependencies {
 
     // UI components
     implementation(libs.androidx.compose.material3)
+    implementation(libs.androidx.compose.material)
     implementation(libs.compose.material.icons.extended)
 
     // Navigation
