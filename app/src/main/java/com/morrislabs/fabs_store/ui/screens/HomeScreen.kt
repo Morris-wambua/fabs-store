@@ -1,11 +1,14 @@
 package com.morrislabs.fabs_store.ui.screens
 
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -34,10 +37,12 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Event
+import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material.icons.filled.Logout
 import androidx.compose.material.icons.filled.Message
 import androidx.compose.material.icons.filled.People
+import androidx.compose.material.icons.filled.Schedule
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.filled.StoreMallDirectory
@@ -67,10 +72,13 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.rotate
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -611,11 +619,22 @@ private fun ReservationFilterRow(
 private fun ReservationRow(
     reservation: ReservationWithPaymentDTO
 ) {
+    var expanded by remember { mutableStateOf(false) }
+    val rotationState by animateFloatAsState(
+        targetValue = if (expanded) 180f else 0f,
+        animationSpec = tween(durationMillis = 300)
+    )
+
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(vertical = 4.dp),
-        shape = RoundedCornerShape(8.dp),
+            .padding(vertical = 8.dp)
+            .shadow(
+                elevation = 2.dp,
+                shape = RoundedCornerShape(12.dp)
+            )
+            .clickable { expanded = !expanded },
+        shape = RoundedCornerShape(12.dp),
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.surface
         )
@@ -623,70 +642,161 @@ private fun ReservationRow(
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(12.dp)
+                .padding(16.dp)
         ) {
-            // First row: Name and Status
+            // Header with name and expand/collapse button
             Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(bottom = 8.dp),
+                modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
                     text = reservation.name,
-                    style = MaterialTheme.typography.titleSmall,
+                    style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
                     modifier = Modifier.weight(1f)
                 )
+
+                Icon(
+                    imageVector = Icons.Default.KeyboardArrowDown,
+                    contentDescription = if (expanded) "Collapse" else "Expand",
+                    tint = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier
+                        .size(24.dp)
+                        .rotate(rotationState)
+                )
+            }
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            // Basic info row - Date and Status
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                // Date info
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.weight(1f)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Event,
+                        contentDescription = "Date",
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(16.dp)
+                    )
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text(
+                        text = reservation.reservationDate,
+                        style = MaterialTheme.typography.bodySmall,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                }
+
+                // Status
                 StatusBadge(reservation.status.name)
             }
 
-            // Second row: Date/Time and Price
+            Spacer(modifier = Modifier.height(8.dp))
+
+            // Price row - inline format
             Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(bottom = 8.dp),
-                horizontalArrangement = Arrangement.SpaceBetween,
+                modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        text = "Date: ${reservation.reservationDate}",
-                        style = MaterialTheme.typography.bodySmall
-                    )
-                    Text(
-                        text = "Time: ${reservation.startTime} - ${reservation.endTime}",
-                        style = MaterialTheme.typography.bodySmall
-                    )
-                }
                 Text(
-                    text = "KES ${reservation.price}",
+                    text = "Price: KES ${reservation.price}",
                     style = MaterialTheme.typography.bodyMedium,
                     fontWeight = FontWeight.Bold,
                     color = MaterialTheme.colorScheme.primary
                 )
             }
 
-            // Third row: Action buttons
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            // Expanded details
+            AnimatedVisibility(
+                visible = expanded,
+                enter = fadeIn() + expandVertically(),
+                exit = fadeOut() + shrinkVertically()
             ) {
-                OutlinedButton(
-                    onClick = { /* Reject action - implement later */ },
-                    modifier = Modifier.weight(1f),
-                    contentPadding = PaddingValues(vertical = 6.dp)
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(top = 16.dp)
                 ) {
-                    Text("Reject", style = MaterialTheme.typography.labelSmall)
-                }
-                Button(
-                    onClick = { /* Approve action - implement later */ },
-                    modifier = Modifier.weight(1f),
-                    contentPadding = PaddingValues(vertical = 6.dp)
-                ) {
-                    Text("Approve", style = MaterialTheme.typography.labelSmall)
+                    androidx.compose.material3.Divider(
+                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.1f)
+                    )
+                    Spacer(modifier = Modifier.height(16.dp))
+
+                    // Time slot
+                    DetailRow(
+                        icon = Icons.Default.Schedule,
+                        label = "Time",
+                        value = "${reservation.startTime} - ${reservation.endTime}"
+                    )
+
+                    Spacer(modifier = Modifier.height(12.dp))
+
+                    // Expert
+                    DetailRow(
+                        icon = Icons.Default.People,
+                        label = "Expert",
+                        value = reservation.reservationExpertName.ifEmpty { "Not assigned" }
+                    )
+
+                    Spacer(modifier = Modifier.height(12.dp))
+
+                    // Service type
+                    DetailRow(
+                        icon = Icons.Default.Settings,
+                        label = "Service",
+                        value = reservation.typeOfServiceName.ifEmpty { "Unknown service" }
+                    )
+
+                    Spacer(modifier = Modifier.height(16.dp))
+
+                    // Action buttons - different based on status
+                    when (reservation.status) {
+                        ReservationStatus.BOOKED_PENDING_ACCEPTANCE -> {
+                            // Pending approval - show Reject and Approve buttons
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                OutlinedButton(
+                                    onClick = { /* Reject action - implement later */ },
+                                    modifier = Modifier.weight(1f),
+                                    contentPadding = PaddingValues(vertical = 10.dp)
+                                ) {
+                                    Text("Reject", style = MaterialTheme.typography.labelMedium)
+                                }
+                                Button(
+                                    onClick = { /* Approve action - implement later */ },
+                                    modifier = Modifier.weight(1f),
+                                    contentPadding = PaddingValues(vertical = 10.dp)
+                                ) {
+                                    Text("Approve", style = MaterialTheme.typography.labelMedium)
+                                }
+                            }
+                        }
+                        ReservationStatus.BOOKED_ACCEPTED -> {
+                            // Upcoming - show Start button for session
+                            Button(
+                                onClick = { /* Start session - implement later */ },
+                                modifier = Modifier.fillMaxWidth(),
+                                contentPadding = PaddingValues(vertical = 12.dp)
+                            ) {
+                                Text("Start Session", style = MaterialTheme.typography.labelMedium)
+                            }
+                        }
+                        else -> {
+                            // For other statuses (Cancelled, Served, Lapsed), no action buttons
+                        }
+                    }
                 }
             }
         }
@@ -1267,7 +1377,39 @@ private fun ActivityItem(
                     fontSize = 11.sp
                 ),
                 modifier = Modifier.padding(top = 2.dp)
-            )
-        }
-    }
-}
+                )
+                }
+                }
+                }
+
+                @Composable
+                private fun DetailRow(
+                icon: androidx.compose.ui.graphics.vector.ImageVector,
+                label: String,
+                value: String
+                ) {
+                Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically
+                ) {
+                Icon(
+                imageVector = icon,
+                contentDescription = label,
+                tint = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.size(20.dp)
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+                Text(
+                text = "$label:",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+                Text(
+                text = value,
+                style = MaterialTheme.typography.bodyMedium,
+                fontWeight = FontWeight.Medium,
+                modifier = Modifier.weight(1f)
+                )
+                }
+                }
