@@ -207,3 +207,15 @@ data class ServicesByCategoryDTO(
     val mainCategory: MainCategory,
     val services: List<TypeOfServiceDTO>
 )
+
+@Serializable
+data class UpdateStorePayload(
+    val name: String,
+    val username: String,
+    val noOfExperts: Int = 0,
+    val ratings: Double = 5.0,
+    val badge: Badge = Badge.SILVER,
+    val discount: Double = 0.0,
+    val location: LocationDTO? = null,
+    val servicesOffered: List<String> = emptyList()
+)

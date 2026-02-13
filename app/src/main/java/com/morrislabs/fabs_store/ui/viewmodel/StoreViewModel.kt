@@ -11,6 +11,7 @@ import com.morrislabs.fabs_store.data.model.FetchStoreResponse
 import com.morrislabs.fabs_store.data.model.LocationDTO
 import com.morrislabs.fabs_store.data.model.ReservationWithPaymentDTO
 import com.morrislabs.fabs_store.data.model.TypeOfServiceDTO
+import com.morrislabs.fabs_store.data.model.UpdateStorePayload
 import com.morrislabs.fabs_store.data.repository.ReservationRepository
 import com.morrislabs.fabs_store.util.TokenManager
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -34,6 +35,9 @@ class StoreViewModel(application: Application) : AndroidViewModel(application) {
 
     private val _createStoreState = MutableStateFlow<CreateStoreState>(CreateStoreState.Idle)
     val createStoreState: StateFlow<CreateStoreState> = _createStoreState.asStateFlow()
+
+    private val _updateStoreState = MutableStateFlow<UpdateStoreState>(UpdateStoreState.Idle)
+    val updateStoreState: StateFlow<UpdateStoreState> = _updateStoreState.asStateFlow()
 
     private val _reservationsState = MutableStateFlow<LoadingState<List<ReservationWithPaymentDTO>>>(LoadingState.Idle)
     val reservationsState: StateFlow<LoadingState<List<ReservationWithPaymentDTO>>> = _reservationsState.asStateFlow()
@@ -212,6 +216,27 @@ class StoreViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
+    fun updateStore(storeId: String, payload: UpdateStorePayload) {
+        _updateStoreState.value = UpdateStoreState.Loading
+
+        viewModelScope.launch {
+            Log.d(TAG, "Updating store: $storeId")
+
+            storeApiService.updateStore(storeId, payload)
+                .onSuccess { updatedId ->
+                    Log.d(TAG, "Store updated successfully: $updatedId")
+                    _updateStoreState.value = UpdateStoreState.Success(updatedId)
+                    // Refresh store data after successful update
+                    fetchUserStore()
+                }
+                .onFailure { error ->
+                    val errorMessage = error.message ?: "Unknown error"
+                    Log.e(TAG, "Update store failed: $errorMessage", error)
+                    _updateStoreState.value = UpdateStoreState.Error(errorMessage)
+                }
+        }
+    }
+
     fun resetStoreState() {
         _storeState.value = StoreState.Idle
     }
@@ -252,5 +277,12 @@ class StoreViewModel(application: Application) : AndroidViewModel(application) {
         data object Loading : LoadingState<Nothing>()
         data class Success<T>(val data: T) : LoadingState<T>()
         data class Error<T>(val message: String) : LoadingState<T>()
+    }
+
+    sealed class UpdateStoreState {
+        data object Idle : UpdateStoreState()
+        data object Loading : UpdateStoreState()
+        data class Success(val storeId: String) : UpdateStoreState()
+        data class Error(val message: String) : UpdateStoreState()
     }
 }

@@ -27,8 +27,13 @@ import com.morrislabs.fabs_store.ui.screens.RegisterScreen
 import com.morrislabs.fabs_store.ui.screens.ReservationsScreen
 import com.morrislabs.fabs_store.ui.screens.ServicesScreen
 import com.morrislabs.fabs_store.ui.screens.SettingsScreen
+import com.morrislabs.fabs_store.ui.screens.StoreProfileEditorScreen
 import com.morrislabs.fabs_store.ui.theme.FabsstoreTheme
 import com.morrislabs.fabs_store.ui.viewmodel.AuthViewModel
+import com.morrislabs.fabs_store.util.AuthenticationStateListener
+import com.morrislabs.fabs_store.util.ClientConfig
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.runBlocking
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -52,6 +57,19 @@ fun StoreApp(
 
     LaunchedEffect(Unit) {
         isLoggedIn = authViewModel.isLoggedIn()
+        
+        // Register auth state listener for session expiration
+        ClientConfig.authStateListener = AuthenticationStateListener {
+            // User session has expired - log them out
+            // This callback may be invoked from background network thread, must switch to Main dispatcher
+            runBlocking(Dispatchers.Main) {
+                authViewModel.logout()
+                isLoggedIn = false
+                navController.navigate("login") {
+                    popUpTo("home") { inclusive = true }
+                }
+            }
+        }
     }
 
     NavHost(
@@ -96,6 +114,7 @@ fun StoreApp(
                 onNavigateToEmployees = { navController.navigate("employees") },
                 onNavigateToServices = { navController.navigate("services") },
                 onNavigateToSettings = { navController.navigate("settings") },
+                onNavigateToStoreProfile = { navController.navigate("store_profile_editor") },
                 onNavigateToCreateStore = { navController.navigate("create_store") },
                 onLogout = {
                     authViewModel.logout()
@@ -104,6 +123,16 @@ fun StoreApp(
                     navController.navigate("login") {
                         popUpTo("home") { inclusive = true }
                     }
+                }
+            )
+        }
+
+        composable("store_profile_editor") {
+            StoreProfileEditorScreen(
+                onNavigateBack = { navController.popBackStack() },
+                onNavigateToEditLocation = {
+                    // This would navigate to a dedicated location editor if needed
+                    // For now, location editing is handled within the profile editor
                 }
             )
         }

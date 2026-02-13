@@ -104,6 +104,7 @@ fun HomeScreen(
     onNavigateToEmployees: () -> Unit = {},
     onNavigateToServices: () -> Unit = {},
     onNavigateToSettings: () -> Unit = {},
+    onNavigateToStoreProfile: () -> Unit = {},
     onNavigateToCreateStore: () -> Unit = {},
     onLogout: () -> Unit = {},
     storeViewModel: StoreViewModel = viewModel()
@@ -114,7 +115,7 @@ fun HomeScreen(
     var selectedTabIndex by rememberSaveable { mutableIntStateOf(0) }
     var selectedReservationFilter by rememberSaveable { mutableStateOf(ReservationFilter.PENDING_APPROVAL) }
     var storeId by rememberSaveable { mutableStateOf("") }
-    val tabs = listOf("Reservations", "Employees", "Services", "Reviews")
+    val tabs = listOf("Reservations", "Experts", "Services", "Reviews")
 
     // Create scroll behavior for collapsing toolbar
     val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
@@ -159,7 +160,7 @@ fun HomeScreen(
                         ) {
                             Column {
                                 StoreCoverHeader(store)
-                                StoreProfileInfo(store)
+                                StoreProfileInfo(store, onNavigateToStoreProfile)
                             }
                         }
 
@@ -287,7 +288,7 @@ fun HomeScreen(
                                     .verticalScroll(rememberScrollState())
                             ) {
                                 when (selectedTabIndex) {
-                                    1 -> TabContent("Employees coming soon", onNavigateToEmployees)
+                                    1 -> TabContent("Experts coming soon", onNavigateToEmployees)
                                     2 -> TabContent("Services coming soon", onNavigateToServices)
                                     3 -> TabContent("Reviews coming soon", {})
                                     else -> {}
@@ -439,7 +440,8 @@ private fun StoreCoverHeader(
 
 @Composable
 private fun StoreProfileInfo(
-    store: com.morrislabs.fabs_store.data.model.FetchStoreResponse
+    store: com.morrislabs.fabs_store.data.model.FetchStoreResponse,
+    onNavigateToStoreProfile: () -> Unit = {}
 ) {
     Column(
         modifier = Modifier
@@ -545,7 +547,7 @@ private fun StoreProfileInfo(
             }
 
             OutlinedButton(
-                onClick = { /* Edit location - implement later */ },
+                onClick = onNavigateToStoreProfile,
                 modifier = Modifier.weight(1f),
                 contentPadding = PaddingValues(vertical = 8.dp)
             ) {
@@ -555,7 +557,7 @@ private fun StoreProfileInfo(
                     modifier = Modifier.size(16.dp)
                 )
                 Spacer(modifier = Modifier.width(4.dp))
-                Text("Edit Location")
+                Text("Edit Profile")
             }
         }
     }
@@ -1227,7 +1229,7 @@ private fun ManagementCardsSection(
         )
 
         ManagementCard(
-            title = "Employees",
+            title = "Experts",
             description = "Manage team members and schedules",
             icon = Icons.Default.People,
             onClick = onNavigateToEmployees,
