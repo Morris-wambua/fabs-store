@@ -26,6 +26,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Event
 import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material.icons.filled.Logout
@@ -45,6 +46,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.ScrollableTabRow
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Tab
 import androidx.compose.material3.TabRow
 import androidx.compose.material3.TabRowDefaults
@@ -72,7 +74,9 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.morrislabs.fabs_store.data.model.ReservationWithPaymentDTO
 import com.morrislabs.fabs_store.ui.viewmodel.StoreViewModel
+import java.time.format.DateTimeFormatter
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -86,6 +90,7 @@ fun HomeScreen(
     storeViewModel: StoreViewModel = viewModel()
 ) {
     val storeState by storeViewModel.storeState.collectAsState()
+    val reservationsState by storeViewModel.reservationsState.collectAsState()
     var selectedTabIndex by rememberSaveable { mutableIntStateOf(0) }
     val tabs = listOf("Reservations", "Employees", "Services", "Reviews")
 
@@ -173,7 +178,28 @@ fun HomeScreen(
                                 .verticalScroll(rememberScrollState())
                         ) {
                             when (selectedTabIndex) {
-                                0 -> TabContent("Reservations coming soon", onNavigateToReservations)
+                                0 -> {
+                                    when (reservationsState) {
+                                        is StoreViewModel.LoadingState.Loading -> {
+                                            Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                                                CircularProgressIndicator()
+                                            }
+                                        }
+                                        is StoreViewModel.LoadingState.Success -> {
+                                            val reservations = (reservationsState as StoreViewModel.LoadingState.Success).data
+                                            ReservationsTab(reservations)
+                                        }
+                                        is StoreViewModel.LoadingState.Error -> {
+                                            val errorMsg = (reservationsState as StoreViewModel.LoadingState.Error).message
+                                            Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                                                Text("Error: $errorMsg", style = MaterialTheme.typography.bodyLarge)
+                                            }
+                                        }
+                                        else -> {
+                                            TabContent("No reservations yet", onNavigateToReservations)
+                                        }
+                                    }
+                                }
                                 1 -> TabContent("Employees coming soon", onNavigateToEmployees)
                                 2 -> TabContent("Services coming soon", onNavigateToServices)
                                 3 -> TabContent("Reviews coming soon", {})
@@ -246,18 +272,28 @@ private fun StoreCollapsingTopAppBar(
 
     TopAppBar(
         title = {
-            // Only show the title when the toolbar is collapsed
-            AnimatedVisibility(
-                visible = collapsedFraction > 0.5f,
-                enter = fadeIn(),
-                exit = fadeOut()
-            ) {
+            // Show "Store" when expanded, store name when collapsed
+            if (collapsedFraction < 0.5f) {
                 Text(
-                    text = title,
-                    style = MaterialTheme.typography.titleMedium,
+                    text = "Store",
+                    style = MaterialTheme.typography.headlineSmall,
+                    fontWeight = FontWeight.Bold,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
                 )
+            } else {
+                AnimatedVisibility(
+                    visible = collapsedFraction > 0.5f,
+                    enter = fadeIn(),
+                    exit = fadeOut()
+                ) {
+                    Text(
+                        text = title,
+                        style = MaterialTheme.typography.titleMedium,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                }
             }
         },
         actions = {
@@ -335,12 +371,12 @@ private fun StoreProfileInfo(
         // Quick stats row
         Row(
             modifier = Modifier.padding(vertical = 8.dp),
-            verticalAlignment = Alignment.CenterVertically
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(16.dp)
         ) {
             // Rating
             Row(
-                verticalAlignment = Alignment.CenterVertically,
-                modifier = Modifier.padding(end = 16.dp)
+                verticalAlignment = Alignment.CenterVertically
             ) {
                 Icon(
                     Icons.Default.Star,
@@ -375,6 +411,27 @@ private fun StoreProfileInfo(
                     )
                 }
             }
+
+            // Experts count
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(4.dp)
+            ) {
+                Text(
+                    text = "${store.noOfExperts}",
+                    style = MaterialTheme.typography.bodyMedium,
+                    fontWeight = FontWeight.Bold
+                )
+                Icon(
+                    Icons.Default.People,
+                    contentDescription = "Experts",
+                    modifier = Modifier.size(16.dp)
+                )
+                Text(
+                    text = "Experts",
+                    style = MaterialTheme.typography.bodyMedium
+                )
+            }
         }
 
         // Quick action buttons
@@ -384,20 +441,6 @@ private fun StoreProfileInfo(
                 .padding(vertical = 8.dp),
             horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            OutlinedButton(
-                onClick = { /* Follow */ },
-                modifier = Modifier.weight(1f),
-                contentPadding = PaddingValues(vertical = 8.dp)
-            ) {
-                Icon(
-                    Icons.Default.Add,
-                    contentDescription = null,
-                    modifier = Modifier.size(16.dp)
-                )
-                Spacer(modifier = Modifier.width(4.dp))
-                Text("Follow")
-            }
-
             OutlinedButton(
                 onClick = { /* Message */ },
                 modifier = Modifier.weight(1f),
@@ -413,17 +456,17 @@ private fun StoreProfileInfo(
             }
 
             OutlinedButton(
-                onClick = { /* Directions */ },
+                onClick = { /* Edit location - implement later */ },
                 modifier = Modifier.weight(1f),
                 contentPadding = PaddingValues(vertical = 8.dp)
             ) {
                 Icon(
-                    Icons.Default.LocationOn,
+                    Icons.Default.Edit,
                     contentDescription = null,
                     modifier = Modifier.size(16.dp)
                 )
                 Spacer(modifier = Modifier.width(4.dp))
-                Text("Directions")
+                Text("Edit Location")
             }
         }
     }
@@ -436,6 +479,147 @@ private fun TabContent(
 ) {
     Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
         Text(text, style = MaterialTheme.typography.bodyLarge)
+    }
+}
+
+@Composable
+private fun ReservationsTab(
+    reservations: List<ReservationWithPaymentDTO>
+) {
+    if (reservations.isEmpty()) {
+        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+            Text("No reservations", style = MaterialTheme.typography.bodyLarge)
+        }
+        return
+    }
+
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(16.dp)
+    ) {
+        reservations.forEach { reservation ->
+            ReservationRow(reservation)
+            Spacer(modifier = Modifier.height(12.dp))
+        }
+    }
+}
+
+@Composable
+private fun ReservationRow(
+    reservation: ReservationWithPaymentDTO
+) {
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 4.dp),
+        shape = RoundedCornerShape(8.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surface
+        )
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(12.dp)
+        ) {
+            // First row: Name and Status
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(bottom = 8.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = reservation.name,
+                    style = MaterialTheme.typography.titleSmall,
+                    fontWeight = FontWeight.Bold,
+                    modifier = Modifier.weight(1f)
+                )
+                StatusBadge(reservation.status.name)
+            }
+
+            // Second row: Date/Time and Price
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(bottom = 8.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = "Date: ${reservation.reservationDate}",
+                        style = MaterialTheme.typography.bodySmall
+                    )
+                    Text(
+                        text = "Time: ${reservation.startTime} - ${reservation.endTime}",
+                        style = MaterialTheme.typography.bodySmall
+                    )
+                }
+                Text(
+                    text = "KES ${reservation.price}",
+                    style = MaterialTheme.typography.bodyMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.primary
+                )
+            }
+
+            // Third row: Action buttons
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                OutlinedButton(
+                    onClick = { /* Reject action - implement later */ },
+                    modifier = Modifier.weight(1f),
+                    contentPadding = PaddingValues(vertical = 6.dp)
+                ) {
+                    Text("Reject", style = MaterialTheme.typography.labelSmall)
+                }
+                Button(
+                    onClick = { /* Approve action - implement later */ },
+                    modifier = Modifier.weight(1f),
+                    contentPadding = PaddingValues(vertical = 6.dp)
+                ) {
+                    Text("Approve", style = MaterialTheme.typography.labelSmall)
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun StatusBadge(
+    status: String
+) {
+    val backgroundColor = when {
+        status.contains("PENDING") -> MaterialTheme.colorScheme.tertiaryContainer
+        status.contains("ACCEPTED") -> MaterialTheme.colorScheme.primaryContainer
+        status.contains("REJECTED") || status.contains("CANCELLED") -> MaterialTheme.colorScheme.errorContainer
+        else -> MaterialTheme.colorScheme.surfaceVariant
+    }
+
+    val textColor = when {
+        status.contains("PENDING") -> MaterialTheme.colorScheme.onTertiaryContainer
+        status.contains("ACCEPTED") -> MaterialTheme.colorScheme.onPrimaryContainer
+        status.contains("REJECTED") || status.contains("CANCELLED") -> MaterialTheme.colorScheme.onErrorContainer
+        else -> MaterialTheme.colorScheme.onSurfaceVariant
+    }
+
+    Surface(
+        modifier = Modifier.padding(4.dp),
+        shape = RoundedCornerShape(4.dp),
+        color = backgroundColor
+    ) {
+        Text(
+            text = status.replace("_", " "),
+            style = MaterialTheme.typography.labelSmall,
+            color = textColor,
+            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+        )
     }
 }
 

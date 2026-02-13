@@ -9,7 +9,9 @@ import com.morrislabs.fabs_store.data.api.StoreApiService
 import com.morrislabs.fabs_store.data.model.CreateStorePayload
 import com.morrislabs.fabs_store.data.model.FetchStoreResponse
 import com.morrislabs.fabs_store.data.model.LocationDTO
+import com.morrislabs.fabs_store.data.model.ReservationWithPaymentDTO
 import com.morrislabs.fabs_store.data.model.TypeOfServiceDTO
+import com.morrislabs.fabs_store.data.repository.ReservationRepository
 import com.morrislabs.fabs_store.util.TokenManager
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -25,12 +27,16 @@ class StoreViewModel(application: Application) : AndroidViewModel(application) {
     private val tokenManager = TokenManager.getInstance(context)
     private val storeApiService = StoreApiService(context, tokenManager)
     private val setupApiService = SetupApiService(context)
+    private val reservationRepository = ReservationRepository(context, tokenManager)
 
     private val _storeState = MutableStateFlow<StoreState>(StoreState.Idle)
     val storeState: StateFlow<StoreState> = _storeState.asStateFlow()
 
     private val _createStoreState = MutableStateFlow<CreateStoreState>(CreateStoreState.Idle)
     val createStoreState: StateFlow<CreateStoreState> = _createStoreState.asStateFlow()
+
+    private val _reservationsState = MutableStateFlow<LoadingState<List<ReservationWithPaymentDTO>>>(LoadingState.Idle)
+    val reservationsState: StateFlow<LoadingState<List<ReservationWithPaymentDTO>>> = _reservationsState.asStateFlow()
 
     // Setup wizard states
     private val _servicesState = MutableStateFlow<LoadingState<List<TypeOfServiceDTO>>>(LoadingState.Idle)
@@ -59,6 +65,8 @@ class StoreViewModel(application: Application) : AndroidViewModel(application) {
                 .onSuccess { store ->
                     Log.d(TAG, "Store fetched successfully: ${store.name}")
                     _storeState.value = StoreState.Success(store)
+                    // Fetch reservations for this store
+                    fetchReservations(store.id ?: "")
                 }
                 .onFailure { error ->
                     val errorMessage = error.message ?: "Unknown error"
@@ -75,6 +83,25 @@ class StoreViewModel(application: Application) : AndroidViewModel(application) {
                             StoreState.Error.UnknownError(errorMessage)
                         }
                     }
+                }
+        }
+    }
+
+    fun fetchReservations(storeId: String) {
+        _reservationsState.value = LoadingState.Loading
+
+        viewModelScope.launch {
+            Log.d(TAG, "Fetching reservations for store: $storeId")
+
+            reservationRepository.fetchStoreReservations(storeId)
+                .onSuccess { reservations ->
+                    Log.d(TAG, "Reservations fetched: ${reservations.size} items")
+                    _reservationsState.value = LoadingState.Success(reservations)
+                }
+                .onFailure { error ->
+                    val errorMessage = error.message ?: "Failed to fetch reservations"
+                    Log.e(TAG, "Fetch reservations failed: $errorMessage", error)
+                    _reservationsState.value = LoadingState.Error(errorMessage)
                 }
         }
     }
