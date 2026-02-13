@@ -8,7 +8,12 @@ import com.morrislabs.fabs_store.util.TokenManager
 class ReservationRepository(context: Context, tokenManager: TokenManager) {
     private val reservationApiService = ReservationApiService(context, tokenManager)
 
-    suspend fun fetchStoreReservations(storeId: String): Result<List<ReservationWithPaymentDTO>> {
-        return reservationApiService.fetchStoreReservations(storeId)
+    suspend fun fetchStoreReservations(
+        storeId: String,
+        filterStatus: String = "ALL",
+        pageNumber: Int = 0,
+        pageSize: Int = 20
+    ): Result<List<ReservationWithPaymentDTO>> {
+        return reservationApiService.fetchStoreReservations(storeId, filterStatus, pageNumber, pageSize)
     }
 }

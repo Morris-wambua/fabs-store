@@ -12,6 +12,8 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -40,6 +42,7 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -59,6 +62,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -74,8 +78,11 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.morrislabs.fabs_store.data.model.ReservationFilter
+import com.morrislabs.fabs_store.data.model.ReservationStatus
 import com.morrislabs.fabs_store.data.model.ReservationWithPaymentDTO
 import com.morrislabs.fabs_store.ui.viewmodel.StoreViewModel
+import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -92,6 +99,8 @@ fun HomeScreen(
     val storeState by storeViewModel.storeState.collectAsState()
     val reservationsState by storeViewModel.reservationsState.collectAsState()
     var selectedTabIndex by rememberSaveable { mutableIntStateOf(0) }
+    var selectedReservationFilter by rememberSaveable { mutableStateOf(ReservationFilter.PENDING_APPROVAL) }
+    var storeId by rememberSaveable { mutableStateOf("") }
     val tabs = listOf("Reservations", "Employees", "Services", "Reviews")
 
     // Create scroll behavior for collapsing toolbar
@@ -112,6 +121,7 @@ fun HomeScreen(
             }
             is StoreViewModel.StoreState.Success -> {
                 val store = (storeState as StoreViewModel.StoreState.Success).data
+                storeId = store.id ?: ""
 
                 Scaffold(
                     modifier = Modifier.nestedScroll(scrollBehavior.nestedScrollConnection),
@@ -187,7 +197,23 @@ fun HomeScreen(
                                         }
                                         is StoreViewModel.LoadingState.Success -> {
                                             val reservations = (reservationsState as StoreViewModel.LoadingState.Success).data
-                                            ReservationsTab(reservations)
+                                            ReservationsTab(
+                                                reservations = reservations,
+                                                selectedFilter = selectedReservationFilter,
+                                                onFilterChange = { newFilter ->
+                                                    selectedReservationFilter = newFilter
+                                                    // Fetch reservations with new filter
+                                                    val filterStatus = when (newFilter) {
+                                                        ReservationFilter.PENDING_APPROVAL -> "BOOKED_PENDING_ACCEPTANCE"
+                                                        ReservationFilter.UPCOMING -> "BOOKED_ACCEPTED"
+                                                        ReservationFilter.CANCELLED -> "CANCELLED"
+                                                        ReservationFilter.COMPLETED -> "SERVED"
+                                                        ReservationFilter.LAPSED_PAID -> "LAPSED_PAID"
+                                                        ReservationFilter.LAPSED_NOT_ACCEPTED -> "LAPSED_NOT_ACCEPTED"
+                                                    }
+                                                    storeViewModel.fetchReservations(storeId, filterStatus)
+                                                }
+                                            )
                                         }
                                         is StoreViewModel.LoadingState.Error -> {
                                             val errorMsg = (reservationsState as StoreViewModel.LoadingState.Error).message
@@ -484,23 +510,60 @@ private fun TabContent(
 
 @Composable
 private fun ReservationsTab(
-    reservations: List<ReservationWithPaymentDTO>
+    reservations: List<ReservationWithPaymentDTO>,
+    selectedFilter: ReservationFilter = ReservationFilter.PENDING_APPROVAL,
+    onFilterChange: (ReservationFilter) -> Unit = {}
 ) {
-    if (reservations.isEmpty()) {
-        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-            Text("No reservations", style = MaterialTheme.typography.bodyLarge)
-        }
-        return
-    }
-
     Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(16.dp)
+        modifier = Modifier.fillMaxSize()
     ) {
-        reservations.forEach { reservation ->
-            ReservationRow(reservation)
-            Spacer(modifier = Modifier.height(12.dp))
+        // Filter chips row
+        ReservationFilterRow(
+            selectedFilter = selectedFilter,
+            onFilterChange = onFilterChange,
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 12.dp)
+        )
+
+        // Reservations list
+        if (reservations.isEmpty()) {
+            Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                Text("No ${selectedFilter.displayName.lowercase()} reservations", style = MaterialTheme.typography.bodyLarge)
+            }
+        } else {
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(16.dp)
+            ) {
+                reservations.forEach { reservation ->
+                    ReservationRow(reservation)
+                    Spacer(modifier = Modifier.height(12.dp))
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun ReservationFilterRow(
+    selectedFilter: ReservationFilter,
+    onFilterChange: (ReservationFilter) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    LazyRow(
+        modifier = modifier,
+        horizontalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        items(ReservationFilter.entries.size) { index ->
+            val filter = ReservationFilter.entries[index]
+            FilterChip(
+                selected = selectedFilter == filter,
+                onClick = { onFilterChange(filter) },
+                label = { Text(filter.displayName, style = MaterialTheme.typography.labelSmall) },
+                shape = RoundedCornerShape(8.dp)
+            )
         }
     }
 }

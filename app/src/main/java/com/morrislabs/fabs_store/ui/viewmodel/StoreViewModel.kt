@@ -87,13 +87,13 @@ class StoreViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    fun fetchReservations(storeId: String) {
+    fun fetchReservations(storeId: String, filterStatus: String = "ALL", pageNumber: Int = 0, pageSize: Int = 20) {
         _reservationsState.value = LoadingState.Loading
 
         viewModelScope.launch {
-            Log.d(TAG, "Fetching reservations for store: $storeId")
+            Log.d(TAG, "Fetching reservations for store: $storeId (filter: $filterStatus, page: $pageNumber, size: $pageSize)")
 
-            reservationRepository.fetchStoreReservations(storeId)
+            reservationRepository.fetchStoreReservations(storeId, filterStatus, pageNumber, pageSize)
                 .onSuccess { reservations ->
                     Log.d(TAG, "Reservations fetched: ${reservations.size} items")
                     _reservationsState.value = LoadingState.Success(reservations)

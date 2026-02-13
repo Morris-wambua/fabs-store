@@ -8,6 +8,7 @@ import com.morrislabs.fabs_store.util.ClientConfig
 import com.morrislabs.fabs_store.util.TokenManager
 import io.ktor.client.plugins.ClientRequestException
 import io.ktor.client.request.get
+import io.ktor.client.request.parameter
 import io.ktor.client.statement.bodyAsText
 import kotlinx.serialization.json.Json
 
@@ -18,13 +19,22 @@ class ReservationApiService(private val context: Context, private val tokenManag
     private val baseUrl = AppConfig.Api.BASE_URL
     private val clientConfig = ClientConfig()
 
-    suspend fun fetchStoreReservations(storeId: String): Result<List<ReservationWithPaymentDTO>> {
+    suspend fun fetchStoreReservations(
+        storeId: String,
+        filterStatus: String = "ALL",
+        pageNumber: Int = 0,
+        pageSize: Int = 20
+    ): Result<List<ReservationWithPaymentDTO>> {
         return try {
             val client = clientConfig.createAuthenticatedClient(context, tokenManager)
 
-            val response = client.get("$baseUrl/api/reservations/store/$storeId")
+            val response = client.get("$baseUrl/api/reservations/store/$storeId") {
+                parameter("status", filterStatus)
+                parameter("page", pageNumber)
+                parameter("size", pageSize)
+            }
 
-            Log.d(TAG, "Fetching reservations for store: $storeId")
+            Log.d(TAG, "Fetching reservations for store: $storeId (filter: $filterStatus, page: $pageNumber, size: $pageSize)")
 
             val responseText = response.bodyAsText()
             Log.d(TAG, "Fetch reservations response: $responseText")

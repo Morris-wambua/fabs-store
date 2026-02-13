@@ -4,7 +4,11 @@ import kotlinx.serialization.Serializable
 
 @Serializable
 enum class ReservationStatus {
-    BOOKED_PENDING_ACCEPTANCE, BOOKED_ACCEPTED, IN_PROGRESS, CANCELLED, SERVED
+    BOOKED_PENDING_ACCEPTANCE,
+    BOOKED_ACCEPTED,
+    IN_PROGRESS,
+    CANCELLED,
+    SERVED
 }
 
 @Serializable
@@ -24,3 +28,12 @@ data class ReservationWithPaymentDTO(
     val reservationExpert: String = "",
     val reservationExpertName: String = ""
 )
+
+enum class ReservationFilter(val displayName: String) {
+    PENDING_APPROVAL("Pending Approval"),
+    UPCOMING("Upcoming"),
+    CANCELLED("Cancelled"),
+    COMPLETED("Completed"),
+    LAPSED_PAID("Lapsed & Paid"),
+    LAPSED_NOT_ACCEPTED("Lapsed & Not Accepted")
+}
