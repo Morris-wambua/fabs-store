@@ -211,6 +211,7 @@ data class ServicesByCategoryDTO(
 @Serializable
 data class UpdateStorePayload(
     val name: String,
+    val description: String,
     val username: String,
     val noOfExperts: Int = 0,
     val ratings: Double = 5.0,
@@ -218,4 +219,39 @@ data class UpdateStorePayload(
     val discount: Double = 0.0,
     val location: LocationDTO? = null,
     val servicesOffered: List<String> = emptyList()
+)
+
+@Serializable
+enum class PostType {
+    IMAGE, VIDEO
+}
+
+@Serializable
+data class MediaS3Data(
+    val url: String,
+    val key: String,
+    val mediaType: PostType
+)
+
+@Serializable
+data class StorePostPayload(
+    val caption: String,
+    val type: PostType,
+    val mediaS3Data: MediaS3Data,
+    val storeId: String
+)
+
+@Serializable
+data class StorePostDTO(
+    val id: String? = null,
+    val caption: String,
+    val type: PostType,
+    val mediaUrl: String,
+    val mediaKey: String,
+    val storeId: String,
+    val storeName: String,
+    val createdAt: String? = null,
+    val updatedAt: String? = null,
+    val likes: Int = 0,
+    val comments: Int = 0
 )

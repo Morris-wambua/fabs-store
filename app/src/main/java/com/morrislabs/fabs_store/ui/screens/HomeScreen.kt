@@ -153,16 +153,16 @@ fun HomeScreen(
                             .padding(paddingValues)
                     ) {
                         // Store Hero Section - Animates based on scroll
-                        AnimatedVisibility(
-                            visible = scrollBehavior.state.collapsedFraction < 0.9f,
-                            enter = fadeIn() + expandVertically(),
-                            exit = fadeOut() + shrinkVertically()
-                        ) {
-                            Column {
-                                StoreCoverHeader(store)
-                                StoreProfileInfo(store, onNavigateToStoreProfile)
-                            }
-                        }
+                         AnimatedVisibility(
+                             visible = scrollBehavior.state.collapsedFraction < 0.9f,
+                             enter = fadeIn() + expandVertically(),
+                             exit = fadeOut() + shrinkVertically()
+                         ) {
+                             Column {
+                                 StoreCoverHeader(store, onNavigateToStoreProfile)
+                                 StoreProfileInfo(store, onNavigateToStoreProfile)
+                             }
+                         }
 
                         // Tab Row
                         ScrollableTabRow(
@@ -419,7 +419,8 @@ private fun LoadingScreen() {
 
 @Composable
 private fun StoreCoverHeader(
-    store: com.morrislabs.fabs_store.data.model.FetchStoreResponse
+    store: com.morrislabs.fabs_store.data.model.FetchStoreResponse,
+    onNavigateToStoreProfile: () -> Unit = {}
 ) {
     Box(
         modifier = Modifier
@@ -435,6 +436,21 @@ private fun StoreCoverHeader(
             modifier = Modifier.size(80.dp),
             tint = MaterialTheme.colorScheme.primary
         )
+        
+        // Edit button in top right corner
+        IconButton(
+            onClick = onNavigateToStoreProfile,
+            modifier = Modifier
+                .align(Alignment.TopEnd)
+                .padding(8.dp)
+        ) {
+            Icon(
+                imageVector = Icons.Default.Edit,
+                contentDescription = "Edit Cover Picture",
+                tint = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.size(24.dp)
+            )
+        }
     }
 }
 

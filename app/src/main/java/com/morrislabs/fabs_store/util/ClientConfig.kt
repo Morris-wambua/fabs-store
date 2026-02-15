@@ -145,8 +145,7 @@ class ClientConfig {
                             authStateListener?.onSessionExpired()
                             throw io.ktor.client.plugins.ClientRequestException(response, "Authentication failed. Your session may have expired.")
                         } else {
-                            // Have refresh token - let Auth plugin attempt refresh just like 401
-                            // The Auth plugin checks for 401 in the response handler, so we need to manually trigger refresh here
+                            // Have refresh token - attempt refresh in case token is expired
                             Log.d("ClientConfig", "HTTP 403 received - attempting token refresh")
                             try {
                                 val authService = com.morrislabs.fabs_store.data.api.AuthApiService()
@@ -172,9 +171,9 @@ class ClientConfig {
                             // Rethrow so request fails and user can retry
                             throw io.ktor.client.plugins.ClientRequestException(response, "Forbidden - token refresh attempted")
                         }
-                    } else if (!response.status.isSuccess()) {
-                        throw io.ktor.client.plugins.ClientRequestException(response, "HTTP Error: ${response.status}")
                     }
+                    // Only throw for auth errors (401/403), not for other errors like 400/404/500
+                    // Other errors should be handled by the caller
                 }
             }
 

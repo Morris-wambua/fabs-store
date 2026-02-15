@@ -70,6 +70,7 @@ fun StoreProfileEditorScreen(
     
     // Form state
     var storeName by remember { mutableStateOf("") }
+    var storeUsername by remember { mutableStateOf("") }
     var storeDescription by remember { mutableStateOf("") }
     var openingHours by remember { mutableStateOf("") }
     var closingHours by remember { mutableStateOf("") }
@@ -87,6 +88,8 @@ fun StoreProfileEditorScreen(
                 storeData = store
                 if (storeName.isEmpty()) {
                     storeName = store.name
+                    storeUsername = store.username
+                    storeDescription = "" // Will be loaded from backend description field if available
                 }
             }
             else -> {}
@@ -137,23 +140,19 @@ fun StoreProfileEditorScreen(
                 // Store Basic Info Section
                 StoreBasicInfoSection(
                     storeName = storeName.ifEmpty { storeData!!.name },
+                    storeUsername = storeUsername.ifEmpty { storeData!!.username },
                     storeDescription = storeDescription,
                     isEditing = isEditing,
                     onNameChange = { storeName = it },
+                    onUsernameChange = { storeUsername = it },
                     onDescriptionChange = { storeDescription = it }
                 )
 
                 Spacer(modifier = Modifier.height(24.dp))
 
-                // Cover Photo Section
-                StoreCoverPhotoSection(
-                    isEditing = isEditing
-                )
-
-                Spacer(modifier = Modifier.height(24.dp))
-
-                // Gallery Section
-                StoreGallerySection(
+                // Store Posts Section
+                StorePostsSection(
+                    storeId = storeData?.id ?: "",
                     isEditing = isEditing
                 )
 
@@ -194,14 +193,18 @@ fun StoreProfileEditorScreen(
                 isSaving = isSaving,
                 onSave = {
                     if (storeData != null) {
+                        val locationPayload = storeData!!.locationDTO?.copy(
+                            description = storeData!!.locationDTO!!.description ?: ""
+                        )
                         val updatePayload = UpdateStorePayload(
-                            name = storeName,
-                            username = storeData!!.username,
+                            name = storeName.ifEmpty { storeData!!.name },
+                            description = storeDescription.ifEmpty { "" },
+                            username = storeUsername.ifEmpty { storeData!!.username },
                             noOfExperts = storeData!!.noOfExperts,
                             ratings = storeData!!.ratings,
                             badge = storeData!!.badge,
                             discount = storeData!!.discount,
-                            location = storeData!!.locationDTO,
+                            location = locationPayload,
                             servicesOffered = emptyList()
                         )
                         storeViewModel.updateStore(storeData!!.id ?: "", updatePayload)
@@ -212,6 +215,7 @@ fun StoreProfileEditorScreen(
                     // Reset form
                     if (storeData != null) {
                         storeName = storeData!!.name
+                        storeUsername = storeData!!.username
                     }
                     storeDescription = ""
                     openingHours = ""
@@ -229,9 +233,11 @@ fun StoreProfileEditorScreen(
 @Composable
 private fun StoreBasicInfoSection(
     storeName: String,
+    storeUsername: String,
     storeDescription: String,
     isEditing: Boolean,
     onNameChange: (String) -> Unit,
+    onUsernameChange: (String) -> Unit,
     onDescriptionChange: (String) -> Unit
 ) {
     Column {
@@ -259,19 +265,32 @@ private fun StoreBasicInfoSection(
                     Spacer(modifier = Modifier.height(12.dp))
 
                     OutlinedTextField(
+                        value = storeUsername,
+                        onValueChange = onUsernameChange,
+                        label = { Text("Username") },
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(8.dp)
+                    )
+
+                    Spacer(modifier = Modifier.height(12.dp))
+
+                    OutlinedTextField(
                         value = storeDescription,
                         onValueChange = onDescriptionChange,
-                        label = { Text("Description") },
+                        label = { Text("About Your Store") },
                         modifier = Modifier
                             .fillMaxWidth()
                             .height(120.dp),
                         shape = RoundedCornerShape(8.dp),
-                        maxLines = 4
+                        maxLines = 4,
+                        placeholder = { Text("Tell customers about your store, services, and specialties") }
                     )
                 } else {
                     InfoRow(label = "Store Name", value = storeName)
                     Spacer(modifier = Modifier.height(12.dp))
-                    InfoRow(label = "Description", value = storeDescription.ifEmpty { "No description" })
+                    InfoRow(label = "Username", value = storeUsername)
+                    Spacer(modifier = Modifier.height(12.dp))
+                    InfoRow(label = "About", value = storeDescription.ifEmpty { "No description" })
                 }
             }
         }
@@ -279,51 +298,12 @@ private fun StoreBasicInfoSection(
 }
 
 @Composable
-private fun StoreCoverPhotoSection(
+private fun StorePostsSection(
+    storeId: String,
     isEditing: Boolean
 ) {
-    Column {
-        SectionTitle("Cover Photo")
-
-        Card(
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(200.dp)
-                .clickable(enabled = isEditing) { /* Handle photo upload */ }
-                .background(MaterialTheme.colorScheme.surfaceVariant),
-            shape = RoundedCornerShape(12.dp),
-            colors = CardDefaults.cardColors(
-                containerColor = MaterialTheme.colorScheme.surfaceVariant
-            )
-        ) {
-            Box(
-                modifier = Modifier.fillMaxSize(),
-                contentAlignment = Alignment.Center
-            ) {
-                Column(
-                    horizontalAlignment = Alignment.CenterHorizontally
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Image,
-                        contentDescription = "Cover Photo",
-                        modifier = Modifier.size(48.dp),
-                        tint = MaterialTheme.colorScheme.primary
-                    )
-                    Spacer(modifier = Modifier.height(8.dp))
-                    Text(
-                        text = if (isEditing) "Tap to upload cover photo" else "No cover photo",
-                        style = MaterialTheme.typography.bodyMedium
-                    )
-                }
-            }
-        }
-    }
-}
-
-@Composable
-private fun StoreGallerySection(
-    isEditing: Boolean
-) {
+    var showCreatePostDialog by remember { mutableStateOf(false) }
+    
     Column {
         Row(
             modifier = Modifier
@@ -333,16 +313,16 @@ private fun StoreGallerySection(
             verticalAlignment = Alignment.CenterVertically
         ) {
             Text(
-                text = "Gallery",
+                text = "Store Posts",
                 style = MaterialTheme.typography.titleMedium.copy(
                     fontWeight = FontWeight.Bold
                 )
             )
             if (isEditing) {
-                IconButton(onClick = { /* Handle add gallery photo */ }) {
+                IconButton(onClick = { showCreatePostDialog = true }) {
                     Icon(
                         imageVector = Icons.Default.Add,
-                        contentDescription = "Add Photo",
+                        contentDescription = "Create Post",
                         tint = MaterialTheme.colorScheme.primary
                     )
                 }
@@ -352,7 +332,7 @@ private fun StoreGallerySection(
         Card(
             modifier = Modifier
                 .fillMaxWidth()
-                .height(120.dp),
+                .height(150.dp),
             shape = RoundedCornerShape(12.dp),
             colors = CardDefaults.cardColors(
                 containerColor = MaterialTheme.colorScheme.surfaceVariant
@@ -363,12 +343,22 @@ private fun StoreGallerySection(
                 contentAlignment = Alignment.Center
             ) {
                 Text(
-                    text = "No gallery photos",
-                    style = MaterialTheme.typography.bodyMedium
+                    text = "Create and manage store posts to showcase your business",
+                    style = MaterialTheme.typography.bodyMedium,
+                    modifier = Modifier.padding(16.dp)
                 )
             }
         }
     }
+    
+    // TODO: Implement CreateStorePostDialog when ready
+    // if (showCreatePostDialog) {
+    //     CreateStorePostDialog(
+    //         storeId = storeId,
+    //         onDismiss = { showCreatePostDialog = false },
+    //         onPostCreated = { showCreatePostDialog = false }
+    //     )
+    // }
 }
 
 @Composable
