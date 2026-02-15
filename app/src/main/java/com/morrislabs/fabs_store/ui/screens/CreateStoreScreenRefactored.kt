@@ -8,13 +8,11 @@ import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -23,35 +21,25 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Check
-import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.LocationOn
-import androidx.compose.material.icons.filled.Percent
-import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.StoreMallDirectory
-import androidx.compose.material.icons.filled.Tag
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Checkbox
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import android.Manifest
-import android.content.Context
-import android.content.pm.PackageManager
-import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -62,33 +50,33 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.core.content.ContextCompat
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.morrislabs.fabs_store.data.model.Badge
 import com.morrislabs.fabs_store.data.model.CreateStorePayload
+import com.morrislabs.fabs_store.data.model.LocationDTO
 import com.morrislabs.fabs_store.data.model.LocationInput
+import com.morrislabs.fabs_store.data.model.MainCategory
 import com.morrislabs.fabs_store.data.model.TypeOfServiceDTO
 import com.morrislabs.fabs_store.ui.components.ErrorDialog
 import com.morrislabs.fabs_store.ui.viewmodel.StoreViewModel
 import com.google.android.gms.location.FusedLocationProviderClient
 import com.google.android.gms.location.LocationServices
-import com.morrislabs.fabs_store.data.model.LocationDTO
+import android.content.Context
+import androidx.compose.ui.platform.LocalContext
 
 @Composable
-fun CreateStoreScreen(
+fun CreateStoreScreenRefactored(
     onStoreCreated: () -> Unit,
     storeViewModel: StoreViewModel = viewModel()
 ) {
     var currentStep by remember { mutableStateOf(0) }
     val context = LocalContext.current
     
-    // Basic Info
     var storeName by remember { mutableStateOf("") }
     var storeUsername by remember { mutableStateOf("") }
     var discount by remember { mutableStateOf("0") }
@@ -96,20 +84,30 @@ fun CreateStoreScreen(
     var storeUsernameError by remember { mutableStateOf<String?>(null) }
     var discountError by remember { mutableStateOf<String?>(null) }
 
-    // Location & Services
-    var selectedLocation by remember { mutableStateOf<LocationInput?>(null) }
+    var locationName by remember { mutableStateOf("") }
+    var locationDescription by remember { mutableStateOf("") }
+    var latitude by remember { mutableStateOf("") }
+    var longitude by remember { mutableStateOf("") }
+    var locationError by remember { mutableStateOf<String?>(null) }
+
+    var selectedCategory by remember { mutableStateOf<MainCategory?>(null) }
     var selectedServices by remember { mutableStateOf<Set<String>>(emptySet()) }
 
     val createStoreState by storeViewModel.createStoreState.collectAsState()
-    val servicesState by storeViewModel.servicesState.collectAsState()
+    val categoriesState by storeViewModel.categoriesState.collectAsState()
+    val servicesByCategoryState by storeViewModel.servicesByCategoryState.collectAsState()
 
     var showErrorDialog by remember { mutableStateOf(false) }
     var errorMessage by remember { mutableStateOf("") }
 
-    // Load services on step 2
     LaunchedEffect(currentStep) {
-        if (currentStep == 2) {
-            storeViewModel.fetchServices()
+        when (currentStep) {
+            1 -> storeViewModel.fetchCategories()
+            2 -> {
+                if (selectedCategory != null) {
+                    storeViewModel.fetchServicesByCategory(selectedCategory!!)
+                }
+            }
         }
     }
 
@@ -140,7 +138,6 @@ fun CreateStoreScreen(
             .background(MaterialTheme.colorScheme.background)
     ) {
         Column(modifier = Modifier.fillMaxSize()) {
-            // Header with back button
             Surface(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -177,14 +174,12 @@ fun CreateStoreScreen(
                 }
             }
 
-            // Progress indicator
             LinearProgressIndicator(
                 progress = { (currentStep + 1) / 3f },
                 modifier = Modifier.fillMaxWidth(),
                 color = MaterialTheme.colorScheme.primary
             )
 
-            // Step content
             AnimatedContent(
                 targetState = currentStep,
                 transitionSpec = {
@@ -198,7 +193,7 @@ fun CreateStoreScreen(
                     .fillMaxWidth()
             ) { step ->
                 when (step) {
-                    0 -> StepBasicInfo(
+                    0 -> StepBasicAndLocation(
                         storeName = storeName,
                         onStoreNameChange = { storeName = it; storeNameError = null },
                         storeNameError = storeNameError,
@@ -208,16 +203,35 @@ fun CreateStoreScreen(
                         discount = discount,
                         onDiscountChange = { discount = it; discountError = null },
                         discountError = discountError,
-                        onNext = { storeNameError = null; storeUsernameError = null; discountError = null; currentStep++ }
+                        locationName = locationName,
+                        onLocationNameChange = { locationName = it; locationError = null },
+                        locationDescription = locationDescription,
+                        onLocationDescriptionChange = { locationDescription = it; locationError = null },
+                        latitude = latitude,
+                        onLatitudeChange = { latitude = it; locationError = null },
+                        longitude = longitude,
+                        onLongitudeChange = { longitude = it; locationError = null },
+                        locationError = locationError,
+                        context = context,
+                        onNext = {
+                            if (validateStep0(
+                                storeName, storeUsername, discount,
+                                locationName, latitude, longitude,
+                                { storeNameError = it }, { storeUsernameError = it },
+                                { discountError = it }, { locationError = it }
+                            )) {
+                                currentStep++
+                            }
+                        }
                     )
-                    1 -> StepInputLocation(
-                        selectedLocation = selectedLocation,
-                        onLocationChange = { selectedLocation = it },
-                        onNext = { currentStep++ },
-                        context = context
+                    1 -> StepSelectCategory(
+                        categoriesState = categoriesState,
+                        selectedCategory = selectedCategory,
+                        onCategorySelect = { selectedCategory = it },
+                        onNext = { if (selectedCategory != null) currentStep++ }
                     )
-                    2 -> StepSelectServices(
-                        servicesState = servicesState,
+                    2 -> StepSelectServicesByCategory(
+                        servicesByCategoryState = servicesByCategoryState,
                         selectedServices = selectedServices,
                         onServiceToggle = { serviceId ->
                             selectedServices = if (selectedServices.contains(serviceId)) {
@@ -227,30 +241,22 @@ fun CreateStoreScreen(
                             }
                         },
                         onCreate = {
-                            if (validateAllSteps(
-                                    storeName, storeUsername, discount,
-                                    selectedLocation as LocationDTO?, selectedServices,
-                                    { storeNameError = it }, { storeUsernameError = it },
-                                    { discountError = it }
-                                )) {
-                                val locationInput = selectedLocation ?: LocationInput("", "", 0.0, 0.0)
-                                val location = LocationDTO(
-                                    id = "",
-                                    name = locationInput.name,
-                                    description = locationInput.description,
-                                    latitude = locationInput.latitude,
-                                    longitude = locationInput.longitude
-                                )
-                                val payload = CreateStorePayload(
-                                    name = storeName,
-                                    username = storeUsername,
-                                    badge = Badge.SILVER,
-                                    discount = discount.toDouble(),
-                                    location = location,
-                                    servicesOffered = selectedServices.toList()
-                                )
-                                storeViewModel.createStore(payload)
-                            }
+                            val location = LocationDTO(
+                                id = "",
+                                name = locationName,
+                                description = locationDescription,
+                                latitude = latitude.toDouble(),
+                                longitude = longitude.toDouble()
+                            )
+                            val payload = CreateStorePayload(
+                                name = storeName,
+                                username = storeUsername,
+                                badge = Badge.SILVER,
+                                discount = discount.toDouble(),
+                                location = location,
+                                servicesOffered = selectedServices.toList()
+                            )
+                            storeViewModel.createStore(payload)
                         },
                         isCreating = createStoreState is StoreViewModel.CreateStoreState.Loading
                     )
@@ -261,7 +267,7 @@ fun CreateStoreScreen(
 }
 
 @Composable
-private fun StepBasicInfo(
+private fun StepBasicAndLocation(
     storeName: String,
     onStoreNameChange: (String) -> Unit,
     storeNameError: String?,
@@ -271,6 +277,16 @@ private fun StepBasicInfo(
     discount: String,
     onDiscountChange: (String) -> Unit,
     discountError: String?,
+    locationName: String,
+    onLocationNameChange: (String) -> Unit,
+    locationDescription: String,
+    onLocationDescriptionChange: (String) -> Unit,
+    latitude: String,
+    onLatitudeChange: (String) -> Unit,
+    longitude: String,
+    onLongitudeChange: (String) -> Unit,
+    locationError: String?,
+    context: Context,
     onNext: () -> Unit
 ) {
     Column(
@@ -278,14 +294,15 @@ private fun StepBasicInfo(
             .fillMaxSize()
             .verticalScroll(rememberScrollState())
             .padding(24.dp),
-        horizontalAlignment = Alignment.CenterHorizontally
+        verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
         Box(
             modifier = Modifier
-                .size(80.dp)
+                .fillMaxWidth()
+                .height(80.dp)
                 .background(
-                    color = MaterialTheme.colorScheme.primaryContainer,
-                    shape = CircleShape
+                    MaterialTheme.colorScheme.primaryContainer,
+                    RoundedCornerShape(12.dp)
                 ),
             contentAlignment = Alignment.Center
         ) {
@@ -298,16 +315,9 @@ private fun StepBasicInfo(
         }
 
         Text(
-            text = "Basic Information",
+            text = "Store Information",
             style = MaterialTheme.typography.headlineSmall.copy(fontWeight = FontWeight.Bold),
-            modifier = Modifier.padding(top = 24.dp, bottom = 8.dp)
-        )
-
-        Text(
-            text = "Tell us about your salon",
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            modifier = Modifier.padding(bottom = 32.dp)
+            modifier = Modifier.padding(top = 16.dp)
         )
 
         FormField(
@@ -316,317 +326,131 @@ private fun StepBasicInfo(
             value = storeName,
             onValueChange = onStoreNameChange,
             error = storeNameError,
-            placeholder = "e.g., John's Salon"
+            placeholder = "Enter your store name"
         )
 
         FormField(
-            icon = Icons.Default.Tag,
-            label = "Store Username",
+            icon = Icons.Default.StoreMallDirectory,
+            label = "Username",
             value = storeUsername,
             onValueChange = onStoreUsernameChange,
             error = storeUsernameError,
-            placeholder = "e.g., johnsalon",
-            supportingText = "Lowercase, numbers, underscores only"
+            placeholder = "lowercase_username",
+            supportingText = "Only lowercase letters, numbers, and underscores"
         )
 
         FormField(
-            icon = Icons.Default.Percent,
-            label = "Opening Discount (%)",
+            icon = Icons.Default.StoreMallDirectory,
+            label = "Discount (%)",
             value = discount,
             onValueChange = onDiscountChange,
             error = discountError,
             placeholder = "0-100",
-            keyboardType = KeyboardType.Number,
-            supportingText = "Optional: Attract initial customers"
+            keyboardType = KeyboardType.Number
         )
+
+        Text(
+            text = "Location Details",
+            style = MaterialTheme.typography.headlineSmall.copy(fontWeight = FontWeight.Bold),
+            modifier = Modifier.padding(top = 8.dp)
+        )
+
+        FormField(
+            icon = Icons.Default.LocationOn,
+            label = "Location Name",
+            value = locationName,
+            onValueChange = onLocationNameChange,
+            error = locationError,
+            placeholder = "e.g., Downtown Branch"
+        )
+
+        FormField(
+            icon = Icons.Default.LocationOn,
+            label = "Description",
+            value = locationDescription,
+            onValueChange = onLocationDescriptionChange,
+            error = null,
+            placeholder = "e.g., Near City Center"
+        )
+
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            FormField(
+                icon = Icons.Default.LocationOn,
+                label = "Latitude",
+                value = latitude,
+                onValueChange = onLatitudeChange,
+                error = null,
+                placeholder = "0.0",
+                keyboardType = KeyboardType.Decimal,
+                modifier = Modifier.weight(1f)
+            )
+            FormField(
+                icon = Icons.Default.LocationOn,
+                label = "Longitude",
+                value = longitude,
+                onValueChange = onLongitudeChange,
+                error = null,
+                placeholder = "0.0",
+                keyboardType = KeyboardType.Decimal,
+                modifier = Modifier.weight(1f)
+            )
+        }
+
+        Button(
+            onClick = {
+                val fusedLocationClient = LocationServices.getFusedLocationProviderClient(context)
+                fetchCurrentLocation(fusedLocationClient) { lat, lon ->
+                    onLatitudeChange(lat.toString())
+                    onLongitudeChange(lon.toString())
+                }
+            },
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Text("Get Current Location")
+        }
 
         Button(
             onClick = onNext,
             modifier = Modifier
                 .fillMaxWidth()
                 .height(50.dp)
-                .padding(top = 32.dp),
-            enabled = storeName.isNotBlank() && storeUsername.isNotBlank(),
+                .padding(top = 16.dp),
             shape = RoundedCornerShape(12.dp)
         ) {
-            Row(
-                horizontalArrangement = Arrangement.Center,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text("Next")
-                Icon(
-                    imageVector = Icons.Default.ChevronRight,
-                    contentDescription = null,
-                    modifier = Modifier.size(20.dp).padding(start = 8.dp)
-                )
-            }
+            Text("Next")
         }
     }
 }
 
 @Composable
-private fun StepInputLocation(
-    selectedLocation: LocationInput?,
-    onLocationChange: (LocationInput) -> Unit,
-    onNext: () -> Unit,
-    context: Context
+private fun StepSelectCategory(
+    categoriesState: StoreViewModel.LoadingState<List<MainCategory>>,
+    selectedCategory: MainCategory?,
+    onCategorySelect: (MainCategory) -> Unit,
+    onNext: () -> Unit
 ) {
-    val fusedLocationClient = remember { LocationServices.getFusedLocationProviderClient(context) }
-    var locationName by remember { mutableStateOf("") }
-    var locationDescription by remember { mutableStateOf("") }
-    var latitude by remember { mutableStateOf(0.0) }
-    var longitude by remember { mutableStateOf(0.0) }
-    var isLoadingGPS by remember { mutableStateOf(false) }
-    var hasGPSError by remember { mutableStateOf(false) }
-
-    val permissionLauncher = rememberLauncherForActivityResult(
-        ActivityResultContracts.RequestPermission()
-    ) { isGranted ->
-        if (isGranted) {
-            isLoadingGPS = true
-            fetchCurrentLocation(fusedLocationClient) { lat, lng ->
-                latitude = lat
-                longitude = lng
-                isLoadingGPS = false
-            }
-        } else {
-            hasGPSError = true
-        }
-    }
-
-    LaunchedEffect(selectedLocation) {
-        if (selectedLocation != null) {
-            locationName = selectedLocation.name
-            locationDescription = selectedLocation.description
-            latitude = selectedLocation.latitude
-            longitude = selectedLocation.longitude
-        }
-    }
-
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .verticalScroll(rememberScrollState())
             .padding(24.dp),
-        horizontalAlignment = Alignment.CenterHorizontally
+        verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
-        Box(
-            modifier = Modifier
-                .size(80.dp)
-                .background(
-                    color = MaterialTheme.colorScheme.primaryContainer,
-                    shape = CircleShape
-                ),
-            contentAlignment = Alignment.Center
-        ) {
-            Icon(
-                imageVector = Icons.Default.LocationOn,
-                contentDescription = null,
-                modifier = Modifier.size(48.dp),
-                tint = MaterialTheme.colorScheme.onPrimaryContainer
-            )
-        }
-
         Text(
-            text = "Store Location",
+            text = "Select Service Category",
             style = MaterialTheme.typography.headlineSmall.copy(fontWeight = FontWeight.Bold),
-            modifier = Modifier.padding(top = 24.dp, bottom = 8.dp)
+            modifier = Modifier.padding(bottom = 8.dp)
         )
 
         Text(
-            text = "Add your salon's location details",
+            text = "What services does your store offer?",
             style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            modifier = Modifier.padding(bottom = 24.dp)
+            color = MaterialTheme.colorScheme.onSurfaceVariant
         )
 
-        // Get Current Location Button
-        Card(
-            modifier = Modifier
-                .fillMaxWidth()
-                .clickable {
-                    if (ContextCompat.checkSelfPermission(
-                            context,
-                            Manifest.permission.ACCESS_FINE_LOCATION
-                        ) == PackageManager.PERMISSION_GRANTED
-                    ) {
-                        isLoadingGPS = true
-                        fetchCurrentLocation(fusedLocationClient) { lat, lng ->
-                            latitude = lat
-                            longitude = lng
-                            isLoadingGPS = false
-                        }
-                    } else {
-                        permissionLauncher.launch(Manifest.permission.ACCESS_FINE_LOCATION)
-                    }
-                }
-                .padding(bottom = 16.dp),
-            colors = CardDefaults.cardColors(
-                containerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f)
-            ),
-            shape = RoundedCornerShape(12.dp)
-        ) {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(16.dp),
-                horizontalArrangement = Arrangement.Center,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                if (isLoadingGPS) {
-                    CircularProgressIndicator(modifier = Modifier.size(20.dp), strokeWidth = 2.dp)
-                    Text(" Detecting location...", modifier = Modifier.padding(start = 12.dp))
-                } else {
-                    Icon(Icons.Default.LocationOn, null, modifier = Modifier.size(20.dp))
-                    Text(" Use Current Location", modifier = Modifier.padding(start = 12.dp))
-                }
-            }
-        }
-
-        if (hasGPSError) {
-            Text(
-                "Location permission denied. Please enter manually.",
-                style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.error,
-                modifier = Modifier.padding(bottom = 16.dp)
-            )
-        }
-
-        // Location Name
-        FormField(
-            icon = Icons.Default.LocationOn,
-            label = "Location Name",
-            value = locationName,
-            onValueChange = { locationName = it },
-            error = if (locationName.isBlank()) "Location name required" else null,
-            placeholder = "e.g., Downtown Branch, Main Office"
-        )
-
-        // Location Description
-        FormField(
-            icon = Icons.Default.LocationOn,
-            label = "Description",
-            value = locationDescription,
-            onValueChange = { locationDescription = it },
-            error = if (locationDescription.isBlank()) "Description required" else null,
-            placeholder = "e.g., Building 5, Ground Floor, Near Market"
-        )
-
-        // Coordinates Display
-        Card(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(bottom = 16.dp),
-            colors = CardDefaults.cardColors(
-                containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)
-            ),
-            shape = RoundedCornerShape(12.dp)
-        ) {
-            Column(modifier = Modifier.padding(16.dp)) {
-                Text(
-                    "Coordinates",
-                    style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold),
-                    modifier = Modifier.padding(bottom = 8.dp)
-                )
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween
-                ) {
-                    Column {
-                        Text("Latitude", style = MaterialTheme.typography.labelSmall)
-                        Text(
-                            "%.6f".format(latitude),
-                            style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.Bold)
-                        )
-                    }
-                    Column {
-                        Text("Longitude", style = MaterialTheme.typography.labelSmall)
-                        Text(
-                            "%.6f".format(longitude),
-                            style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.Bold)
-                        )
-                    }
-                }
-            }
-        }
-
-        Button(
-            onClick = {
-                if (locationName.isNotBlank() && locationDescription.isNotBlank()) {
-                    onLocationChange(
-                        LocationInput(
-                            name = locationName,
-                            description = locationDescription,
-                            latitude = latitude,
-                            longitude = longitude
-                        )
-                    )
-                    onNext()
-                }
-            },
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(50.dp)
-                .padding(top = 24.dp),
-            enabled = locationName.isNotBlank() && locationDescription.isNotBlank(),
-            shape = RoundedCornerShape(12.dp)
-        ) {
-            Row(horizontalArrangement = Arrangement.Center, verticalAlignment = Alignment.CenterVertically) {
-                Text("Next")
-                Icon(
-                    imageVector = Icons.Default.ChevronRight,
-                    contentDescription = null,
-                    modifier = Modifier.size(20.dp).padding(start = 8.dp)
-                )
-            }
-        }
-    }
-}
-
-@Composable
-private fun StepSelectServices(
-    servicesState: StoreViewModel.LoadingState<List<TypeOfServiceDTO>>,
-    selectedServices: Set<String>,
-    onServiceToggle: (String) -> Unit,
-    onCreate: () -> Unit,
-    isCreating: Boolean
-) {
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(24.dp)
-    ) {
-        Box(
-            modifier = Modifier
-                .size(80.dp)
-                .background(
-                    color = MaterialTheme.colorScheme.primaryContainer,
-                    shape = CircleShape
-                ),
-            contentAlignment = Alignment.Center
-        ) {
-            Icon(
-                imageVector = Icons.Default.Settings,
-                contentDescription = null,
-                modifier = Modifier.size(48.dp),
-                tint = MaterialTheme.colorScheme.onPrimaryContainer
-            )
-        }
-
-        Text(
-            text = "Select Services",
-            style = MaterialTheme.typography.headlineSmall.copy(fontWeight = FontWeight.Bold),
-            modifier = Modifier.padding(top = 24.dp, bottom = 8.dp)
-        )
-
-        Text(
-            text = "Which services do you offer?",
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            modifier = Modifier.padding(bottom = 24.dp)
-        )
-
-        when (servicesState) {
+        when (categoriesState) {
             is StoreViewModel.LoadingState.Loading -> {
                 Box(
                     modifier = Modifier.fillMaxSize(),
@@ -642,7 +466,82 @@ private fun StepSelectServices(
                         .fillMaxWidth(),
                     verticalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
-                    items(servicesState.data) { service ->
+                    items(categoriesState.data) { category ->
+                        CategoryCard(
+                            category = category,
+                            isSelected = selectedCategory == category,
+                            onSelect = { onCategorySelect(category) }
+                        )
+                    }
+                }
+            }
+            is StoreViewModel.LoadingState.Error -> {
+                Box(
+                    modifier = Modifier.fillMaxSize(),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text("Failed to load categories", color = MaterialTheme.colorScheme.error)
+                }
+            }
+            else -> {}
+        }
+
+        Button(
+            onClick = onNext,
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(50.dp),
+            enabled = selectedCategory != null,
+            shape = RoundedCornerShape(12.dp)
+        ) {
+            Text("Next")
+        }
+    }
+}
+
+@Composable
+private fun StepSelectServicesByCategory(
+    servicesByCategoryState: StoreViewModel.LoadingState<List<TypeOfServiceDTO>>,
+    selectedServices: Set<String>,
+    onServiceToggle: (String) -> Unit,
+    onCreate: () -> Unit,
+    isCreating: Boolean
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(24.dp),
+        verticalArrangement = Arrangement.spacedBy(16.dp)
+    ) {
+        Text(
+            text = "Select Services",
+            style = MaterialTheme.typography.headlineSmall.copy(fontWeight = FontWeight.Bold),
+            modifier = Modifier.padding(bottom = 8.dp)
+        )
+
+        Text(
+            text = "Which services do you offer?",
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+
+        when (servicesByCategoryState) {
+            is StoreViewModel.LoadingState.Loading -> {
+                Box(
+                    modifier = Modifier.fillMaxSize(),
+                    contentAlignment = Alignment.Center
+                ) {
+                    CircularProgressIndicator()
+                }
+            }
+            is StoreViewModel.LoadingState.Success -> {
+                LazyColumn(
+                    modifier = Modifier
+                        .weight(1f)
+                        .fillMaxWidth(),
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    items(servicesByCategoryState.data) { service ->
                         ServiceCheckItem(
                             service = service,
                             isChecked = selectedServices.contains(service.id),
@@ -666,8 +565,7 @@ private fun StepSelectServices(
             onClick = onCreate,
             modifier = Modifier
                 .fillMaxWidth()
-                .height(50.dp)
-                .padding(top = 24.dp),
+                .height(50.dp),
             enabled = selectedServices.isNotEmpty() && !isCreating,
             shape = RoundedCornerShape(12.dp)
         ) {
@@ -691,20 +589,41 @@ private fun StepSelectServices(
     }
 }
 
-private fun fetchCurrentLocation(
-    fusedLocationClient: FusedLocationProviderClient,
-    onLocationReceived: (Double, Double) -> Unit
+@Composable
+private fun CategoryCard(
+    category: MainCategory,
+    isSelected: Boolean,
+    onSelect: () -> Unit
 ) {
-    try {
-        @Suppress("MissingPermission")
-        fusedLocationClient.lastLocation
-            .addOnSuccessListener { location ->
-                if (location != null) {
-                    onLocationReceived(location.latitude, location.longitude)
-                }
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable { onSelect() },
+        colors = CardDefaults.cardColors(
+            containerColor = if (isSelected) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surface
+        ),
+        shape = RoundedCornerShape(12.dp)
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                text = category.name.replace("_", " "),
+                style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold)
+            )
+            if (isSelected) {
+                Icon(
+                    imageVector = Icons.Default.Check,
+                    contentDescription = "Selected",
+                    tint = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.size(20.dp)
+                )
             }
-    } catch (e: Exception) {
-        // Handle error silently, user can enter manually
+        }
     }
 }
 
@@ -768,9 +687,10 @@ private fun FormField(
     error: String?,
     placeholder: String,
     keyboardType: KeyboardType = KeyboardType.Text,
-    supportingText: String? = null
+    supportingText: String? = null,
+    modifier: Modifier = Modifier.fillMaxWidth().padding(bottom = 20.dp)
 ) {
-    Column(modifier = Modifier.fillMaxWidth().padding(bottom = 20.dp)) {
+    Column(modifier = modifier) {
         Row(
             modifier = Modifier.padding(bottom = 8.dp),
             verticalAlignment = Alignment.CenterVertically
@@ -816,15 +736,17 @@ private fun FormField(
     }
 }
 
-private fun validateAllSteps(
+private fun validateStep0(
     storeName: String,
     storeUsername: String,
     discount: String,
-    selectedLocation: LocationDTO?,
-    selectedServices: Set<String>,
+    locationName: String,
+    latitude: String,
+    longitude: String,
     setNameError: (String?) -> Unit,
     setUsernameError: (String?) -> Unit,
-    setDiscountError: (String?) -> Unit
+    setDiscountError: (String?) -> Unit,
+    setLocationError: (String?) -> Unit
 ): Boolean {
     var isValid = true
 
@@ -844,11 +766,42 @@ private fun validateAllSteps(
 
     val discountValue = discount.toDoubleOrNull()
     if (discountValue == null || discountValue < 0 || discountValue > 100) {
-        setDiscountError("Invalid discount")
+        setDiscountError("Invalid discount (0-100)")
         isValid = false
     } else {
         setDiscountError(null)
     }
 
-    return isValid && selectedLocation != null && selectedServices.isNotEmpty()
+    if (locationName.isBlank() || latitude.isBlank() || longitude.isBlank()) {
+        setLocationError("Location name, latitude, and longitude required")
+        isValid = false
+    } else {
+        val lat = latitude.toDoubleOrNull()
+        val lon = longitude.toDoubleOrNull()
+        if (lat == null || lon == null || lat < -90 || lat > 90 || lon < -180 || lon > 180) {
+            setLocationError("Invalid coordinates")
+            isValid = false
+        } else {
+            setLocationError(null)
+        }
+    }
+
+    return isValid
+}
+
+private fun fetchCurrentLocation(
+    fusedLocationClient: FusedLocationProviderClient,
+    onLocationReceived: (Double, Double) -> Unit
+) {
+    try {
+        @Suppress("MissingPermission")
+        fusedLocationClient.lastLocation
+            .addOnSuccessListener { location ->
+                if (location != null) {
+                    onLocationReceived(location.latitude, location.longitude)
+                }
+            }
+    } catch (e: Exception) {
+        // Handle error silently, user can enter manually
+    }
 }

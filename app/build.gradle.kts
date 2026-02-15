@@ -52,6 +52,7 @@ dependencies {
 
     // UI components
     implementation(libs.androidx.compose.material3)
+    implementation(libs.androidx.compose.material)
     implementation(libs.compose.material.icons.extended)
 
     // Navigation
@@ -75,6 +76,9 @@ dependencies {
 
     // Serialization
     implementation(libs.kotlinx.serialization.json)
+
+    // Image loading
+    implementation(libs.coil.compose)
 
     // Security Crypto (for encryption)
     implementation(libs.androidx.security.crypto)

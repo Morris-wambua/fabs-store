@@ -4,6 +4,7 @@ import android.content.Context
 import android.util.Log
 import com.morrislabs.fabs_store.data.model.CreateStorePayload
 import com.morrislabs.fabs_store.data.model.FetchStoreResponse
+import com.morrislabs.fabs_store.data.model.UpdateStorePayload
 import com.morrislabs.fabs_store.util.AppConfig
 import com.morrislabs.fabs_store.util.ClientConfig
 import com.morrislabs.fabs_store.util.TokenManager
@@ -11,6 +12,7 @@ import io.ktor.client.call.body
 import io.ktor.client.plugins.ClientRequestException
 import io.ktor.client.request.get
 import io.ktor.client.request.post
+import io.ktor.client.request.put
 import io.ktor.client.request.setBody
 import io.ktor.client.statement.bodyAsText
 import io.ktor.http.ContentType
@@ -36,7 +38,8 @@ class StoreApiService(private val context: Context, private val tokenManager: To
             Log.d(TAG, "Fetch store response: $responseText")
 
             try {
-                val store = Json.decodeFromString<FetchStoreResponse>(responseText)
+                val json = Json { ignoreUnknownKeys = true }
+                val store = json.decodeFromString<FetchStoreResponse>(responseText)
                 Log.d(TAG, "Store found: ${store.name}")
                 Result.success(store)
             } catch (e: Exception) {
@@ -93,6 +96,38 @@ class StoreApiService(private val context: Context, private val tokenManager: To
             Result.failure(Exception("Failed to create store"))
         } catch (e: Exception) {
             Log.e(TAG, "Create store failed with exception", e)
+            Result.failure(Exception("An unexpected error occurred: ${e.message}"))
+        }
+    }
+
+    suspend fun updateStore(storeId: String, payload: UpdateStorePayload): Result<String> {
+        return try {
+            val client = clientConfig.createAuthenticatedClient(context, tokenManager)
+
+            val json = Json { prettyPrint = true }
+            val requestBody = json.encodeToString(UpdateStorePayload.serializer(), payload)
+            Log.d(TAG, "Update store request body: $requestBody")
+
+            val response = client.put("$baseUrl/api/stores/$storeId") {
+                contentType(ContentType.Application.Json)
+                setBody(payload)
+            }
+
+            val responseText = response.bodyAsText()
+            try {
+                val updatedId = Json.decodeFromString<String>(responseText)
+                Log.d(TAG, "Store updated successfully: $updatedId")
+                Result.success(updatedId)
+            } catch (e: Exception) {
+                Log.e(TAG, "Failed to parse store update response", e)
+                Result.failure(Exception("Store updated but failed to parse response"))
+            }
+        } catch (e: ClientRequestException) {
+            val errorBody = e.response.bodyAsText()
+            Log.e(TAG, "Update store failed with status ${e.response.status}: $errorBody")
+            Result.failure(Exception("Failed to update store: ${e.response.status}"))
+        } catch (e: Exception) {
+            Log.e(TAG, "Update store failed with exception", e)
             Result.failure(Exception("An unexpected error occurred: ${e.message}"))
         }
     }

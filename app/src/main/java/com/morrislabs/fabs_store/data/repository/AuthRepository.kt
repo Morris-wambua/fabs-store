@@ -2,6 +2,7 @@ package com.morrislabs.fabs_store.data.repository
 
 import com.morrislabs.fabs_store.data.api.AuthApiService
 import com.morrislabs.fabs_store.data.model.LoginDTO
+import com.morrislabs.fabs_store.data.model.RefreshTokenDTO
 
 class AuthRepository(
     private val apiService: AuthApiService = AuthApiService()
@@ -25,7 +26,7 @@ class AuthRepository(
         return apiService.logout()
     }
 
-    suspend fun refreshToken(refreshToken: String): Result<String> {
-        return apiService.refreshToken(refreshToken).mapCatching { it.accessToken ?: "" }
+    suspend fun refreshToken(refreshToken: String): Result<RefreshTokenDTO> {
+        return apiService.refreshToken(refreshToken)
     }
 }
