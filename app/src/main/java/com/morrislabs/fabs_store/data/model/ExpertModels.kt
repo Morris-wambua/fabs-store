@@ -1,0 +1,41 @@
+package com.morrislabs.fabs_store.data.model
+
+import kotlinx.serialization.Serializable
+
+@Serializable
+data class ExpertDTO(
+    val id: String,
+    val name: String,
+    val noOfAttendedCustomers: Int,
+    val specialization: List<SubCategory>,
+    val ratings: Double,
+    val contacts: String,
+    val storeId: String,
+    val imageUrl: String? = null,
+    val bio: String? = null,
+    val availability: List<String>? = null,
+    val isAvailable: Boolean = false,
+    val yearsOfExperience: Int? = null
+)
+
+fun SubCategory.toDisplayName(): String {
+    return this.name
+        .replace("_", " ")
+        .split("(?<=[a-z])(?=[A-Z])".toRegex())
+        .joinToString(" ")
+        .split(" ")
+        .joinToString(" ") { word ->
+            word.lowercase().replaceFirstChar { it.uppercase() }
+        }
+}
+
+fun MainCategory.toDisplayName(): String {
+    return this.name
+        .replace("_", " ")
+        .split("(?<=[a-z])(?=[A-Z])".toRegex())
+        .joinToString(" ")
+        .split(" ")
+        .joinToString(" ") { word ->
+            word.lowercase().replaceFirstChar { it.uppercase() }
+        }
+}

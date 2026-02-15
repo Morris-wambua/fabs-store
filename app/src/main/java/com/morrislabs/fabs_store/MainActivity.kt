@@ -21,6 +21,7 @@ import androidx.navigation.compose.rememberNavController
 import com.morrislabs.fabs_store.ui.screens.CreateStoreScreen
 import com.morrislabs.fabs_store.ui.screens.CreateStoreScreenRefactored
 import com.morrislabs.fabs_store.ui.screens.EmployeesScreen
+import com.morrislabs.fabs_store.ui.screens.ExpertDetailsScreen
 import com.morrislabs.fabs_store.ui.screens.HomeScreen
 import com.morrislabs.fabs_store.ui.screens.LoginScreen
 import com.morrislabs.fabs_store.ui.screens.RegisterScreen
@@ -116,6 +117,9 @@ fun StoreApp(
                 onNavigateToSettings = { navController.navigate("settings") },
                 onNavigateToStoreProfile = { navController.navigate("store_profile_editor") },
                 onNavigateToCreateStore = { navController.navigate("create_store") },
+                onNavigateToExpertDetails = { expertId ->
+                    navController.navigate("expert_details/$expertId")
+                },
                 onLogout = {
                     authViewModel.logout()
                     storeViewModel.resetAllStates()
@@ -152,7 +156,20 @@ fun StoreApp(
         }
 
         composable("employees") {
-            EmployeesScreen(onNavigateBack = { navController.popBackStack() })
+            EmployeesScreen(
+                onNavigateBack = { navController.popBackStack() },
+                onExpertSelected = { expertId ->
+                    navController.navigate("expert_details/$expertId")
+                }
+            )
+        }
+
+        composable("expert_details/{expertId}") { backStackEntry ->
+            val expertId = backStackEntry.arguments?.getString("expertId") ?: ""
+            ExpertDetailsScreen(
+                expertId = expertId,
+                onNavigateBack = { navController.popBackStack() }
+            )
         }
 
         composable("services") {

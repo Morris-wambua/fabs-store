@@ -52,6 +52,7 @@ import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -93,6 +94,10 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.morrislabs.fabs_store.data.model.ReservationFilter
 import com.morrislabs.fabs_store.data.model.ReservationStatus
 import com.morrislabs.fabs_store.data.model.ReservationWithPaymentDTO
+import com.morrislabs.fabs_store.data.model.ExpertDTO
+import com.morrislabs.fabs_store.ui.components.expert.ExpertCard
+import com.morrislabs.fabs_store.ui.components.expert.ExpertListItem
+import com.morrislabs.fabs_store.ui.viewmodel.ExpertViewModel
 import com.morrislabs.fabs_store.ui.viewmodel.StoreViewModel
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
@@ -106,12 +111,15 @@ fun HomeScreen(
     onNavigateToSettings: () -> Unit = {},
     onNavigateToStoreProfile: () -> Unit = {},
     onNavigateToCreateStore: () -> Unit = {},
+    onNavigateToExpertDetails: (String) -> Unit = {},
     onLogout: () -> Unit = {},
-    storeViewModel: StoreViewModel = viewModel()
+    storeViewModel: StoreViewModel = viewModel(),
+    expertViewModel: ExpertViewModel = viewModel()
 ) {
     val storeState by storeViewModel.storeState.collectAsState()
     val reservationsState by storeViewModel.reservationsState.collectAsState()
     val isRefreshing by storeViewModel.isRefreshing.collectAsState()
+    val expertsState by expertViewModel.expertsState.collectAsState()
     var selectedTabIndex by rememberSaveable { mutableIntStateOf(0) }
     var selectedReservationFilter by rememberSaveable { mutableStateOf(ReservationFilter.PENDING_APPROVAL) }
     var storeId by rememberSaveable { mutableStateOf("") }
@@ -136,6 +144,12 @@ fun HomeScreen(
             is StoreViewModel.StoreState.Success -> {
                 val store = (storeState as StoreViewModel.StoreState.Success).data
                 storeId = store.id ?: ""
+
+                LaunchedEffect(storeId) {
+                    if (storeId.isNotEmpty()) {
+                        expertViewModel.getExpertsByStoreId(storeId)
+                    }
+                }
 
                 Scaffold(
                     modifier = Modifier.nestedScroll(scrollBehavior.nestedScrollConnection),
@@ -280,18 +294,36 @@ fun HomeScreen(
                                 }
                             }
                         } else {
-                            // Other tabs (regular scrollable content)
-                            Box(
-                                modifier = Modifier
-                                    .weight(1f)
-                                    .fillMaxWidth()
-                                    .verticalScroll(rememberScrollState())
-                            ) {
-                                when (selectedTabIndex) {
-                                    1 -> TabContent("Experts coming soon", onNavigateToEmployees)
-                                    2 -> TabContent("Services coming soon", onNavigateToServices)
-                                    3 -> TabContent("Reviews coming soon", {})
-                                    else -> {}
+                            when (selectedTabIndex) {
+                                1 -> {
+                                    ExpertsTabContent(
+                                        expertsState = expertsState,
+                                        storeId = storeId,
+                                        onExpertClick = { expert -> onNavigateToExpertDetails(expert.id) },
+                                        onViewAll = onNavigateToEmployees,
+                                        onRetry = {
+                                            if (storeId.isNotEmpty()) {
+                                                expertViewModel.getExpertsByStoreId(storeId)
+                                            }
+                                        },
+                                        modifier = Modifier
+                                            .weight(1f)
+                                            .fillMaxWidth()
+                                    )
+                                }
+                                else -> {
+                                    Box(
+                                        modifier = Modifier
+                                            .weight(1f)
+                                            .fillMaxWidth()
+                                            .verticalScroll(rememberScrollState())
+                                    ) {
+                                        when (selectedTabIndex) {
+                                            2 -> TabContent("Services coming soon", onNavigateToServices)
+                                            3 -> TabContent("Reviews coming soon", {})
+                                            else -> {}
+                                        }
+                                    }
                                 }
                             }
                         }
@@ -1431,3 +1463,128 @@ private fun ActivityItem(
                 )
                 }
                 }
+
+@Composable
+private fun ExpertsTabContent(
+    expertsState: ExpertViewModel.ExpertsState,
+    storeId: String,
+    onExpertClick: (ExpertDTO) -> Unit,
+    onViewAll: () -> Unit,
+    onRetry: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    when (expertsState) {
+        is ExpertViewModel.ExpertsState.Loading -> {
+            Box(
+                modifier = modifier,
+                contentAlignment = Alignment.Center
+            ) {
+                CircularProgressIndicator()
+            }
+        }
+        is ExpertViewModel.ExpertsState.Error -> {
+            Box(
+                modifier = modifier,
+                contentAlignment = Alignment.Center
+            ) {
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.Center,
+                    modifier = Modifier.padding(16.dp)
+                ) {
+                    Text(
+                        text = "Could not load experts",
+                        style = MaterialTheme.typography.bodyLarge
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Button(onClick = onRetry) {
+                        Text("Retry")
+                    }
+                }
+            }
+        }
+        is ExpertViewModel.ExpertsState.Success -> {
+            val experts = expertsState.experts
+            if (experts.isEmpty()) {
+                Box(
+                    modifier = modifier,
+                    contentAlignment = Alignment.Center
+                ) {
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.Center,
+                        modifier = Modifier.padding(16.dp)
+                    ) {
+                        Icon(
+                            Icons.Default.People,
+                            contentDescription = null,
+                            modifier = Modifier.size(64.dp),
+                            tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.5f)
+                        )
+                        Spacer(modifier = Modifier.height(16.dp))
+                        Text(
+                            "No experts available",
+                            style = MaterialTheme.typography.bodyLarge
+                        )
+                    }
+                }
+            } else {
+                Column(
+                    modifier = modifier
+                        .verticalScroll(rememberScrollState())
+                        .padding(16.dp)
+                ) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = "Our Experts",
+                            style = MaterialTheme.typography.titleLarge,
+                            fontWeight = FontWeight.Bold
+                        )
+                        OutlinedButton(onClick = onViewAll) {
+                            Text("View All")
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(12.dp))
+
+                    LazyRow(
+                        horizontalArrangement = Arrangement.spacedBy(16.dp),
+                        contentPadding = PaddingValues(end = 16.dp)
+                    ) {
+                        items(experts.take(5)) { expert ->
+                            ExpertCard(
+                                expert = expert,
+                                storeId = storeId,
+                                onExpertClick = { onExpertClick(expert) },
+                                modifier = Modifier.width(140.dp)
+                            )
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(24.dp))
+
+                    Text(
+                        text = "All Experts",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold,
+                        modifier = Modifier.padding(bottom = 8.dp)
+                    )
+
+                    experts.forEach { expert ->
+                        ExpertListItem(
+                            expert = expert,
+                            storeId = storeId,
+                            onExpertClick = { onExpertClick(expert) }
+                        )
+                        HorizontalDivider()
+                    }
+                }
+            }
+        }
+        else -> {}
+    }
+}
