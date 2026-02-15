@@ -21,6 +21,7 @@ import androidx.navigation.compose.rememberNavController
 import com.morrislabs.fabs_store.ui.screens.CreateStoreScreen
 import com.morrislabs.fabs_store.ui.screens.CreateStoreScreenRefactored
 import com.morrislabs.fabs_store.ui.screens.EmployeesScreen
+import com.morrislabs.fabs_store.ui.screens.CreateExpertScreen
 import com.morrislabs.fabs_store.ui.screens.ExpertDetailsScreen
 import com.morrislabs.fabs_store.ui.screens.HomeScreen
 import com.morrislabs.fabs_store.ui.screens.LoginScreen
@@ -120,6 +121,9 @@ fun StoreApp(
                 onNavigateToExpertDetails = { expertId ->
                     navController.navigate("expert_details/$expertId")
                 },
+                onNavigateToCreateExpert = {
+                    navController.navigate("create_expert")
+                },
                 onLogout = {
                     authViewModel.logout()
                     storeViewModel.resetAllStates()
@@ -160,6 +164,9 @@ fun StoreApp(
                 onNavigateBack = { navController.popBackStack() },
                 onExpertSelected = { expertId ->
                     navController.navigate("expert_details/$expertId")
+                },
+                onNavigateToCreateExpert = {
+                    navController.navigate("create_expert")
                 }
             )
         }
@@ -169,6 +176,15 @@ fun StoreApp(
             ExpertDetailsScreen(
                 expertId = expertId,
                 onNavigateBack = { navController.popBackStack() }
+            )
+        }
+
+        composable("create_expert") {
+            CreateExpertScreen(
+                onNavigateBack = { navController.popBackStack() },
+                onExpertCreated = {
+                    navController.popBackStack()
+                }
             )
         }
 

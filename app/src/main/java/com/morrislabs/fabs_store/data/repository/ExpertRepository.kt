@@ -2,6 +2,7 @@ package com.morrislabs.fabs_store.data.repository
 
 import android.content.Context
 import com.morrislabs.fabs_store.data.api.ExpertApiService
+import com.morrislabs.fabs_store.data.model.CreateExpertPayload
 import com.morrislabs.fabs_store.data.model.ExpertDTO
 import com.morrislabs.fabs_store.util.TokenManager
 
@@ -18,5 +19,9 @@ class ExpertRepository(private val context: Context, private val tokenManager: T
 
     suspend fun getExpertsByStoreId(storeId: String): Result<List<ExpertDTO>> {
         return expertApiService.getExpertsByStoreId(storeId)
+    }
+
+    suspend fun createExpertForStore(storeId: String, payload: CreateExpertPayload): Result<String> {
+        return expertApiService.createExpertForStore(storeId, payload)
     }
 }

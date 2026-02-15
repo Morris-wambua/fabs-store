@@ -23,6 +23,7 @@ import com.morrislabs.fabs_store.ui.viewmodel.StoreViewModel
 fun EmployeesScreen(
     onNavigateBack: () -> Unit,
     onExpertSelected: (String) -> Unit = {},
+    onNavigateToCreateExpert: () -> Unit = {},
     storeViewModel: StoreViewModel = viewModel(),
     expertViewModel: ExpertViewModel = viewModel()
 ) {
@@ -50,6 +51,18 @@ fun EmployeesScreen(
                     }
                 }
             )
+        },
+        floatingActionButton = {
+            FloatingActionButton(
+                onClick = onNavigateToCreateExpert,
+                containerColor = MaterialTheme.colorScheme.primary
+            ) {
+                Icon(
+                    Icons.Default.Add,
+                    contentDescription = "Add Expert",
+                    tint = MaterialTheme.colorScheme.onPrimary
+                )
+            }
         }
     ) { paddingValues ->
         when (expertsState) {

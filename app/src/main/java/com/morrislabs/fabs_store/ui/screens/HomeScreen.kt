@@ -52,6 +52,7 @@ import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
+import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -112,6 +113,7 @@ fun HomeScreen(
     onNavigateToStoreProfile: () -> Unit = {},
     onNavigateToCreateStore: () -> Unit = {},
     onNavigateToExpertDetails: (String) -> Unit = {},
+    onNavigateToCreateExpert: () -> Unit = {},
     onLogout: () -> Unit = {},
     storeViewModel: StoreViewModel = viewModel(),
     expertViewModel: ExpertViewModel = viewModel()
@@ -296,20 +298,38 @@ fun HomeScreen(
                         } else {
                             when (selectedTabIndex) {
                                 1 -> {
-                                    ExpertsTabContent(
-                                        expertsState = expertsState,
-                                        storeId = storeId,
-                                        onExpertClick = { expert -> onNavigateToExpertDetails(expert.id) },
-                                        onViewAll = onNavigateToEmployees,
-                                        onRetry = {
-                                            if (storeId.isNotEmpty()) {
-                                                expertViewModel.getExpertsByStoreId(storeId)
-                                            }
-                                        },
+                                    Box(
                                         modifier = Modifier
                                             .weight(1f)
                                             .fillMaxWidth()
-                                    )
+                                    ) {
+                                        ExpertsTabContent(
+                                            expertsState = expertsState,
+                                            storeId = storeId,
+                                            onExpertClick = { expert -> onNavigateToExpertDetails(expert.id) },
+                                            onViewAll = onNavigateToEmployees,
+                                            onRetry = {
+                                                if (storeId.isNotEmpty()) {
+                                                    expertViewModel.getExpertsByStoreId(storeId)
+                                                }
+                                            },
+                                            modifier = Modifier.fillMaxSize()
+                                        )
+
+                                        FloatingActionButton(
+                                            onClick = onNavigateToCreateExpert,
+                                            modifier = Modifier
+                                                .align(Alignment.BottomEnd)
+                                                .padding(16.dp),
+                                            containerColor = MaterialTheme.colorScheme.primary
+                                        ) {
+                                            Icon(
+                                                Icons.Default.Add,
+                                                contentDescription = "Add Expert",
+                                                tint = MaterialTheme.colorScheme.onPrimary
+                                            )
+                                        }
+                                    }
                                 }
                                 else -> {
                                     Box(

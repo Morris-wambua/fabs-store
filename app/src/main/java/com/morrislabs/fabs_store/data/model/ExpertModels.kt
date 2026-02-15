@@ -18,6 +18,21 @@ data class ExpertDTO(
     val yearsOfExperience: Int? = null
 )
 
+@Serializable
+data class CreateExpertPayload(
+    val name: String,
+    val bio: String? = null,
+    val noOfAttendedCustomers: Int = 0,
+    val specialization: List<SubCategory>,
+    val ratings: Double = 5.0,
+    val contacts: String,
+    val storeId: String,
+    val imageUrl: String? = null,
+    val availability: List<String>? = null,
+    val isAvailable: Boolean = true,
+    val yearsOfExperience: Int? = null
+)
+
 fun SubCategory.toDisplayName(): String {
     return this.name
         .replace("_", " ")

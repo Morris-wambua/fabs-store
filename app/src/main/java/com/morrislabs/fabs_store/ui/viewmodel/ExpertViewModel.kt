@@ -4,6 +4,7 @@ import android.app.Application
 import android.util.Log
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
+import com.morrislabs.fabs_store.data.model.CreateExpertPayload
 import com.morrislabs.fabs_store.data.model.ExpertDTO
 import com.morrislabs.fabs_store.data.repository.ExpertRepository
 import com.morrislabs.fabs_store.util.TokenManager
@@ -26,6 +27,9 @@ class ExpertViewModel(application: Application) : AndroidViewModel(application) 
 
     private val _expertDetailsState = MutableStateFlow<ExpertDetailsState>(ExpertDetailsState.Idle)
     val expertDetailsState: StateFlow<ExpertDetailsState> = _expertDetailsState.asStateFlow()
+
+    private val _createExpertState = MutableStateFlow<CreateExpertState>(CreateExpertState.Idle)
+    val createExpertState: StateFlow<CreateExpertState> = _createExpertState.asStateFlow()
 
     fun getExpertsByStoreId(storeId: String) {
         _expertsState.value = ExpertsState.Loading
@@ -77,6 +81,32 @@ class ExpertViewModel(application: Application) : AndroidViewModel(application) 
         _expertDetailsState.value = ExpertDetailsState.Idle
     }
 
+    fun createExpert(storeId: String, payload: CreateExpertPayload) {
+        _createExpertState.value = CreateExpertState.Loading
+        viewModelScope.launch {
+            try {
+                Log.d(TAG, "Creating expert for store: $storeId")
+                repository.createExpertForStore(storeId, payload)
+                    .onSuccess { expertId ->
+                        Log.d(TAG, "Successfully created expert: $expertId")
+                        _createExpertState.value = CreateExpertState.Success(expertId)
+                        getExpertsByStoreId(storeId)
+                    }
+                    .onFailure { error ->
+                        Log.e(TAG, "Failed to create expert", error)
+                        _createExpertState.value = CreateExpertState.Error(error.message ?: "Unknown error")
+                    }
+            } catch (e: Exception) {
+                Log.e(TAG, "Exception while creating expert", e)
+                _createExpertState.value = CreateExpertState.Error("Failed to create expert: ${e.message}")
+            }
+        }
+    }
+
+    fun resetCreateExpertState() {
+        _createExpertState.value = CreateExpertState.Idle
+    }
+
     sealed class ExpertsState {
         object Idle : ExpertsState()
         object Loading : ExpertsState()
@@ -89,5 +119,12 @@ class ExpertViewModel(application: Application) : AndroidViewModel(application) 
         object Loading : ExpertDetailsState()
         data class Success(val expert: ExpertDTO) : ExpertDetailsState()
         data class Error(val message: String) : ExpertDetailsState()
+    }
+
+    sealed class CreateExpertState {
+        object Idle : CreateExpertState()
+        object Loading : CreateExpertState()
+        data class Success(val expertId: String) : CreateExpertState()
+        data class Error(val message: String) : CreateExpertState()
     }
 }
