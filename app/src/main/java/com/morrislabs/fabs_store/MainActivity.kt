@@ -121,8 +121,8 @@ fun StoreApp(
                 onNavigateToExpertDetails = { expertId ->
                     navController.navigate("expert_details/$expertId")
                 },
-                onNavigateToCreateExpert = {
-                    navController.navigate("create_expert")
+                onNavigateToCreateExpert = { storeId ->
+                    navController.navigate("create_expert/$storeId")
                 },
                 onLogout = {
                     authViewModel.logout()
@@ -165,8 +165,8 @@ fun StoreApp(
                 onExpertSelected = { expertId ->
                     navController.navigate("expert_details/$expertId")
                 },
-                onNavigateToCreateExpert = {
-                    navController.navigate("create_expert")
+                onNavigateToCreateExpert = { storeId ->
+                    navController.navigate("create_expert/$storeId")
                 }
             )
         }
@@ -179,8 +179,10 @@ fun StoreApp(
             )
         }
 
-        composable("create_expert") {
+        composable("create_expert/{storeId}") { backStackEntry ->
+            val storeId = backStackEntry.arguments?.getString("storeId") ?: ""
             CreateExpertScreen(
+                storeId = storeId,
                 onNavigateBack = { navController.popBackStack() },
                 onExpertCreated = {
                     navController.popBackStack()

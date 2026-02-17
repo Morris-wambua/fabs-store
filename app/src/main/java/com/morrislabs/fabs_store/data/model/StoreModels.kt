@@ -178,7 +178,7 @@ data class CreateStorePayload(
     val badge: Badge = Badge.SILVER,
     val discount: Double = 0.0,
     val location: LocationDTO,
-    val servicesOffered: List<String>
+    val servicesOffered: List<String> = emptyList()
 )
 
 @Serializable

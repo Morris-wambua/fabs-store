@@ -19,6 +19,7 @@ import com.morrislabs.fabs_store.ui.viewmodel.StoreViewModel
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun CreateExpertScreen(
+    storeId: String,
     onNavigateBack: () -> Unit,
     onExpertCreated: () -> Unit,
     storeViewModel: StoreViewModel = viewModel(),
@@ -26,11 +27,6 @@ fun CreateExpertScreen(
 ) {
     val storeState by storeViewModel.storeState.collectAsState()
     val createExpertState by expertViewModel.createExpertState.collectAsState()
-
-    val storeId = when (storeState) {
-        is StoreViewModel.StoreState.Success -> (storeState as StoreViewModel.StoreState.Success).data.id ?: ""
-        else -> ""
-    }
 
     val availableSpecializations = when (storeState) {
         is StoreViewModel.StoreState.Success -> {

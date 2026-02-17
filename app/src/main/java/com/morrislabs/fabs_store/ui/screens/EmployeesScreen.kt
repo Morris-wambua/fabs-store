@@ -23,7 +23,7 @@ import com.morrislabs.fabs_store.ui.viewmodel.StoreViewModel
 fun EmployeesScreen(
     onNavigateBack: () -> Unit,
     onExpertSelected: (String) -> Unit = {},
-    onNavigateToCreateExpert: () -> Unit = {},
+    onNavigateToCreateExpert: (String) -> Unit = {},
     storeViewModel: StoreViewModel = viewModel(),
     expertViewModel: ExpertViewModel = viewModel()
 ) {
@@ -54,7 +54,7 @@ fun EmployeesScreen(
         },
         floatingActionButton = {
             FloatingActionButton(
-                onClick = onNavigateToCreateExpert,
+                onClick = { onNavigateToCreateExpert(storeId) },
                 containerColor = MaterialTheme.colorScheme.primary
             ) {
                 Icon(

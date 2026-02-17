@@ -83,7 +83,11 @@ import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.lerp
+import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.foundation.Image
+import androidx.compose.ui.res.painterResource
+import com.morrislabs.fabs_store.R
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
@@ -113,7 +117,7 @@ fun HomeScreen(
     onNavigateToStoreProfile: () -> Unit = {},
     onNavigateToCreateStore: () -> Unit = {},
     onNavigateToExpertDetails: (String) -> Unit = {},
-    onNavigateToCreateExpert: () -> Unit = {},
+    onNavigateToCreateExpert: (String) -> Unit = {},
     onLogout: () -> Unit = {},
     storeViewModel: StoreViewModel = viewModel(),
     expertViewModel: ExpertViewModel = viewModel()
@@ -317,7 +321,7 @@ fun HomeScreen(
                                         )
 
                                         FloatingActionButton(
-                                            onClick = onNavigateToCreateExpert,
+                                            onClick = { onNavigateToCreateExpert(storeId) },
                                             modifier = Modifier
                                                 .align(Alignment.BottomEnd)
                                                 .padding(16.dp),
@@ -478,15 +482,14 @@ private fun StoreCoverHeader(
         modifier = Modifier
             .fillMaxWidth()
             .height(200.dp)
-            .background(Color.White),
+            .background(MaterialTheme.colorScheme.onPrimary),
         contentAlignment = Alignment.Center
     ) {
-        // Default icon (no cover image field in store model)
-        Icon(
-            imageVector = Icons.Default.StoreMallDirectory,
-            contentDescription = null,
+        Image(
+            painter = painterResource(id = R.drawable.supermaket),
+            contentDescription = "Store",
             modifier = Modifier.size(80.dp),
-            tint = MaterialTheme.colorScheme.primary
+            colorFilter = ColorFilter.tint(MaterialTheme.colorScheme.primary)
         )
         
         // Edit button in top right corner
@@ -1027,13 +1030,13 @@ private fun NoStoreScreen(
                 .padding(16.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            Icon(
-                imageVector = Icons.Default.StoreMallDirectory,
+            Image(
+                painter = painterResource(id = R.drawable.supermaket),
                 contentDescription = "No Store",
                 modifier = Modifier
                     .size(80.dp)
                     .padding(bottom = 16.dp),
-                tint = MaterialTheme.colorScheme.primary
+                colorFilter = ColorFilter.tint(MaterialTheme.colorScheme.primary)
             )
 
             Text(

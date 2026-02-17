@@ -1,14 +1,6 @@
 package com.morrislabs.fabs_store.ui.screens
 
-import androidx.compose.animation.AnimatedContent
-import androidx.compose.animation.ContentTransform
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.animation.slideInHorizontally
-import androidx.compose.animation.slideOutHorizontally
-import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -18,24 +10,18 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material.icons.filled.StoreMallDirectory
 import androidx.compose.material3.Button
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.Checkbox
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
-import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
@@ -48,20 +34,21 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.ColorFilter
+import androidx.compose.foundation.Image
+import androidx.compose.ui.res.painterResource
+import com.morrislabs.fabs_store.R
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.morrislabs.fabs_store.data.model.Badge
 import com.morrislabs.fabs_store.data.model.CreateStorePayload
 import com.morrislabs.fabs_store.data.model.LocationDTO
-import com.morrislabs.fabs_store.data.model.LocationInput
-import com.morrislabs.fabs_store.data.model.MainCategory
-import com.morrislabs.fabs_store.data.model.TypeOfServiceDTO
 import com.morrislabs.fabs_store.ui.components.ErrorDialog
 import com.morrislabs.fabs_store.ui.viewmodel.StoreViewModel
 import com.google.android.gms.location.FusedLocationProviderClient
@@ -74,9 +61,8 @@ fun CreateStoreScreenRefactored(
     onStoreCreated: () -> Unit,
     storeViewModel: StoreViewModel = viewModel()
 ) {
-    var currentStep by remember { mutableStateOf(0) }
     val context = LocalContext.current
-    
+
     var storeName by remember { mutableStateOf("") }
     var storeUsername by remember { mutableStateOf("") }
     var discount by remember { mutableStateOf("0") }
@@ -90,26 +76,10 @@ fun CreateStoreScreenRefactored(
     var longitude by remember { mutableStateOf("") }
     var locationError by remember { mutableStateOf<String?>(null) }
 
-    var selectedCategory by remember { mutableStateOf<MainCategory?>(null) }
-    var selectedServices by remember { mutableStateOf<Set<String>>(emptySet()) }
-
     val createStoreState by storeViewModel.createStoreState.collectAsState()
-    val categoriesState by storeViewModel.categoriesState.collectAsState()
-    val servicesByCategoryState by storeViewModel.servicesByCategoryState.collectAsState()
 
     var showErrorDialog by remember { mutableStateOf(false) }
     var errorMessage by remember { mutableStateOf("") }
-
-    LaunchedEffect(currentStep) {
-        when (currentStep) {
-            1 -> storeViewModel.fetchCategories()
-            2 -> {
-                if (selectedCategory != null) {
-                    storeViewModel.fetchServicesByCategory(selectedCategory!!)
-                }
-            }
-        }
-    }
 
     LaunchedEffect(createStoreState) {
         when (createStoreState) {
@@ -137,13 +107,12 @@ fun CreateStoreScreenRefactored(
             .fillMaxSize()
             .background(MaterialTheme.colorScheme.background)
     ) {
-        Column(modifier = Modifier.fillMaxSize()) {
+        Column(modifier = Modifier.fillMaxSize().statusBarsPadding()) {
             Surface(
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(56.dp),
-                color = MaterialTheme.colorScheme.surface,
-                shadowElevation = 4.dp
+                color = MaterialTheme.colorScheme.surface
             ) {
                 Row(
                     modifier = Modifier
@@ -151,117 +120,63 @@ fun CreateStoreScreenRefactored(
                         .padding(horizontal = 16.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    if (currentStep > 0) {
-                        Icon(
-                            imageVector = Icons.Default.ArrowBack,
-                            contentDescription = "Back",
-                            modifier = Modifier
-                                .size(28.dp)
-                                .clickable { currentStep-- },
-                            tint = MaterialTheme.colorScheme.primary
-                        )
-                    }
                     Text(
                         text = "Setup Your Store",
-                        style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+                        style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold),
                         modifier = Modifier.weight(1f).padding(start = 16.dp)
-                    )
-                    Text(
-                        text = "${currentStep + 1}/3",
-                        style = MaterialTheme.typography.labelMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
             }
 
-            LinearProgressIndicator(
-                progress = { (currentStep + 1) / 3f },
-                modifier = Modifier.fillMaxWidth(),
-                color = MaterialTheme.colorScheme.primary
-            )
-
-            AnimatedContent(
-                targetState = currentStep,
-                transitionSpec = {
-                    ContentTransform(
-                        targetContentEnter = slideInHorizontally { width -> width } + fadeIn(),
-                        initialContentExit = slideOutHorizontally { width -> -width } + fadeOut()
-                    )
+            StepBasicAndLocation(
+                storeName = storeName,
+                onStoreNameChange = { storeName = it; storeNameError = null },
+                storeNameError = storeNameError,
+                storeUsername = storeUsername,
+                onStoreUsernameChange = { storeUsername = it; storeUsernameError = null },
+                storeUsernameError = storeUsernameError,
+                discount = discount,
+                onDiscountChange = { discount = it; discountError = null },
+                discountError = discountError,
+                locationName = locationName,
+                onLocationNameChange = { locationName = it; locationError = null },
+                locationDescription = locationDescription,
+                onLocationDescriptionChange = { locationDescription = it; locationError = null },
+                latitude = latitude,
+                onLatitudeChange = { latitude = it; locationError = null },
+                longitude = longitude,
+                onLongitudeChange = { longitude = it; locationError = null },
+                locationError = locationError,
+                context = context,
+                isCreating = createStoreState is StoreViewModel.CreateStoreState.Loading,
+                onSubmit = {
+                    if (validateStep0(
+                        storeName, storeUsername, discount,
+                        locationName, latitude, longitude,
+                        { storeNameError = it }, { storeUsernameError = it },
+                        { discountError = it }, { locationError = it }
+                    )) {
+                        val location = LocationDTO(
+                            id = "",
+                            name = locationName,
+                            description = locationDescription,
+                            latitude = latitude.toDouble(),
+                            longitude = longitude.toDouble()
+                        )
+                        val payload = CreateStorePayload(
+                            name = storeName,
+                            username = storeUsername,
+                            badge = Badge.SILVER,
+                            discount = discount.toDouble(),
+                            location = location
+                        )
+                        storeViewModel.createStore(payload)
+                    }
                 },
                 modifier = Modifier
                     .weight(1f)
                     .fillMaxWidth()
-            ) { step ->
-                when (step) {
-                    0 -> StepBasicAndLocation(
-                        storeName = storeName,
-                        onStoreNameChange = { storeName = it; storeNameError = null },
-                        storeNameError = storeNameError,
-                        storeUsername = storeUsername,
-                        onStoreUsernameChange = { storeUsername = it; storeUsernameError = null },
-                        storeUsernameError = storeUsernameError,
-                        discount = discount,
-                        onDiscountChange = { discount = it; discountError = null },
-                        discountError = discountError,
-                        locationName = locationName,
-                        onLocationNameChange = { locationName = it; locationError = null },
-                        locationDescription = locationDescription,
-                        onLocationDescriptionChange = { locationDescription = it; locationError = null },
-                        latitude = latitude,
-                        onLatitudeChange = { latitude = it; locationError = null },
-                        longitude = longitude,
-                        onLongitudeChange = { longitude = it; locationError = null },
-                        locationError = locationError,
-                        context = context,
-                        onNext = {
-                            if (validateStep0(
-                                storeName, storeUsername, discount,
-                                locationName, latitude, longitude,
-                                { storeNameError = it }, { storeUsernameError = it },
-                                { discountError = it }, { locationError = it }
-                            )) {
-                                currentStep++
-                            }
-                        }
-                    )
-                    1 -> StepSelectCategory(
-                        categoriesState = categoriesState,
-                        selectedCategory = selectedCategory,
-                        onCategorySelect = { selectedCategory = it },
-                        onNext = { if (selectedCategory != null) currentStep++ }
-                    )
-                    2 -> StepSelectServicesByCategory(
-                        servicesByCategoryState = servicesByCategoryState,
-                        selectedServices = selectedServices,
-                        onServiceToggle = { serviceId ->
-                            selectedServices = if (selectedServices.contains(serviceId)) {
-                                selectedServices - serviceId
-                            } else {
-                                selectedServices + serviceId
-                            }
-                        },
-                        onCreate = {
-                            val location = LocationDTO(
-                                id = "",
-                                name = locationName,
-                                description = locationDescription,
-                                latitude = latitude.toDouble(),
-                                longitude = longitude.toDouble()
-                            )
-                            val payload = CreateStorePayload(
-                                name = storeName,
-                                username = storeUsername,
-                                badge = Badge.SILVER,
-                                discount = discount.toDouble(),
-                                location = location,
-                                servicesOffered = selectedServices.toList()
-                            )
-                            storeViewModel.createStore(payload)
-                        },
-                        isCreating = createStoreState is StoreViewModel.CreateStoreState.Loading
-                    )
-                }
-            }
+            )
         }
     }
 }
@@ -287,33 +202,37 @@ private fun StepBasicAndLocation(
     onLongitudeChange: (String) -> Unit,
     locationError: String?,
     context: Context,
-    onNext: () -> Unit
+    isCreating: Boolean = false,
+    onSubmit: () -> Unit,
+    modifier: Modifier = Modifier
 ) {
     Column(
-        modifier = Modifier
+        modifier = modifier
             .fillMaxSize()
-            .verticalScroll(rememberScrollState())
-            .padding(24.dp),
+            .verticalScroll(rememberScrollState()),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
         Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .height(80.dp)
-                .background(
-                    MaterialTheme.colorScheme.primaryContainer,
-                    RoundedCornerShape(12.dp)
-                ),
+                .height(200.dp)
+                .background(MaterialTheme.colorScheme.onPrimary),
             contentAlignment = Alignment.Center
         ) {
-            Icon(
-                imageVector = Icons.Default.StoreMallDirectory,
-                contentDescription = null,
-                modifier = Modifier.size(48.dp),
-                tint = MaterialTheme.colorScheme.onPrimaryContainer
+            Image(
+                painter = painterResource(id = R.drawable.supermaket),
+                contentDescription = "Store",
+                modifier = Modifier.size(80.dp),
+                colorFilter = ColorFilter.tint(MaterialTheme.colorScheme.primary)
             )
         }
 
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 24.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp)
+        ) {
         Text(
             text = "Store Information",
             style = MaterialTheme.typography.headlineSmall.copy(fontWeight = FontWeight.Bold),
@@ -413,160 +332,12 @@ private fun StepBasicAndLocation(
         }
 
         Button(
-            onClick = onNext,
+            onClick = onSubmit,
             modifier = Modifier
                 .fillMaxWidth()
                 .height(50.dp)
                 .padding(top = 16.dp),
-            shape = RoundedCornerShape(12.dp)
-        ) {
-            Text("Next")
-        }
-    }
-}
-
-@Composable
-private fun StepSelectCategory(
-    categoriesState: StoreViewModel.LoadingState<List<MainCategory>>,
-    selectedCategory: MainCategory?,
-    onCategorySelect: (MainCategory) -> Unit,
-    onNext: () -> Unit
-) {
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(24.dp),
-        verticalArrangement = Arrangement.spacedBy(16.dp)
-    ) {
-        Text(
-            text = "Select Service Category",
-            style = MaterialTheme.typography.headlineSmall.copy(fontWeight = FontWeight.Bold),
-            modifier = Modifier.padding(bottom = 8.dp)
-        )
-
-        Text(
-            text = "What services does your store offer?",
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
-        )
-
-        when (categoriesState) {
-            is StoreViewModel.LoadingState.Loading -> {
-                Box(
-                    modifier = Modifier.fillMaxSize(),
-                    contentAlignment = Alignment.Center
-                ) {
-                    CircularProgressIndicator()
-                }
-            }
-            is StoreViewModel.LoadingState.Success -> {
-                LazyColumn(
-                    modifier = Modifier
-                        .weight(1f)
-                        .fillMaxWidth(),
-                    verticalArrangement = Arrangement.spacedBy(12.dp)
-                ) {
-                    items(categoriesState.data) { category ->
-                        CategoryCard(
-                            category = category,
-                            isSelected = selectedCategory == category,
-                            onSelect = { onCategorySelect(category) }
-                        )
-                    }
-                }
-            }
-            is StoreViewModel.LoadingState.Error -> {
-                Box(
-                    modifier = Modifier.fillMaxSize(),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Text("Failed to load categories", color = MaterialTheme.colorScheme.error)
-                }
-            }
-            else -> {}
-        }
-
-        Button(
-            onClick = onNext,
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(50.dp),
-            enabled = selectedCategory != null,
-            shape = RoundedCornerShape(12.dp)
-        ) {
-            Text("Next")
-        }
-    }
-}
-
-@Composable
-private fun StepSelectServicesByCategory(
-    servicesByCategoryState: StoreViewModel.LoadingState<List<TypeOfServiceDTO>>,
-    selectedServices: Set<String>,
-    onServiceToggle: (String) -> Unit,
-    onCreate: () -> Unit,
-    isCreating: Boolean
-) {
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(24.dp),
-        verticalArrangement = Arrangement.spacedBy(16.dp)
-    ) {
-        Text(
-            text = "Select Services",
-            style = MaterialTheme.typography.headlineSmall.copy(fontWeight = FontWeight.Bold),
-            modifier = Modifier.padding(bottom = 8.dp)
-        )
-
-        Text(
-            text = "Which services do you offer?",
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
-        )
-
-        when (servicesByCategoryState) {
-            is StoreViewModel.LoadingState.Loading -> {
-                Box(
-                    modifier = Modifier.fillMaxSize(),
-                    contentAlignment = Alignment.Center
-                ) {
-                    CircularProgressIndicator()
-                }
-            }
-            is StoreViewModel.LoadingState.Success -> {
-                LazyColumn(
-                    modifier = Modifier
-                        .weight(1f)
-                        .fillMaxWidth(),
-                    verticalArrangement = Arrangement.spacedBy(12.dp)
-                ) {
-                    items(servicesByCategoryState.data) { service ->
-                        ServiceCheckItem(
-                            service = service,
-                            isChecked = selectedServices.contains(service.id),
-                            onCheckedChange = { onServiceToggle(service.id) }
-                        )
-                    }
-                }
-            }
-            is StoreViewModel.LoadingState.Error -> {
-                Box(
-                    modifier = Modifier.fillMaxSize(),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Text("Failed to load services", color = MaterialTheme.colorScheme.error)
-                }
-            }
-            else -> {}
-        }
-
-        Button(
-            onClick = onCreate,
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(50.dp),
-            enabled = selectedServices.isNotEmpty() && !isCreating,
+            enabled = !isCreating,
             shape = RoundedCornerShape(12.dp)
         ) {
             if (isCreating) {
@@ -586,94 +357,6 @@ private fun StepSelectServicesByCategory(
                 }
             }
         }
-    }
-}
-
-@Composable
-private fun CategoryCard(
-    category: MainCategory,
-    isSelected: Boolean,
-    onSelect: () -> Unit
-) {
-    Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable { onSelect() },
-        colors = CardDefaults.cardColors(
-            containerColor = if (isSelected) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surface
-        ),
-        shape = RoundedCornerShape(12.dp)
-    ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(16.dp),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Text(
-                text = category.name.replace("_", " "),
-                style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold)
-            )
-            if (isSelected) {
-                Icon(
-                    imageVector = Icons.Default.Check,
-                    contentDescription = "Selected",
-                    tint = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.size(20.dp)
-                )
-            }
-        }
-    }
-}
-
-@Composable
-private fun ServiceCheckItem(
-    service: TypeOfServiceDTO,
-    isChecked: Boolean,
-    onCheckedChange: (Boolean) -> Unit
-) {
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(
-            containerColor = if (isChecked) MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.3f) else MaterialTheme.colorScheme.surface
-        ),
-        shape = RoundedCornerShape(12.dp)
-    ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .clickable { onCheckedChange(!isChecked) }
-                .padding(16.dp),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = service.name,
-                    style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold)
-                )
-                Row(
-                    modifier = Modifier.padding(top = 4.dp),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    Text(
-                        text = "₹${service.price}",
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.primary,
-                        fontWeight = FontWeight.Bold
-                    )
-                    Text(
-                        text = "${service.mainCategory}",
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
-            }
-            Checkbox(
-                checked = isChecked,
-                onCheckedChange = onCheckedChange
-            )
         }
     }
 }
