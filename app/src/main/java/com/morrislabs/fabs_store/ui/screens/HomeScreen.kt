@@ -357,17 +357,17 @@ fun HomeScreen(
                 }
             }
             is StoreViewModel.StoreState.Error.NotFound -> {
-                NoStoreScreen(onNavigateToCreateStore = onNavigateToCreateStore, onLogout = onLogout)
+                NoStoreScreen(onNavigateToCreateStore = onNavigateToCreateStore, onNavigateToSettings = onNavigateToSettings)
             }
             is StoreViewModel.StoreState.Error.UnknownError -> {
                 val error = (storeState as StoreViewModel.StoreState.Error.UnknownError).message
                 if (error.contains("No store found", ignoreCase = true) || error.contains("empty", ignoreCase = true)) {
-                    NoStoreScreen(onNavigateToCreateStore = onNavigateToCreateStore, onLogout = onLogout)
+                    NoStoreScreen(onNavigateToCreateStore = onNavigateToCreateStore, onNavigateToSettings = onNavigateToSettings)
                 } else {
                     ErrorRetryScreen(
                         error = error,
                         onRetry = { storeViewModel.fetchUserStore() },
-                        onLogout = onLogout
+                        onNavigateToSettings = onNavigateToSettings
                     )
                 }
             }
@@ -376,7 +376,7 @@ fun HomeScreen(
                 ErrorRetryScreen(
                     error = error,
                     onRetry = { storeViewModel.fetchUserStore() },
-                    onLogout = onLogout
+                    onNavigateToSettings = onNavigateToSettings
                 )
             }
             else -> {
@@ -912,7 +912,7 @@ private fun StatusBadge(
 private fun ErrorRetryScreen(
     error: String,
     onRetry: () -> Unit,
-    onLogout: () -> Unit
+    onNavigateToSettings: () -> Unit
 ) {
     Box(
         modifier = Modifier
@@ -924,21 +924,27 @@ private fun ErrorRetryScreen(
                 .fillMaxWidth()
                 .align(Alignment.TopCenter)
                 .background(MaterialTheme.colorScheme.primary)
+                .statusBarsPadding()
                 .padding(16.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             Row(
-                modifier = Modifier
-                    .fillMaxWidth(),
-                horizontalArrangement = Arrangement.End
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
             ) {
+                Text(
+                    text = "Fabs Store",
+                    style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold),
+                    color = MaterialTheme.colorScheme.onPrimary
+                )
                 IconButton(
-                    onClick = onLogout,
+                    onClick = onNavigateToSettings,
                     modifier = Modifier.size(40.dp)
                 ) {
                     Icon(
-                        imageVector = Icons.Default.Logout,
-                        contentDescription = "Logout",
+                        imageVector = Icons.Default.Settings,
+                        contentDescription = "Settings",
                         tint = MaterialTheme.colorScheme.onPrimary
                     )
                 }
@@ -990,7 +996,7 @@ private fun ErrorRetryScreen(
 @Composable
 private fun NoStoreScreen(
     onNavigateToCreateStore: () -> Unit,
-    onLogout: () -> Unit
+    onNavigateToSettings: () -> Unit
 ) {
     Box(
         modifier = Modifier
@@ -1002,21 +1008,27 @@ private fun NoStoreScreen(
                 .fillMaxWidth()
                 .align(Alignment.TopCenter)
                 .background(MaterialTheme.colorScheme.primary)
+                .statusBarsPadding()
                 .padding(16.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             Row(
-                modifier = Modifier
-                    .fillMaxWidth(),
-                horizontalArrangement = Arrangement.End
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
             ) {
+                Text(
+                    text = "Fabs Store",
+                    style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold),
+                    color = MaterialTheme.colorScheme.onPrimary
+                )
                 IconButton(
-                    onClick = onLogout,
+                    onClick = onNavigateToSettings,
                     modifier = Modifier.size(40.dp)
                 ) {
                     Icon(
-                        imageVector = Icons.Default.Logout,
-                        contentDescription = "Logout",
+                        imageVector = Icons.Default.Settings,
+                        contentDescription = "Settings",
                         tint = MaterialTheme.colorScheme.onPrimary
                     )
                 }
