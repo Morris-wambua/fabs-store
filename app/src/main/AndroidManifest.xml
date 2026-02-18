@@ -19,7 +19,7 @@
         android:networkSecurityConfig="@xml/network_security_config">
         <meta-data
             android:name="com.google.android.geo.API_KEY"
-            android:value="AIzaSyDnK3t0Zif8OTrnaRcp4UuEVzg5IQU4uDs" />
+            android:value="AIzaSyAXZkvjUDpWDbT3fuZjziHQHLcU4SLEdjs" />
         <activity
             android:name=".MainActivity"
             android:exported="true"

@@ -1,5 +1,6 @@
 package com.morrislabs.fabs_store.data.model
 
+import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 
 @Serializable
@@ -14,6 +15,7 @@ data class ExpertDTO(
     val imageUrl: String? = null,
     val bio: String? = null,
     val availability: List<String>? = null,
+    @SerialName("available")
     val isAvailable: Boolean = false,
     val yearsOfExperience: Int? = null
 )
@@ -29,8 +31,19 @@ data class CreateExpertPayload(
     val storeId: String,
     val imageUrl: String? = null,
     val availability: List<String>? = null,
+    @SerialName("available")
     val isAvailable: Boolean = true,
     val yearsOfExperience: Int? = null
+)
+
+@Serializable
+data class ExpertLeaveDTO(
+    val id: String? = null,
+    val expertId: String,
+    val date: String,
+    @SerialName("available")
+    val isAvailable: Boolean = false,
+    val reason: String? = null
 )
 
 fun SubCategory.toDisplayName(): String {

@@ -19,12 +19,14 @@ import androidx.navigation.compose.navigation
 import androidx.navigation.compose.rememberNavController
 import com.morrislabs.fabs_store.ui.screens.EmployeesScreen
 import com.morrislabs.fabs_store.ui.screens.CreateExpertScreen
+import com.morrislabs.fabs_store.ui.screens.EditExpertProfileScreen
 import com.morrislabs.fabs_store.ui.screens.ExpertDetailsScreen
 import com.morrislabs.fabs_store.ui.screens.HomeScreen
 import com.morrislabs.fabs_store.ui.screens.LoginScreen
 import com.morrislabs.fabs_store.ui.screens.RegisterScreen
 import com.morrislabs.fabs_store.ui.screens.ReservationsScreen
 import com.morrislabs.fabs_store.ui.screens.ServicesScreen
+import com.morrislabs.fabs_store.ui.screens.DailyScheduleScreen
 import com.morrislabs.fabs_store.ui.screens.SettingsScreen
 import com.morrislabs.fabs_store.ui.screens.StoreProfileEditorScreen
 import com.morrislabs.fabs_store.ui.screens.SetupChecklistScreen
@@ -126,6 +128,7 @@ fun StoreApp(
                 onNavigateToCreateExpert = { storeId ->
                     navController.navigate("create_expert/$storeId")
                 },
+                onNavigateToDailySchedule = { navController.navigate("daily_schedule") },
                 onLogout = {
                     authViewModel.logout()
                     storeViewModel.resetAllStates()
@@ -229,6 +232,19 @@ fun StoreApp(
             val expertId = backStackEntry.arguments?.getString("expertId") ?: ""
             ExpertDetailsScreen(
                 expertId = expertId,
+                onNavigateBack = { navController.popBackStack() },
+                onNavigateToEditExpert = { id, storeId ->
+                    navController.navigate("edit_expert/$id/$storeId")
+                }
+            )
+        }
+
+        composable("edit_expert/{expertId}/{storeId}") { backStackEntry ->
+            val expertId = backStackEntry.arguments?.getString("expertId") ?: ""
+            val storeId = backStackEntry.arguments?.getString("storeId") ?: ""
+            EditExpertProfileScreen(
+                expertId = expertId,
+                storeId = storeId,
                 onNavigateBack = { navController.popBackStack() }
             )
         }
@@ -251,6 +267,7 @@ fun StoreApp(
         composable("settings") {
             SettingsScreen(
                 onNavigateBack = { navController.popBackStack() },
+                onNavigateToStoreProfile = { navController.navigate("store_profile_editor") },
                 onLogout = {
                     authViewModel.logout()
                     isLoggedIn = false
@@ -258,6 +275,12 @@ fun StoreApp(
                         popUpTo("home") { inclusive = true }
                     }
                 }
+            )
+        }
+
+        composable("daily_schedule") {
+            DailyScheduleScreen(
+                onNavigateBack = { navController.popBackStack() }
             )
         }
     }

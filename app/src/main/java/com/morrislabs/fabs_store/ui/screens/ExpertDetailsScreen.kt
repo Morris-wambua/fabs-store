@@ -39,6 +39,7 @@ import com.morrislabs.fabs_store.util.formatDuration
 fun ExpertDetailsScreen(
     expertId: String,
     onNavigateBack: () -> Unit,
+    onNavigateToEditExpert: (String, String) -> Unit = { _, _ -> },
     expertViewModel: ExpertViewModel = viewModel(),
     storeViewModel: StoreViewModel = viewModel()
 ) {
@@ -59,6 +60,17 @@ fun ExpertDetailsScreen(
                     }
                 }
             )
+        },
+        floatingActionButton = {
+            val expert = (expertDetailsState as? ExpertViewModel.ExpertDetailsState.Success)?.expert
+            if (expert != null) {
+                FloatingActionButton(
+                    onClick = { onNavigateToEditExpert(expert.id, expert.storeId) },
+                    containerColor = MaterialTheme.colorScheme.primary
+                ) {
+                    Icon(Icons.Default.Edit, contentDescription = "Edit Expert", tint = MaterialTheme.colorScheme.onPrimary)
+                }
+            }
         }
     ) { paddingValues ->
         when (expertDetailsState) {

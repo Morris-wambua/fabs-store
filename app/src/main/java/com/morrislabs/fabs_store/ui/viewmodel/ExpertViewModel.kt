@@ -1,6 +1,7 @@
 package com.morrislabs.fabs_store.ui.viewmodel
 
 import android.app.Application
+import android.net.Uri
 import android.util.Log
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
@@ -30,6 +31,15 @@ class ExpertViewModel(application: Application) : AndroidViewModel(application) 
 
     private val _createExpertState = MutableStateFlow<CreateExpertState>(CreateExpertState.Idle)
     val createExpertState: StateFlow<CreateExpertState> = _createExpertState.asStateFlow()
+
+    private val _updateExpertState = MutableStateFlow<UpdateExpertState>(UpdateExpertState.Idle)
+    val updateExpertState: StateFlow<UpdateExpertState> = _updateExpertState.asStateFlow()
+
+    private val _deleteExpertState = MutableStateFlow<DeleteExpertState>(DeleteExpertState.Idle)
+    val deleteExpertState: StateFlow<DeleteExpertState> = _deleteExpertState.asStateFlow()
+
+    private val _expertLeavesState = MutableStateFlow<ExpertLeavesState>(ExpertLeavesState.Idle)
+    val expertLeavesState: StateFlow<ExpertLeavesState> = _expertLeavesState.asStateFlow()
 
     fun getExpertsByStoreId(storeId: String) {
         _expertsState.value = ExpertsState.Loading
@@ -107,6 +117,70 @@ class ExpertViewModel(application: Application) : AndroidViewModel(application) 
         _createExpertState.value = CreateExpertState.Idle
     }
 
+    fun updateExpert(expertId: String, storeId: String, payload: CreateExpertPayload) {
+        _updateExpertState.value = UpdateExpertState.Loading
+        viewModelScope.launch {
+            repository.updateExpert(expertId, payload)
+                .onSuccess {
+                    _updateExpertState.value = UpdateExpertState.Success(expertId)
+                    getExpertDetails(expertId)
+                    getExpertsByStoreId(storeId)
+                }
+                .onFailure { error ->
+                    _updateExpertState.value = UpdateExpertState.Error(error.message ?: "Unknown error")
+                }
+        }
+    }
+
+    fun deleteExpert(expertId: String, storeId: String) {
+        _deleteExpertState.value = DeleteExpertState.Loading
+        viewModelScope.launch {
+            repository.deleteExpert(expertId)
+                .onSuccess {
+                    _deleteExpertState.value = DeleteExpertState.Success
+                    getExpertsByStoreId(storeId)
+                }
+                .onFailure { error ->
+                    _deleteExpertState.value = DeleteExpertState.Error(error.message ?: "Unknown error")
+                }
+        }
+    }
+
+    fun getExpertLeaves(expertId: String) {
+        _expertLeavesState.value = ExpertLeavesState.Loading
+        viewModelScope.launch {
+            repository.getExpertLeaves(expertId)
+                .onSuccess { leaves ->
+                    _expertLeavesState.value = ExpertLeavesState.Success(leaves)
+                }
+                .onFailure { error ->
+                    _expertLeavesState.value = ExpertLeavesState.Error(error.message ?: "Unknown error")
+                }
+        }
+    }
+
+    fun setExpertLeaveRange(expertId: String, startDate: String, endDate: String, reason: String? = null) {
+        viewModelScope.launch {
+            repository.setExpertLeaveRange(expertId, startDate, endDate, reason)
+                .onSuccess { getExpertLeaves(expertId) }
+        }
+    }
+
+    fun deleteExpertLeaveRange(expertId: String, startDate: String, endDate: String) {
+        viewModelScope.launch {
+            repository.deleteExpertLeaveRange(expertId, startDate, endDate)
+                .onSuccess { getExpertLeaves(expertId) }
+        }
+    }
+
+    suspend fun uploadExpertPhoto(uri: Uri): Result<Pair<String, String>> {
+        val userId = TokenManager.getInstance(context).getUserId() ?: ""
+        return repository.uploadExpertPhoto(uri, userId)
+    }
+
+    fun resetUpdateExpertState() { _updateExpertState.value = UpdateExpertState.Idle }
+    fun resetDeleteExpertState() { _deleteExpertState.value = DeleteExpertState.Idle }
+
     sealed class ExpertsState {
         object Idle : ExpertsState()
         object Loading : ExpertsState()
@@ -126,5 +200,26 @@ class ExpertViewModel(application: Application) : AndroidViewModel(application) 
         object Loading : CreateExpertState()
         data class Success(val expertId: String) : CreateExpertState()
         data class Error(val message: String) : CreateExpertState()
+    }
+
+    sealed class UpdateExpertState {
+        object Idle : UpdateExpertState()
+        object Loading : UpdateExpertState()
+        data class Success(val expertId: String) : UpdateExpertState()
+        data class Error(val message: String) : UpdateExpertState()
+    }
+
+    sealed class DeleteExpertState {
+        object Idle : DeleteExpertState()
+        object Loading : DeleteExpertState()
+        object Success : DeleteExpertState()
+        data class Error(val message: String) : DeleteExpertState()
+    }
+
+    sealed class ExpertLeavesState {
+        object Idle : ExpertLeavesState()
+        object Loading : ExpertLeavesState()
+        data class Success(val leaves: List<com.morrislabs.fabs_store.data.model.ExpertLeaveDTO>) : ExpertLeavesState()
+        data class Error(val message: String) : ExpertLeavesState()
     }
 }
