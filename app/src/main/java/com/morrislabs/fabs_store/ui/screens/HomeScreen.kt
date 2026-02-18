@@ -357,12 +357,18 @@ fun HomeScreen(
                 }
             }
             is StoreViewModel.StoreState.Error.NotFound -> {
-                NoStoreScreen(onNavigateToCreateStore = onNavigateToCreateStore, onNavigateToSettings = onNavigateToSettings)
+                NoStoreFoundOnboardingScreen(
+                    onNavigateToCreateStore = onNavigateToCreateStore,
+                    onNavigateToSettings = onNavigateToSettings
+                )
             }
             is StoreViewModel.StoreState.Error.UnknownError -> {
                 val error = (storeState as StoreViewModel.StoreState.Error.UnknownError).message
                 if (error.contains("No store found", ignoreCase = true) || error.contains("empty", ignoreCase = true)) {
-                    NoStoreScreen(onNavigateToCreateStore = onNavigateToCreateStore, onNavigateToSettings = onNavigateToSettings)
+                    NoStoreFoundOnboardingScreen(
+                        onNavigateToCreateStore = onNavigateToCreateStore,
+                        onNavigateToSettings = onNavigateToSettings
+                    )
                 } else {
                     ErrorRetryScreen(
                         error = error,
@@ -993,105 +999,7 @@ private fun ErrorRetryScreen(
     }
 }
 
-@Composable
-private fun NoStoreScreen(
-    onNavigateToCreateStore: () -> Unit,
-    onNavigateToSettings: () -> Unit
-) {
-    Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(MaterialTheme.colorScheme.background)
-    ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .align(Alignment.TopCenter)
-                .background(MaterialTheme.colorScheme.primary)
-                .statusBarsPadding()
-                .padding(16.dp),
-            horizontalAlignment = Alignment.CenterHorizontally
-        ) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(
-                    text = "Fabs Store",
-                    style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold),
-                    color = MaterialTheme.colorScheme.onPrimary
-                )
-                IconButton(
-                    onClick = onNavigateToSettings,
-                    modifier = Modifier.size(40.dp)
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Settings,
-                        contentDescription = "Settings",
-                        tint = MaterialTheme.colorScheme.onPrimary
-                    )
-                }
-            }
-        }
 
-        Column(
-            modifier = Modifier
-                .fillMaxWidth(0.85f)
-                .align(Alignment.Center)
-                .padding(16.dp),
-            horizontalAlignment = Alignment.CenterHorizontally
-        ) {
-            Image(
-                painter = painterResource(id = R.drawable.supermaket),
-                contentDescription = "No Store",
-                modifier = Modifier
-                    .size(80.dp)
-                    .padding(bottom = 16.dp),
-                colorFilter = ColorFilter.tint(MaterialTheme.colorScheme.primary)
-            )
-
-            Text(
-                text = "No Store Found",
-                style = MaterialTheme.typography.headlineSmall.copy(
-                    fontWeight = FontWeight.Bold
-                ),
-                modifier = Modifier.padding(bottom = 8.dp)
-            )
-
-            Text(
-                text = "Create your store to start managing reservations, employees, and services",
-                style = MaterialTheme.typography.bodyMedium.copy(
-                    color = Color.Gray
-                ),
-                modifier = Modifier.padding(bottom = 24.dp),
-                textAlign = androidx.compose.ui.text.style.TextAlign.Center
-            )
-
-            Button(
-                onClick = onNavigateToCreateStore,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(50.dp),
-                shape = RoundedCornerShape(8.dp)
-            ) {
-                Icon(
-                    imageVector = Icons.Default.Add,
-                    contentDescription = "Create Store",
-                    modifier = Modifier
-                        .size(20.dp)
-                        .padding(end = 8.dp)
-                )
-                Text(
-                    "Create Store",
-                    style = MaterialTheme.typography.bodyLarge.copy(
-                        fontWeight = FontWeight.Bold
-                    )
-                )
-            }
-        }
-    }
-}
 
 @Composable
 private fun HeaderSection(

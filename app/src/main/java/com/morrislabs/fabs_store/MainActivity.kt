@@ -15,8 +15,8 @@ import androidx.compose.ui.Modifier
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
+import androidx.navigation.compose.navigation
 import androidx.navigation.compose.rememberNavController
-import com.morrislabs.fabs_store.ui.screens.CreateStoreScreenRefactored
 import com.morrislabs.fabs_store.ui.screens.EmployeesScreen
 import com.morrislabs.fabs_store.ui.screens.CreateExpertScreen
 import com.morrislabs.fabs_store.ui.screens.ExpertDetailsScreen
@@ -27,8 +27,12 @@ import com.morrislabs.fabs_store.ui.screens.ReservationsScreen
 import com.morrislabs.fabs_store.ui.screens.ServicesScreen
 import com.morrislabs.fabs_store.ui.screens.SettingsScreen
 import com.morrislabs.fabs_store.ui.screens.StoreProfileEditorScreen
+import com.morrislabs.fabs_store.ui.screens.storeonboarding.BusinessHoursStepScreen
+import com.morrislabs.fabs_store.ui.screens.storeonboarding.StoreInfoStepScreen
+import com.morrislabs.fabs_store.ui.screens.storeonboarding.StoreLocationStepScreen
 import com.morrislabs.fabs_store.ui.theme.FabsstoreTheme
 import com.morrislabs.fabs_store.ui.viewmodel.AuthViewModel
+import com.morrislabs.fabs_store.ui.viewmodel.CreateStoreWizardViewModel
 import com.morrislabs.fabs_store.util.AuthenticationStateListener
 import com.morrislabs.fabs_store.util.ClientConfig
 import kotlinx.coroutines.Dispatchers
@@ -142,14 +146,49 @@ fun StoreApp(
             )
         }
 
-        composable("create_store") {
-            CreateStoreScreenRefactored(
-                onStoreCreated = {
-                    navController.navigate("home") {
-                        popUpTo("create_store") { inclusive = true }
-                    }
+        navigation(
+            startDestination = "create_store/info",
+            route = "create_store"
+        ) {
+            composable("create_store/info") { backStackEntry ->
+                val parentEntry = remember(navController) {
+                    navController.getBackStackEntry("create_store")
                 }
-            )
+                val wizardViewModel: CreateStoreWizardViewModel = viewModel(parentEntry)
+                StoreInfoStepScreen(
+                    wizardViewModel = wizardViewModel,
+                    onNavigateBack = { navController.popBackStack() },
+                    onNavigateNext = { navController.navigate("create_store/location") }
+                )
+            }
+
+            composable("create_store/location") { backStackEntry ->
+                val parentEntry = remember(navController) {
+                    navController.getBackStackEntry("create_store")
+                }
+                val wizardViewModel: CreateStoreWizardViewModel = viewModel(parentEntry)
+                StoreLocationStepScreen(
+                    wizardViewModel = wizardViewModel,
+                    onNavigateBack = { navController.popBackStack() },
+                    onNavigateNext = { navController.navigate("create_store/hours") }
+                )
+            }
+
+            composable("create_store/hours") { backStackEntry ->
+                val parentEntry = remember(navController) {
+                    navController.getBackStackEntry("create_store")
+                }
+                val wizardViewModel: CreateStoreWizardViewModel = viewModel(parentEntry)
+                BusinessHoursStepScreen(
+                    wizardViewModel = wizardViewModel,
+                    onNavigateBack = { navController.popBackStack() },
+                    onStoreCreated = {
+                        navController.navigate("home") {
+                            popUpTo("create_store") { inclusive = true }
+                        }
+                    }
+                )
+            }
         }
 
         composable("reservations") {
