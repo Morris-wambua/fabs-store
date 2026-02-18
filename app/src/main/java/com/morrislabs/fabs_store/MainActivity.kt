@@ -27,6 +27,7 @@ import com.morrislabs.fabs_store.ui.screens.ReservationsScreen
 import com.morrislabs.fabs_store.ui.screens.ServicesScreen
 import com.morrislabs.fabs_store.ui.screens.SettingsScreen
 import com.morrislabs.fabs_store.ui.screens.StoreProfileEditorScreen
+import com.morrislabs.fabs_store.ui.screens.SetupChecklistScreen
 import com.morrislabs.fabs_store.ui.screens.storeonboarding.BusinessHoursStepScreen
 import com.morrislabs.fabs_store.ui.screens.storeonboarding.StoreInfoStepScreen
 import com.morrislabs.fabs_store.ui.screens.storeonboarding.StoreLocationStepScreen
@@ -183,12 +184,29 @@ fun StoreApp(
                     wizardViewModel = wizardViewModel,
                     onNavigateBack = { navController.popBackStack() },
                     onStoreCreated = {
-                        navController.navigate("home") {
+                        navController.navigate("setup_checklist") {
                             popUpTo("create_store") { inclusive = true }
                         }
                     }
                 )
             }
+        }
+
+        composable("setup_checklist") {
+            SetupChecklistScreen(
+                onNavigateBack = {
+                    navController.navigate("home") {
+                        popUpTo("setup_checklist") { inclusive = true }
+                    }
+                },
+                onNavigateToServices = { navController.navigate("services") },
+                onNavigateToCreateExpert = { storeId ->
+                    navController.navigate("create_expert/$storeId")
+                },
+                onNavigateToCreatePost = {
+                    // TODO: navigate to create post screen
+                }
+            )
         }
 
         composable("reservations") {
