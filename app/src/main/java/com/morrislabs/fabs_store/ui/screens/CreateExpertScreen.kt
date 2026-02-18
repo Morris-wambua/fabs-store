@@ -31,7 +31,7 @@ fun CreateExpertScreen(
     val availableSpecializations = when (storeState) {
         is StoreViewModel.StoreState.Success -> {
             val store = (storeState as StoreViewModel.StoreState.Success).data
-            store.servicesOffered.map { it.subCategory }.distinct()
+            store.servicesOffered.orEmpty().map { it.subCategory }.distinct()
         }
         else -> emptyList()
     }

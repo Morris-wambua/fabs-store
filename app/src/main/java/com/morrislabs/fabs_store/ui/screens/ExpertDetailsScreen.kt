@@ -110,7 +110,7 @@ fun ExpertDetailsScreen(
                 val expertServices = when (storeState) {
                     is StoreViewModel.StoreState.Success -> {
                         val store = (storeState as StoreViewModel.StoreState.Success).data
-                        store.servicesOffered.filter { service ->
+                        store.servicesOffered.orEmpty().filter { service ->
                             expert.specialization.any { specialization ->
                                 service.subCategory == specialization
                             }

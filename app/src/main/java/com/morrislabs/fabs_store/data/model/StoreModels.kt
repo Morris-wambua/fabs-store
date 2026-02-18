@@ -178,7 +178,12 @@ data class CreateStorePayload(
     val badge: Badge = Badge.SILVER,
     val discount: Double = 0.0,
     val location: LocationDTO,
-    val servicesOffered: List<String> = emptyList()
+    val servicesOffered: List<String> = emptyList(),
+    val phone: String? = null,
+    val about: String? = null,
+    val logoUrl: String? = null,
+    val logoS3Key: String? = null,
+    val businessHours: List<BusinessHourDTO>? = null
 )
 
 @Serializable
@@ -192,8 +197,12 @@ data class FetchStoreResponse(
     val noOfTags: Int = 0,
     val badge: Badge = Badge.SILVER,
     val discount: Double = 0.0,
+    val phone: String? = null,
+    val about: String? = null,
+    val logoUrl: String? = null,
+    val businessHours: List<BusinessHourDTO>? = null,
     val locationDTO: LocationDTO? = null,
-    val servicesOffered: List<TypeOfServiceDTO> = emptyList()
+    val servicesOffered: List<TypeOfServiceDTO>? = null
 )
 
 @Serializable
@@ -219,6 +228,23 @@ data class UpdateStorePayload(
     val discount: Double = 0.0,
     val location: LocationDTO? = null,
     val servicesOffered: List<String> = emptyList()
+)
+
+@Serializable
+data class BusinessHourDTO(
+    val dayName: String,
+    val dayIndex: Int,
+    @kotlinx.serialization.SerialName("open")
+    val isOpen: Boolean,
+    val openTime: String? = null,
+    val closeTime: String? = null
+)
+
+@Serializable
+data class UploadMediaResponse(
+    val fileName: String,
+    val url: String,
+    val expiryIn: String? = null
 )
 
 @Serializable

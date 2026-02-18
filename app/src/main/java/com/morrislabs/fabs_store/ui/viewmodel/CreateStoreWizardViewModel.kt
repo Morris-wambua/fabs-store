@@ -6,7 +6,7 @@ import android.util.Log
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.morrislabs.fabs_store.data.api.StoreApiService
-import com.morrislabs.fabs_store.data.model.Badge
+import com.morrislabs.fabs_store.data.model.BusinessHourDTO
 import com.morrislabs.fabs_store.data.model.CreateStorePayload
 import com.morrislabs.fabs_store.data.model.LocationDTO
 import com.morrislabs.fabs_store.util.TokenManager
@@ -153,6 +153,20 @@ class CreateStoreWizardViewModel(application: Application) : AndroidViewModel(ap
         viewModelScope.launch {
             val current = _state.value
 
+            var logoUrl: String? = null
+            var logoS3Key: String? = null
+            if (current.storeLogoUri != null) {
+                val userId = TokenManager.getInstance(context).getUserId() ?: ""
+                storeApiService.uploadStoreLogo(current.storeLogoUri, userId)
+                    .onSuccess { (url, key) ->
+                        logoUrl = url
+                        logoS3Key = key
+                    }
+                    .onFailure { error ->
+                        Log.w(TAG, "Logo upload failed, continuing without logo: ${error.message}")
+                    }
+            }
+
             val location = LocationDTO(
                 id = UUID.randomUUID().toString(),
                 name = current.locationName,
@@ -161,10 +175,29 @@ class CreateStoreWizardViewModel(application: Application) : AndroidViewModel(ap
                 longitude = current.longitude
             )
 
+            val businessHourDTOs = current.businessHours.map { day ->
+                BusinessHourDTO(
+                    dayName = day.dayName,
+                    dayIndex = day.dayIndex,
+                    isOpen = day.isOpen,
+                    openTime = if (day.isOpen) day.openTime else null,
+                    closeTime = if (day.isOpen) day.closeTime else null
+                )
+            }
+
+            val fullPhone = if (current.contactNumber.isNotBlank()) {
+                "${current.countryCode}${current.contactNumber}"
+            } else null
+
             val payload = CreateStorePayload(
                 name = current.storeName,
                 username = current.storeHandle,
-                location = location
+                location = location,
+                phone = fullPhone,
+                about = current.aboutStore.ifBlank { null },
+                logoUrl = logoUrl,
+                logoS3Key = logoS3Key,
+                businessHours = businessHourDTOs
             )
 
             Log.d(TAG, "Submitting store: ${payload.name}")
