@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
@@ -35,6 +36,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -147,7 +149,7 @@ fun StoreProfileEditorScreen(
             storeSnapshot = store
             if (!initialized) {
                 name = store.name
-                username = store.username
+                username = store.username.removePrefix("@")
                 about = store.about.orEmpty()
                 phone = store.phone.orEmpty()
                 email = store.email.orEmpty()
@@ -176,107 +178,110 @@ fun StoreProfileEditorScreen(
     val isSaving = updateState is StoreViewModel.UpdateStoreState.Loading
     val isUploadingAny = isUploadingLogo || isUploadingCover
 
-    Column(
+    Box(
         modifier = Modifier
             .fillMaxSize()
             .background(MaterialTheme.colorScheme.background)
     ) {
-        StoreProfileTopBar(onNavigateBack = onNavigateBack)
+        Column(modifier = Modifier.fillMaxSize()) {
+            StoreProfileTopBar(onNavigateBack = onNavigateBack)
 
-        when (val state = storeState) {
-            is StoreViewModel.StoreState.Loading -> {
-                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    CircularProgressIndicator()
+            when (val state = storeState) {
+                is StoreViewModel.StoreState.Loading -> {
+                    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                        CircularProgressIndicator()
+                    }
                 }
-            }
-            is StoreViewModel.StoreState.Success -> {
-                val store = state.data
-                Column(
-                    modifier = Modifier
-                        .weight(1f)
-                        .verticalScroll(rememberScrollState())
-                ) {
-                    StoreHeaderSection(
-                        store = store,
-                        logoImage = selectedLogoUri ?: uploadedLogoUrl ?: store.logoUrl,
-                        coverImage = selectedCoverUri ?: uploadedCoverUrl ?: store.coverUrl ?: store.logoUrl,
-                        isUploadingLogo = isUploadingLogo,
-                        isUploadingCover = isUploadingCover,
-                        onEditLogo = {
-                            uploadTarget = StoreImageTarget.LOGO
-                            galleryLauncher.launch("image/*")
-                        },
-                        onEditCover = {
-                            uploadTarget = StoreImageTarget.COVER
-                            galleryLauncher.launch("image/*")
-                        }
-                    )
-
+                is StoreViewModel.StoreState.Success -> {
+                    val store = state.data
                     Column(
                         modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 16.dp)
-                            .padding(top = 20.dp, bottom = 120.dp),
-                        verticalArrangement = Arrangement.spacedBy(16.dp)
+                            .fillMaxSize()
+                            .verticalScroll(rememberScrollState())
                     ) {
-                        SectionLabel("BASIC INFORMATION")
-                        FieldBlock("Store Name", name) { name = it }
-                        FieldBlock("Display Name", username) { username = it }
-                        FieldBlock("Description", about, minLines = 4) { about = it }
-
-                        Spacer(modifier = Modifier.height(4.dp))
-                        SectionLabel("CONTACT & LOCATION")
-                        ActionRow(
-                            title = "Location/Address",
-                            subtitle = store.locationDTO?.description ?: store.locationDTO?.name ?: "Set location",
-                            icon = Icons.Default.LocationOn,
-                            onClick = onNavigateToEditLocation
+                        StoreHeaderSection(
+                            store = store,
+                            logoImage = selectedLogoUri ?: uploadedLogoUrl ?: store.logoUrl,
+                            coverImage = selectedCoverUri ?: uploadedCoverUrl ?: store.coverUrl ?: store.logoUrl,
+                            isUploadingLogo = isUploadingLogo,
+                            isUploadingCover = isUploadingCover,
+                            onEditLogo = {
+                                uploadTarget = StoreImageTarget.LOGO
+                                galleryLauncher.launch("image/*")
+                            },
+                            onEditCover = {
+                                uploadTarget = StoreImageTarget.COVER
+                                galleryLauncher.launch("image/*")
+                            }
                         )
-                        FieldBlock("Contact Phone", phone) { phone = it }
-                        FieldBlock("Business Email", email) { email = it }
 
-                        Spacer(modifier = Modifier.height(4.dp))
-                        SectionLabel("OPERATIONAL INFO")
-                        ActionRow(
-                            title = "Business Hours",
-                            subtitle = store.businessHours?.let { summarizeHours(it) } ?: "Set weekly hours",
-                            icon = Icons.Default.Schedule,
-                            onClick = onNavigateToBusinessHours
-                        )
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 16.dp)
+                                .padding(top = 20.dp, bottom = 120.dp),
+                            verticalArrangement = Arrangement.spacedBy(16.dp)
+                        ) {
+                            SectionLabel("BASIC INFORMATION")
+                            FieldBlock("Store Name", name) { name = it }
+                            FieldBlock("Display Name", username) { username = it }
+                            FieldBlock("Description", about, minLines = 4) { about = it }
+
+                            Spacer(modifier = Modifier.height(4.dp))
+                            SectionLabel("CONTACT & LOCATION")
+                            ActionRow(
+                                title = "Location/Address",
+                                subtitle = store.locationDTO?.description ?: store.locationDTO?.name ?: "Set location",
+                                icon = Icons.Default.LocationOn,
+                                onClick = onNavigateToEditLocation
+                            )
+                            FieldBlock("Contact Phone", phone) { phone = it }
+                            FieldBlock("Business Email", email) { email = it }
+
+                            Spacer(modifier = Modifier.height(4.dp))
+                            SectionLabel("OPERATIONAL INFO")
+                            ActionRow(
+                                title = "Business Hours",
+                                subtitle = store.businessHours?.let { summarizeHours(it) } ?: "Set weekly hours",
+                                icon = Icons.Default.Schedule,
+                                onClick = onNavigateToBusinessHours
+                            )
+                        }
+                    }
+                }
+                else -> {
+                    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                        Text("Unable to load store profile")
                     }
                 }
             }
-            else -> {
-                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    Text("Unable to load store profile")
-                }
-            }
         }
-    }
 
-    SaveFooter(
-        isSaving = isSaving || isUploadingAny,
-        onSave = {
-            val store = storeSnapshot ?: return@SaveFooter
-            val storeId = store.id ?: return@SaveFooter
-            saveRequested = true
-            storeViewModel.updateStore(
-                storeId = storeId,
-                payload = UpdateStorePayload(
-                    name = name.trim(),
-                    username = username.trim(),
-                    description = about.trim(),
-                    about = about.trim(),
-                    phone = phone.trim(),
-                    email = email.trim().ifBlank { null },
-                    logoUrl = uploadedLogoUrl,
-                    logoS3Key = uploadedLogoS3Key,
-                    coverUrl = uploadedCoverUrl,
-                    coverS3Key = uploadedCoverS3Key
+        SaveFooter(
+            modifier = Modifier.align(Alignment.BottomCenter),
+            isSaving = isSaving || isUploadingAny,
+            onSave = {
+                val store = storeSnapshot ?: return@SaveFooter
+                val storeId = store.id ?: return@SaveFooter
+                saveRequested = true
+                storeViewModel.updateStore(
+                    storeId = storeId,
+                    payload = UpdateStorePayload(
+                        name = name.trim(),
+                        username = username.trim().removePrefix("@"),
+                        description = about.trim(),
+                        about = about.trim(),
+                        phone = phone.trim(),
+                        email = email.trim().ifBlank { null },
+                        logoUrl = uploadedLogoUrl,
+                        logoS3Key = uploadedLogoS3Key,
+                        coverUrl = uploadedCoverUrl,
+                        coverS3Key = uploadedCoverS3Key
+                    )
                 )
-            )
-        }
-    )
+            }
+        )
+    }
 }
 
 @Composable
@@ -284,7 +289,7 @@ private fun StoreProfileTopBar(onNavigateBack: () -> Unit) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .background(MaterialTheme.colorScheme.surfaceVariant)
+            .background(MaterialTheme.colorScheme.surface)
             .statusBarsPadding()
             .padding(horizontal = 8.dp, vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically
@@ -292,16 +297,19 @@ private fun StoreProfileTopBar(onNavigateBack: () -> Unit) {
         IconButton(onClick = onNavigateBack) {
             Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
         }
+        Spacer(modifier = Modifier.size(8.dp))
         Text(
             text = "Store Profile",
             style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
-            modifier = Modifier.weight(1f)
+            modifier = Modifier.weight(1f),
+            color = MaterialTheme.colorScheme.onBackground
         )
         Text(
             text = "Cancel",
             style = MaterialTheme.typography.labelLarge,
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )
+        Spacer(modifier = Modifier.size(8.dp))
     }
 }
 
@@ -320,7 +328,7 @@ private fun StoreHeaderSection(
             modifier = Modifier
                 .fillMaxWidth()
                 .height(260.dp)
-                .background(MaterialTheme.colorScheme.surfaceVariant)
+                .background(MaterialTheme.colorScheme.surface)
         ) {
             Box(
                 modifier = Modifier
@@ -377,34 +385,36 @@ private fun StoreHeaderSection(
                     .offset(y = 108.dp)
                     .size(126.dp)
                     .shadow(10.dp, CircleShape)
-                    .background(MaterialTheme.colorScheme.surfaceVariant, CircleShape)
-                    .padding(4.dp),
+                    .background(MaterialTheme.colorScheme.surface, CircleShape)
+                    .padding(3.dp),
                 contentAlignment = Alignment.Center
             ) {
                 Box(
                     modifier = Modifier
                         .fillMaxSize()
                         .background(MaterialTheme.colorScheme.surface, CircleShape)
-                        .padding(14.dp),
+                        .padding(8.dp),
                     contentAlignment = Alignment.Center
                 ) {
                     AsyncImage(
                         model = logoImage,
                         contentDescription = "Store logo",
                         modifier = Modifier
-                            .size(54.dp)
-                            .clip(RoundedCornerShape(6.dp)),
-                        contentScale = ContentScale.Fit
+                            .fillMaxSize()
+                            .clip(CircleShape),
+                        contentScale = ContentScale.Crop
                     )
                 }
                 Surface(
                     modifier = Modifier
                         .align(Alignment.BottomEnd)
+                        .offset(x = 4.dp, y = 4.dp)
                         .size(34.dp)
                         .clickable(enabled = !isUploadingLogo, onClick = onEditLogo),
                     shape = CircleShape,
                     color = MaterialTheme.colorScheme.primary,
-                    shadowElevation = 2.dp
+                    shadowElevation = 2.dp,
+                    tonalElevation = 0.dp
                 ) {
                     if (isUploadingLogo) {
                         CircularProgressIndicator(
@@ -450,8 +460,16 @@ private fun FieldBlock(
             value = value,
             onValueChange = onValueChange,
             modifier = Modifier.fillMaxWidth(),
-            shape = RoundedCornerShape(12.dp),
-            minLines = minLines
+            shape = RoundedCornerShape(14.dp),
+            minLines = minLines,
+            colors = OutlinedTextFieldDefaults.colors(
+                focusedContainerColor = MaterialTheme.colorScheme.background,
+                unfocusedContainerColor = MaterialTheme.colorScheme.background,
+                focusedBorderColor = MaterialTheme.colorScheme.outline,
+                unfocusedBorderColor = MaterialTheme.colorScheme.outline,
+                focusedTextColor = MaterialTheme.colorScheme.onBackground,
+                unfocusedTextColor = MaterialTheme.colorScheme.onBackground
+            )
         )
     }
 }
@@ -501,31 +519,43 @@ private fun ActionRow(
 }
 
 @Composable
-private fun SaveFooter(isSaving: Boolean, onSave: () -> Unit) {
-    Box(
+private fun SaveFooter(
+    modifier: Modifier = Modifier,
+    isSaving: Boolean,
+    onSave: () -> Unit
+) {
+    Surface(
         modifier = Modifier
-            .fillMaxSize()
-            .padding(bottom = 20.dp),
-        contentAlignment = Alignment.BottomCenter
+            .then(modifier)
+            .fillMaxWidth()
+            .navigationBarsPadding(),
+        color = MaterialTheme.colorScheme.background
     ) {
-        Button(
-            onClick = onSave,
-            enabled = !isSaving,
+        Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 16.dp)
-                .height(54.dp),
-            shape = RoundedCornerShape(12.dp),
-            colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
+                .padding(vertical = 12.dp),
+            contentAlignment = Alignment.BottomCenter
         ) {
-            if (isSaving) {
-                CircularProgressIndicator(
-                    modifier = Modifier.size(20.dp),
-                    strokeWidth = 2.dp,
-                    color = MaterialTheme.colorScheme.onPrimary
-                )
-            } else {
-                Text("Save Changes", style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold))
+            Button(
+                onClick = onSave,
+                enabled = !isSaving,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp)
+                    .height(54.dp),
+                shape = RoundedCornerShape(12.dp),
+                colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
+            ) {
+                if (isSaving) {
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(20.dp),
+                        strokeWidth = 2.dp,
+                        color = MaterialTheme.colorScheme.onPrimary
+                    )
+                } else {
+                    Text("Save Changes", style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold))
+                }
             }
         }
     }
