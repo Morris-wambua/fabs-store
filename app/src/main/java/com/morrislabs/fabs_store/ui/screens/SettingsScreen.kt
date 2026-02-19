@@ -17,6 +17,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Logout
 import androidx.compose.material.icons.filled.Notifications
@@ -39,6 +40,7 @@ import com.morrislabs.fabs_store.ui.viewmodel.AuthViewModel
 @Composable
 fun SettingsScreen(
     onNavigateBack: () -> Unit,
+    onNavigateToStoreProfile: () -> Unit = {},
     onLogout: () -> Unit,
     authViewModel: AuthViewModel = viewModel()
 ) {
@@ -85,6 +87,13 @@ fun SettingsScreen(
                 .verticalScroll(rememberScrollState())
         ) {
             SettingsSection(title = "App")
+
+            SettingItem(
+                icon = Icons.Default.Edit,
+                title = "Edit Store Profile",
+                subtitle = "Update store name, logo, and details",
+                onClick = onNavigateToStoreProfile
+            )
 
             SettingItem(
                 icon = Icons.Default.Notifications,

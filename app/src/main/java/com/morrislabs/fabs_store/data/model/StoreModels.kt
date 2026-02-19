@@ -126,7 +126,42 @@ enum class SubCategory {
     FRAGRANCES,
     HAIR_CARE_PRODUCTS,
     ORGANIC_AND_NATURAL_PRODUCTS,
-    TOOLS_AND_ACCESSORIES
+    TOOLS_AND_ACCESSORIES;
+
+    fun toMainCategory(): MainCategory = when (this) {
+        BRAIDING, BLOWOUTS, COLORING, EXTENSIONS, HAIRCUTS, KERATIN_TREATMENTS,
+        LOCS_AND_DREADLOCKS, PERMS, RELAXERS, SCALP_TREATMENTS, STYLING, TREATMENTS, WEAVES
+            -> MainCategory.HAIR_SERVICES
+        ACRYLIC_NAILS, DIPPING_POWDER, GEL_NAILS, MANICURES, NAIL_ART,
+        NAIL_CARE_PRODUCTS, PARAFFIN_TREATMENTS, PEDICURES
+            -> MainCategory.NAIL_SERVICES
+        ACNE_TREATMENTS, ANTI_AGING_TREATMENTS, CHEMICAL_PEELS, DERMAPLANING, FACIALS,
+        HYDRAFACIALS, LED_THERAPY, MICRODERMABRASION, MICRONEEDLING, OXYGEN_FACIALS,
+        SKIN_TIGHTENING, SKINCARE_PRODUCTS
+            -> MainCategory.SKINCARE_SERVICES
+        BODY_SCRUBS, BODY_WRAPS, HYDROTHERAPY, JACUZZI_TREATMENTS, MASSAGE_THERAPY,
+        HOT_STONE_THERAPY, SAUNA_SESSIONS, STEAM_TREATMENTS
+            -> MainCategory.BODY_SERVICES
+        AIRBRUSH_MAKEUP, BRIDAL_MAKEUP, EVERYDAY_MAKEUP, MAKEUP_CONSULTATION,
+        MAKEUP_LESSONS, MAKEUP_PRODUCTS, PERMANENT_MAKEUP, SPECIAL_OCCASION_MAKEUP,
+        THEATRICAL_MAKEUP
+            -> MainCategory.MAKEUP_AND_COSMETICS
+        DEPILATORY_CREAMS, ELECTROLYSIS, IPL_TREATMENT, LASER_HAIR_REMOVAL,
+        SUGARING, THREADING, WAXING
+            -> MainCategory.HAIR_REMOVAL
+        BROW_HENNA, BROW_LAMINATION, BROW_SHAPING, BROW_TINTING, EYELASH_PERMING,
+        LASH_EXTENSIONS, LASH_LIFT_AND_TINT, MICROBLADING
+            -> MainCategory.LASH_AND_BROW
+        BEARD_COLORING, BEARD_TRIMMING, FACIAL_HAIR_DESIGN, HEAD_SHAVES,
+        HOT_TOWEL_SHAVES, MENS_FACIALS, MENS_HAIRCUTS
+            -> MainCategory.BARBERSHOP_SERVICES
+        AROMATHERAPY, AYURVEDIC_TREATMENTS, FLOTATION_THERAPY, MEDITATION_SESSIONS,
+        MUD_BATHS, REFLEXOLOGY, SALT_THERAPY, SOUND_THERAPY
+            -> MainCategory.WELLNESS_AND_SPA
+        BATH_AND_BODY_PRODUCTS, FRAGRANCES, HAIR_CARE_PRODUCTS,
+        ORGANIC_AND_NATURAL_PRODUCTS, TOOLS_AND_ACCESSORIES
+            -> MainCategory.BEAUTY_PRODUCTS
+    }
 }
 
 @Serializable
@@ -178,7 +213,12 @@ data class CreateStorePayload(
     val badge: Badge = Badge.SILVER,
     val discount: Double = 0.0,
     val location: LocationDTO,
-    val servicesOffered: List<String>
+    val servicesOffered: List<String> = emptyList(),
+    val phone: String? = null,
+    val about: String? = null,
+    val logoUrl: String? = null,
+    val logoS3Key: String? = null,
+    val businessHours: List<BusinessHourDTO>? = null
 )
 
 @Serializable
@@ -192,8 +232,12 @@ data class FetchStoreResponse(
     val noOfTags: Int = 0,
     val badge: Badge = Badge.SILVER,
     val discount: Double = 0.0,
+    val phone: String? = null,
+    val about: String? = null,
+    val logoUrl: String? = null,
+    val businessHours: List<BusinessHourDTO>? = null,
     val locationDTO: LocationDTO? = null,
-    val servicesOffered: List<TypeOfServiceDTO> = emptyList()
+    val servicesOffered: List<TypeOfServiceDTO>? = null
 )
 
 @Serializable
@@ -219,6 +263,23 @@ data class UpdateStorePayload(
     val discount: Double = 0.0,
     val location: LocationDTO? = null,
     val servicesOffered: List<String> = emptyList()
+)
+
+@Serializable
+data class BusinessHourDTO(
+    val dayName: String,
+    val dayIndex: Int,
+    @kotlinx.serialization.SerialName("open")
+    val isOpen: Boolean,
+    val openTime: String? = null,
+    val closeTime: String? = null
+)
+
+@Serializable
+data class UploadMediaResponse(
+    val fileName: String,
+    val url: String,
+    val expiryIn: String? = null
 )
 
 @Serializable

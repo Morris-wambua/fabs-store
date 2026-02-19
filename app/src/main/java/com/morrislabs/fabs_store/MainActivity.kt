@@ -13,23 +13,29 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.lifecycle.viewmodel.compose.viewModel
-import androidx.navigation.NavController
-import androidx.navigation.NavGraphBuilder
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
+import androidx.navigation.compose.navigation
 import androidx.navigation.compose.rememberNavController
-import com.morrislabs.fabs_store.ui.screens.CreateStoreScreen
-import com.morrislabs.fabs_store.ui.screens.CreateStoreScreenRefactored
 import com.morrislabs.fabs_store.ui.screens.EmployeesScreen
+import com.morrislabs.fabs_store.ui.screens.CreateExpertScreen
+import com.morrislabs.fabs_store.ui.screens.EditExpertProfileScreen
+import com.morrislabs.fabs_store.ui.screens.ExpertDetailsScreen
 import com.morrislabs.fabs_store.ui.screens.HomeScreen
 import com.morrislabs.fabs_store.ui.screens.LoginScreen
 import com.morrislabs.fabs_store.ui.screens.RegisterScreen
 import com.morrislabs.fabs_store.ui.screens.ReservationsScreen
 import com.morrislabs.fabs_store.ui.screens.ServicesScreen
+import com.morrislabs.fabs_store.ui.screens.DailyScheduleScreen
 import com.morrislabs.fabs_store.ui.screens.SettingsScreen
 import com.morrislabs.fabs_store.ui.screens.StoreProfileEditorScreen
+import com.morrislabs.fabs_store.ui.screens.SetupChecklistScreen
+import com.morrislabs.fabs_store.ui.screens.storeonboarding.BusinessHoursStepScreen
+import com.morrislabs.fabs_store.ui.screens.storeonboarding.StoreInfoStepScreen
+import com.morrislabs.fabs_store.ui.screens.storeonboarding.StoreLocationStepScreen
 import com.morrislabs.fabs_store.ui.theme.FabsstoreTheme
 import com.morrislabs.fabs_store.ui.viewmodel.AuthViewModel
+import com.morrislabs.fabs_store.ui.viewmodel.CreateStoreWizardViewModel
 import com.morrislabs.fabs_store.util.AuthenticationStateListener
 import com.morrislabs.fabs_store.util.ClientConfig
 import kotlinx.coroutines.Dispatchers
@@ -116,6 +122,13 @@ fun StoreApp(
                 onNavigateToSettings = { navController.navigate("settings") },
                 onNavigateToStoreProfile = { navController.navigate("store_profile_editor") },
                 onNavigateToCreateStore = { navController.navigate("create_store") },
+                onNavigateToExpertDetails = { expertId ->
+                    navController.navigate("expert_details/$expertId")
+                },
+                onNavigateToCreateExpert = { storeId ->
+                    navController.navigate("create_expert/$storeId")
+                },
+                onNavigateToDailySchedule = { navController.navigate("daily_schedule") },
                 onLogout = {
                     authViewModel.logout()
                     storeViewModel.resetAllStates()
@@ -137,12 +150,64 @@ fun StoreApp(
             )
         }
 
-        composable("create_store") {
-            CreateStoreScreenRefactored(
-                onStoreCreated = {
-                    navController.navigate("home") {
-                        popUpTo("create_store") { inclusive = true }
+        navigation(
+            startDestination = "create_store/info",
+            route = "create_store"
+        ) {
+            composable("create_store/info") { backStackEntry ->
+                val parentEntry = remember(navController) {
+                    navController.getBackStackEntry("create_store")
+                }
+                val wizardViewModel: CreateStoreWizardViewModel = viewModel(parentEntry)
+                StoreInfoStepScreen(
+                    wizardViewModel = wizardViewModel,
+                    onNavigateBack = { navController.popBackStack() },
+                    onNavigateNext = { navController.navigate("create_store/location") }
+                )
+            }
+
+            composable("create_store/location") { backStackEntry ->
+                val parentEntry = remember(navController) {
+                    navController.getBackStackEntry("create_store")
+                }
+                val wizardViewModel: CreateStoreWizardViewModel = viewModel(parentEntry)
+                StoreLocationStepScreen(
+                    wizardViewModel = wizardViewModel,
+                    onNavigateBack = { navController.popBackStack() },
+                    onNavigateNext = { navController.navigate("create_store/hours") }
+                )
+            }
+
+            composable("create_store/hours") { backStackEntry ->
+                val parentEntry = remember(navController) {
+                    navController.getBackStackEntry("create_store")
+                }
+                val wizardViewModel: CreateStoreWizardViewModel = viewModel(parentEntry)
+                BusinessHoursStepScreen(
+                    wizardViewModel = wizardViewModel,
+                    onNavigateBack = { navController.popBackStack() },
+                    onStoreCreated = {
+                        navController.navigate("setup_checklist") {
+                            popUpTo("create_store") { inclusive = true }
+                        }
                     }
+                )
+            }
+        }
+
+        composable("setup_checklist") {
+            SetupChecklistScreen(
+                onNavigateBack = {
+                    navController.navigate("home") {
+                        popUpTo("setup_checklist") { inclusive = true }
+                    }
+                },
+                onNavigateToServices = { navController.navigate("services") },
+                onNavigateToCreateExpert = { storeId ->
+                    navController.navigate("create_expert/$storeId")
+                },
+                onNavigateToCreatePost = {
+                    // TODO: navigate to create post screen
                 }
             )
         }
@@ -152,7 +217,47 @@ fun StoreApp(
         }
 
         composable("employees") {
-            EmployeesScreen(onNavigateBack = { navController.popBackStack() })
+            EmployeesScreen(
+                onNavigateBack = { navController.popBackStack() },
+                onExpertSelected = { expertId ->
+                    navController.navigate("expert_details/$expertId")
+                },
+                onNavigateToCreateExpert = { storeId ->
+                    navController.navigate("create_expert/$storeId")
+                }
+            )
+        }
+
+        composable("expert_details/{expertId}") { backStackEntry ->
+            val expertId = backStackEntry.arguments?.getString("expertId") ?: ""
+            ExpertDetailsScreen(
+                expertId = expertId,
+                onNavigateBack = { navController.popBackStack() },
+                onNavigateToEditExpert = { id, storeId ->
+                    navController.navigate("edit_expert/$id/$storeId")
+                }
+            )
+        }
+
+        composable("edit_expert/{expertId}/{storeId}") { backStackEntry ->
+            val expertId = backStackEntry.arguments?.getString("expertId") ?: ""
+            val storeId = backStackEntry.arguments?.getString("storeId") ?: ""
+            EditExpertProfileScreen(
+                expertId = expertId,
+                storeId = storeId,
+                onNavigateBack = { navController.popBackStack() }
+            )
+        }
+
+        composable("create_expert/{storeId}") { backStackEntry ->
+            val storeId = backStackEntry.arguments?.getString("storeId") ?: ""
+            CreateExpertScreen(
+                storeId = storeId,
+                onNavigateBack = { navController.popBackStack() },
+                onExpertCreated = {
+                    navController.popBackStack()
+                }
+            )
         }
 
         composable("services") {
@@ -162,6 +267,7 @@ fun StoreApp(
         composable("settings") {
             SettingsScreen(
                 onNavigateBack = { navController.popBackStack() },
+                onNavigateToStoreProfile = { navController.navigate("store_profile_editor") },
                 onLogout = {
                     authViewModel.logout()
                     isLoggedIn = false
@@ -169,6 +275,12 @@ fun StoreApp(
                         popUpTo("home") { inclusive = true }
                     }
                 }
+            )
+        }
+
+        composable("daily_schedule") {
+            DailyScheduleScreen(
+                onNavigateBack = { navController.popBackStack() }
             )
         }
     }

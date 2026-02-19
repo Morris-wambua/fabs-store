@@ -83,8 +83,12 @@ dependencies {
     // Security Crypto (for encryption)
     implementation(libs.androidx.security.crypto)
 
-    // Google Play Services (for location)
-    implementation("com.google.android.gms:play-services-location:21.0.1")
+    // Google Maps & Location
+    implementation(libs.playServicesMaps)
+    implementation(libs.playServicesLocation)
+    implementation(libs.mapsCompose)
+    implementation(libs.androidMapsUtils)
+    implementation(libs.accompanistPermissions)
 
     // Testing
     testImplementation(libs.junit)
