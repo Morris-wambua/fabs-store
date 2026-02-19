@@ -18,20 +18,25 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.offset
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.border
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.CameraAlt
 import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material.icons.filled.Schedule
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -54,11 +59,13 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.lifecycle.viewmodel.compose.viewModel
 import coil.compose.AsyncImage
 import com.morrislabs.fabs_store.data.model.FetchStoreResponse
 import com.morrislabs.fabs_store.data.model.UpdateStorePayload
 import com.morrislabs.fabs_store.ui.viewmodel.StoreViewModel
+import androidx.compose.ui.text.input.KeyboardType
 
 @Composable
 fun StoreProfileEditorScreen(
@@ -75,7 +82,8 @@ fun StoreProfileEditorScreen(
     var name by remember { mutableStateOf("") }
     var username by remember { mutableStateOf("") }
     var about by remember { mutableStateOf("") }
-    var phone by remember { mutableStateOf("") }
+    var selectedCountryCode by remember { mutableStateOf("+254") }
+    var localPhoneNumber by remember { mutableStateOf("") }
     var email by remember { mutableStateOf("") }
     var saveRequested by remember { mutableStateOf(false) }
     var selectedLogoUri by remember { mutableStateOf<Uri?>(null) }
@@ -150,9 +158,11 @@ fun StoreProfileEditorScreen(
             storeSnapshot = store
             if (!initialized) {
                 name = store.name
-                username = store.username.removePrefix("@")
+                username = store.username
                 about = store.about.orEmpty()
-                phone = store.phone.orEmpty()
+                val phoneParts = parsePhoneForUi(store.phone.orEmpty())
+                selectedCountryCode = phoneParts.first
+                localPhoneNumber = phoneParts.second
                 email = store.email.orEmpty()
                 initialized = true
             }
@@ -236,7 +246,13 @@ fun StoreProfileEditorScreen(
                                 icon = Icons.Default.LocationOn,
                                 onClick = onNavigateToEditLocation
                             )
-                            FieldBlock("Contact Phone", phone) { phone = it }
+                            PhoneFieldBlock(
+                                label = "Contact Phone",
+                                countryCode = selectedCountryCode,
+                                localPhone = localPhoneNumber,
+                                onCountryCodeChange = { selectedCountryCode = it },
+                                onLocalPhoneChange = { localPhoneNumber = it }
+                            )
                             FieldBlock("Business Email", email) { email = it }
 
                             Spacer(modifier = Modifier.height(4.dp))
@@ -269,10 +285,10 @@ fun StoreProfileEditorScreen(
                     storeId = storeId,
                     payload = UpdateStorePayload(
                         name = name.trim(),
-                        username = username.trim().removePrefix("@"),
+                        username = username.trim(),
                         description = about.trim(),
                         about = about.trim(),
-                        phone = phone.trim(),
+                        phone = formatPhoneForSave(selectedCountryCode, localPhoneNumber),
                         email = email.trim().ifBlank { null },
                         logoUrl = uploadedLogoUrl,
                         logoS3Key = uploadedLogoS3Key,
@@ -442,7 +458,7 @@ private fun StoreHeaderSection(
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             Text(store.name, style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold))
-            Text("@${store.username}", color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text(store.username, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
     }
 }
@@ -471,6 +487,91 @@ private fun FieldBlock(
                 unfocusedTextColor = MaterialTheme.colorScheme.onBackground
             )
         )
+    }
+}
+
+@Composable
+private fun PhoneFieldBlock(
+    label: String,
+    countryCode: String,
+    localPhone: String,
+    onCountryCodeChange: (String) -> Unit,
+    onLocalPhoneChange: (String) -> Unit
+) {
+    var expanded by remember { mutableStateOf(false) }
+    val selectedEntry = countryCodes.find { it.code == countryCode } ?: countryCodes.first()
+
+    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+        Text(label, style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.SemiBold))
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            Box {
+                OutlinedTextField(
+                    value = "${selectedEntry.flag} ${selectedEntry.code}",
+                    onValueChange = {},
+                    readOnly = true,
+                    modifier = Modifier
+                        .width(130.dp)
+                        .clickable { expanded = true },
+                    shape = RoundedCornerShape(14.dp),
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedContainerColor = MaterialTheme.colorScheme.background,
+                        unfocusedContainerColor = MaterialTheme.colorScheme.background,
+                        focusedBorderColor = MaterialTheme.colorScheme.outline,
+                        unfocusedBorderColor = MaterialTheme.colorScheme.outline,
+                        focusedTextColor = MaterialTheme.colorScheme.onBackground,
+                        unfocusedTextColor = MaterialTheme.colorScheme.onBackground
+                    ),
+                    trailingIcon = {
+                        Icon(
+                            imageVector = Icons.Default.KeyboardArrowDown,
+                            contentDescription = "Select country",
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier
+                                .size(20.dp)
+                                .clickable { expanded = true }
+                        )
+                    },
+                    singleLine = true
+                )
+                DropdownMenu(
+                    expanded = expanded,
+                    onDismissRequest = { expanded = false }
+                ) {
+                    countryCodes.forEach { entry ->
+                        DropdownMenuItem(
+                            text = {
+                                Text("${entry.flag}  ${entry.name} (${entry.code})")
+                            },
+                            onClick = {
+                                onCountryCodeChange(entry.code)
+                                expanded = false
+                            }
+                        )
+                    }
+                }
+            }
+
+            OutlinedTextField(
+                value = localPhone,
+                onValueChange = onLocalPhoneChange,
+                modifier = Modifier.weight(1f),
+                shape = RoundedCornerShape(14.dp),
+                placeholder = { Text("712 345 678") },
+                colors = OutlinedTextFieldDefaults.colors(
+                    focusedContainerColor = MaterialTheme.colorScheme.background,
+                    unfocusedContainerColor = MaterialTheme.colorScheme.background,
+                    focusedBorderColor = MaterialTheme.colorScheme.outline,
+                    unfocusedBorderColor = MaterialTheme.colorScheme.outline,
+                    focusedTextColor = MaterialTheme.colorScheme.onBackground,
+                    unfocusedTextColor = MaterialTheme.colorScheme.onBackground
+                ),
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone),
+                singleLine = true
+            )
+        }
     }
 }
 
@@ -564,6 +665,51 @@ private fun SaveFooter(
 private enum class StoreImageTarget {
     LOGO,
     COVER
+}
+
+private data class CountryCodeEntry(
+    val flag: String,
+    val code: String,
+    val name: String
+)
+
+private val countryCodes = listOf(
+    CountryCodeEntry("\uD83C\uDDF0\uD83C\uDDEA", "+254", "Kenya"),
+    CountryCodeEntry("\uD83C\uDDFA\uD83C\uDDF8", "+1", "United States"),
+    CountryCodeEntry("\uD83C\uDDEC\uD83C\uDDE7", "+44", "United Kingdom"),
+    CountryCodeEntry("\uD83C\uDDF3\uD83C\uDDEC", "+234", "Nigeria"),
+    CountryCodeEntry("\uD83C\uDDFF\uD83C\uDDE6", "+27", "South Africa"),
+    CountryCodeEntry("\uD83C\uDDF9\uD83C\uDDFF", "+255", "Tanzania"),
+    CountryCodeEntry("\uD83C\uDDFA\uD83C\uDDEC", "+256", "Uganda"),
+    CountryCodeEntry("\uD83C\uDDEA\uD83C\uDDF9", "+251", "Ethiopia"),
+    CountryCodeEntry("\uD83C\uDDEC\uD83C\uDDED", "+233", "Ghana"),
+    CountryCodeEntry("\uD83C\uDDF7\uD83C\uDDFC", "+250", "Rwanda"),
+    CountryCodeEntry("\uD83C\uDDEE\uD83C\uDDF3", "+91", "India"),
+    CountryCodeEntry("\uD83C\uDDE6\uD83C\uDDEA", "+971", "UAE"),
+    CountryCodeEntry("\uD83C\uDDE8\uD83C\uDDE6", "+1", "Canada"),
+    CountryCodeEntry("\uD83C\uDDE6\uD83C\uDDFA", "+61", "Australia"),
+    CountryCodeEntry("\uD83C\uDDE9\uD83C\uDDEA", "+49", "Germany"),
+    CountryCodeEntry("\uD83C\uDDEB\uD83C\uDDF7", "+33", "France"),
+    CountryCodeEntry("\uD83C\uDDE7\uD83C\uDDF7", "+55", "Brazil"),
+    CountryCodeEntry("\uD83C\uDDE8\uD83C\uDDF3", "+86", "China"),
+    CountryCodeEntry("\uD83C\uDDEF\uD83C\uDDF5", "+81", "Japan"),
+    CountryCodeEntry("\uD83C\uDDEA\uD83C\uDDEC", "+20", "Egypt")
+)
+
+private fun parsePhoneForUi(phone: String): Pair<String, String> {
+    if (phone.isBlank()) return "+254" to ""
+    val matched = countryCodes.firstOrNull { phone.startsWith(it.code) }
+    return if (matched != null) {
+        matched.code to phone.removePrefix(matched.code).trimStart()
+    } else {
+        "+254" to phone
+    }
+}
+
+private fun formatPhoneForSave(countryCode: String, localPhone: String): String? {
+    val local = localPhone.trim()
+    if (local.isBlank()) return null
+    return "$countryCode$local"
 }
 
 private fun summarizeHours(hours: List<com.morrislabs.fabs_store.data.model.BusinessHourDTO>): String {
