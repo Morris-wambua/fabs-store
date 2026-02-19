@@ -53,6 +53,7 @@ import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.foundation.BorderStroke
 import androidx.lifecycle.viewmodel.compose.viewModel
 import coil.compose.AsyncImage
 import com.morrislabs.fabs_store.data.model.FetchStoreResponse
@@ -385,36 +386,35 @@ private fun StoreHeaderSection(
                     .offset(y = 108.dp)
                     .size(126.dp)
                     .shadow(10.dp, CircleShape)
-                    .background(MaterialTheme.colorScheme.surface, CircleShape)
+                    .background(MaterialTheme.colorScheme.background, CircleShape)
                     .padding(3.dp),
                 contentAlignment = Alignment.Center
             ) {
                 Box(
                     modifier = Modifier
                         .fillMaxSize()
-                        .background(MaterialTheme.colorScheme.surface, CircleShape)
-                        .padding(8.dp),
+                        .background(MaterialTheme.colorScheme.surfaceVariant, CircleShape)
+                        .padding(14.dp),
                     contentAlignment = Alignment.Center
                 ) {
                     AsyncImage(
                         model = logoImage,
                         contentDescription = "Store logo",
                         modifier = Modifier
-                            .fillMaxSize()
-                            .clip(CircleShape),
-                        contentScale = ContentScale.Crop
+                            .size(54.dp),
+                        contentScale = ContentScale.Fit
                     )
                 }
                 Surface(
                     modifier = Modifier
                         .align(Alignment.BottomEnd)
-                        .offset(x = 4.dp, y = 4.dp)
                         .size(34.dp)
                         .clickable(enabled = !isUploadingLogo, onClick = onEditLogo),
                     shape = CircleShape,
                     color = MaterialTheme.colorScheme.primary,
                     shadowElevation = 2.dp,
-                    tonalElevation = 0.dp
+                    tonalElevation = 0.dp,
+                    border = BorderStroke(2.dp, MaterialTheme.colorScheme.background)
                 ) {
                     if (isUploadingLogo) {
                         CircularProgressIndicator(
@@ -426,7 +426,7 @@ private fun StoreHeaderSection(
                         Icon(
                             imageVector = Icons.Default.Edit,
                             contentDescription = "Edit logo",
-                            tint = MaterialTheme.colorScheme.onPrimary,
+                            tint = MaterialTheme.colorScheme.onBackground,
                             modifier = Modifier.padding(8.dp)
                         )
                     }
