@@ -20,6 +20,10 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.ExperimentalMaterialApi
+import androidx.compose.material.pullrefresh.PullRefreshIndicator
+import androidx.compose.material.pullrefresh.pullRefresh
+import androidx.compose.material.pullrefresh.rememberPullRefreshState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.CalendarMonth
@@ -39,20 +43,28 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import coil.compose.AsyncImage
+import coil.request.ImageRequest
 import com.morrislabs.fabs_store.data.model.FetchStoreResponse
 import com.morrislabs.fabs_store.data.model.ReservationStatus
 import com.morrislabs.fabs_store.data.model.ReservationWithPaymentDTO
 import com.morrislabs.fabs_store.ui.viewmodel.StoreViewModel
 import java.time.LocalTime
 
+@OptIn(ExperimentalMaterialApi::class)
 @Composable
 fun DashboardScreen(
     store: FetchStoreResponse,
     reservationsState: StoreViewModel.LoadingState<List<ReservationWithPaymentDTO>>,
+    isRefreshing: Boolean,
+    onRefresh: () -> Unit,
     onNavigateToSettings: () -> Unit,
     onNavigateToCreateExpert: (String) -> Unit,
     onNavigateToServices: () -> Unit,
@@ -63,18 +75,29 @@ fun DashboardScreen(
     val storeId = store.id ?: ""
     val greeting = getGreeting()
 
-    Column(
+    val pullRefreshState = rememberPullRefreshState(
+        refreshing = isRefreshing,
+        onRefresh = onRefresh
+    )
+
+    Box(
         modifier = modifier
             .fillMaxSize()
-            .background(MaterialTheme.colorScheme.background)
-            .verticalScroll(rememberScrollState())
+            .pullRefresh(pullRefreshState)
     ) {
-        DashboardHeader(
-            greeting = greeting,
-            storeName = store.name,
-            onSettings = onNavigateToSettings,
-            onNotifications = {}
-        )
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(MaterialTheme.colorScheme.background)
+                .verticalScroll(rememberScrollState())
+        ) {
+            DashboardHeader(
+                greeting = greeting,
+                storeName = store.name,
+                logoUrl = store.logoUrl,
+                onSettings = onNavigateToSettings,
+                onNotifications = {}
+            )
 
         Spacer(modifier = Modifier.height(20.dp))
 
@@ -102,6 +125,13 @@ fun DashboardScreen(
         RecentFeedbackSection()
 
         Spacer(modifier = Modifier.height(100.dp))
+        }
+
+        PullRefreshIndicator(
+            refreshing = isRefreshing,
+            state = pullRefreshState,
+            modifier = Modifier.align(Alignment.TopCenter)
+        )
     }
 }
 
@@ -109,6 +139,7 @@ fun DashboardScreen(
 private fun DashboardHeader(
     greeting: String,
     storeName: String,
+    logoUrl: String?,
     onSettings: () -> Unit,
     onNotifications: () -> Unit
 ) {
@@ -124,13 +155,27 @@ private fun DashboardHeader(
             shape = CircleShape,
             color = Color(0xFF4CAF50).copy(alpha = 0.2f)
         ) {
-            Box(contentAlignment = Alignment.Center) {
-                Icon(
-                    imageVector = Icons.Default.Spa,
-                    contentDescription = null,
-                    tint = Color(0xFF4CAF50),
-                    modifier = Modifier.size(22.dp)
+            if (!logoUrl.isNullOrEmpty()) {
+                AsyncImage(
+                    model = ImageRequest.Builder(LocalContext.current)
+                        .data(logoUrl)
+                        .crossfade(true)
+                        .build(),
+                    contentDescription = "Store Logo",
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .clip(CircleShape),
+                    contentScale = ContentScale.Crop
                 )
+            } else {
+                Box(contentAlignment = Alignment.Center) {
+                    Icon(
+                        imageVector = Icons.Default.Spa,
+                        contentDescription = null,
+                        tint = Color(0xFF4CAF50),
+                        modifier = Modifier.size(22.dp)
+                    )
+                }
             }
         }
 
@@ -182,12 +227,15 @@ private fun TodaysInsightsSection(
         .sumOf { it.price }
 
     Column(modifier = Modifier.padding(horizontal = 16.dp)) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
             Text(
                 text = "Today's Insights",
                 style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold)
             )
-            Spacer(modifier = Modifier.width(8.dp))
+            Spacer(modifier = Modifier.weight(1f))
             Surface(
                 shape = RoundedCornerShape(4.dp),
                 color = Color(0xFF4CAF50).copy(alpha = 0.15f)
@@ -218,18 +266,18 @@ private fun TodaysInsightsSection(
             }
             item {
                 InsightCard(
-                    title = "EARNINGS TODAY",
-                    value = "KES ${String.format("%.0f", earnings)}",
-                    delta = "from completed",
+                    title = "PENDING APPROVAL",
+                    value = "${reservations.count { it.status == ReservationStatus.BOOKED_PENDING_ACCEPTANCE }}",
+                    delta = "awaiting action",
                     containerColor = Color(0xFF4CAF50),
                     contentColor = Color.White
                 )
             }
             item {
                 InsightCard(
-                    title = "PENDING APPROVAL",
-                    value = "${reservations.count { it.status == ReservationStatus.BOOKED_PENDING_ACCEPTANCE }}",
-                    delta = "awaiting action",
+                    title = "EARNINGS TODAY",
+                    value = "KES ${String.format("%.0f", earnings)}",
+                    delta = "from completed",
                     containerColor = MaterialTheme.colorScheme.tertiaryContainer,
                     contentColor = MaterialTheme.colorScheme.onTertiaryContainer
                 )

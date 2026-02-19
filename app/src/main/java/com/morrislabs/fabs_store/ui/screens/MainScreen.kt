@@ -130,6 +130,14 @@ fun MainScreen(
                     DashboardScreen(
                         store = store,
                         reservationsState = reservationsState,
+                        isRefreshing = isRefreshing,
+                        onRefresh = {
+                            storeViewModel.fetchUserStore()
+                            if (storeId.isNotEmpty()) {
+                                storeViewModel.refreshReservations(storeId)
+                                expertViewModel.getExpertsByStoreId(storeId)
+                            }
+                        },
                         onNavigateToSettings = onNavigateToSettings,
                         onNavigateToCreateExpert = onNavigateToCreateExpert,
                         onNavigateToServices = onNavigateToServices,
