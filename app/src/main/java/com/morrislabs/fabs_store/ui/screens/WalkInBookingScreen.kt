@@ -1,6 +1,8 @@
 package com.morrislabs.fabs_store.ui.screens
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -17,20 +19,22 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.Search
-import androidx.compose.material3.AssistChip
 import androidx.compose.material3.Button
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.DatePicker
+import androidx.compose.material3.DatePickerDialog
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.Icon
@@ -39,10 +43,13 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.rememberDatePickerState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -50,9 +57,13 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 
 @OptIn(ExperimentalLayoutApi::class, ExperimentalMaterial3Api::class)
 @Composable
@@ -63,9 +74,14 @@ internal fun WalkInBookingScreen(
     var phone by remember { mutableStateOf("") }
     var serviceSearch by remember { mutableStateOf("") }
     var price by remember { mutableStateOf("") }
-    var selectedServiceNames by remember { mutableStateOf(setOf("Hair Styling")) }
-    var selectedExpert by remember { mutableStateOf("James") }
-    var selectedDuration by remember { mutableStateOf("45 min") }
+    var selectedServiceNames by remember { mutableStateOf(setOf<String>()) }
+    var selectedExpert by remember { mutableStateOf<String?>(null) }
+    var selectedDuration by remember { mutableStateOf<String?>(null) }
+    var selectedDateMillis by remember { mutableStateOf<Long?>(null) }
+    var showDatePicker by remember { mutableStateOf(false) }
+
+    val dateFormat = remember { SimpleDateFormat("MMMM dd, yyyy", Locale.getDefault()) }
+    val displayDate = selectedDateMillis?.let { dateFormat.format(Date(it)) } ?: "Select a date"
 
     val serviceOptions = listOf(
         "Hair Styling",
@@ -119,7 +135,7 @@ internal fun WalkInBookingScreen(
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(12.dp),
                     contentPadding = PaddingValues(vertical = 14.dp),
-                    enabled = phone.isNotBlank() && selectedServiceNames.isNotEmpty() && price.isNotBlank()
+                    enabled = phone.isNotBlank() && selectedServiceNames.isNotEmpty() && selectedExpert != null && selectedDateMillis != null && selectedDuration != null
                 ) {
                     Icon(
                         imageVector = Icons.Default.CheckCircle,
@@ -132,10 +148,33 @@ internal fun WalkInBookingScreen(
             }
         }
     ) { innerPadding ->
+        if (showDatePicker) {
+            val datePickerState = rememberDatePickerState(initialSelectedDateMillis = selectedDateMillis)
+            DatePickerDialog(
+                onDismissRequest = { showDatePicker = false },
+                confirmButton = {
+                    TextButton(onClick = {
+                        selectedDateMillis = datePickerState.selectedDateMillis
+                        showDatePicker = false
+                    }) {
+                        Text("OK")
+                    }
+                },
+                dismissButton = {
+                    TextButton(onClick = { showDatePicker = false }) {
+                        Text("Cancel")
+                    }
+                }
+            ) {
+                DatePicker(state = datePickerState)
+            }
+        }
+
         Column(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(innerPadding)
+                .verticalScroll(rememberScrollState())
                 .padding(horizontal = 16.dp, vertical = 8.dp)
         ) {
             Text(
@@ -236,26 +275,32 @@ internal fun WalkInBookingScreen(
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
             Spacer(modifier = Modifier.height(8.dp))
-            LazyRow(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+            LazyRow(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
                 items(expertOptions.size) { index ->
                     val expert = expertOptions[index]
                     val selected = selectedExpert == expert
                     Column(
                         horizontalAlignment = Alignment.CenterHorizontally,
-                        modifier = Modifier.clickable { selectedExpert = expert }
+                        modifier = Modifier
+                            .clickable {
+                                selectedExpert = if (selected) null else expert
+                            }
+                            .alpha(if (selected || selectedExpert == null) 1f else 0.6f)
                     ) {
                         Box(contentAlignment = Alignment.BottomEnd) {
                             Box(
                                 modifier = Modifier
-                                    .size(60.dp)
+                                    .size(64.dp)
+                                    .then(
+                                        if (selected) Modifier.border(
+                                            width = 2.dp,
+                                            color = MaterialTheme.colorScheme.primary,
+                                            shape = CircleShape
+                                        ) else Modifier
+                                    )
+                                    .padding(3.dp)
                                     .background(
                                         color = MaterialTheme.colorScheme.surfaceVariant,
-                                        shape = CircleShape
-                                    )
-                                    .padding(2.dp)
-                                    .background(
-                                        color = if (selected) MaterialTheme.colorScheme.primary.copy(alpha = 0.15f)
-                                        else MaterialTheme.colorScheme.surfaceVariant,
                                         shape = CircleShape
                                     ),
                                 contentAlignment = Alignment.Center
@@ -270,7 +315,8 @@ internal fun WalkInBookingScreen(
                                 Box(
                                     modifier = Modifier
                                         .size(20.dp)
-                                        .background(MaterialTheme.colorScheme.primary, CircleShape),
+                                        .background(MaterialTheme.colorScheme.primary, CircleShape)
+                                        .border(2.dp, MaterialTheme.colorScheme.background, CircleShape),
                                     contentAlignment = Alignment.Center
                                 ) {
                                     Icon(
@@ -285,7 +331,9 @@ internal fun WalkInBookingScreen(
                         Spacer(modifier = Modifier.height(6.dp))
                         Text(
                             text = expert,
-                            style = MaterialTheme.typography.labelSmall,
+                            style = MaterialTheme.typography.labelSmall.copy(
+                                fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium
+                            ),
                             color = MaterialTheme.colorScheme.onSurface
                         )
                     }
@@ -299,11 +347,12 @@ internal fun WalkInBookingScreen(
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
             Spacer(modifier = Modifier.height(8.dp))
-            Card(
+            Surface(
+                onClick = { showDatePicker = true },
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(12.dp),
-                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-                border = CardDefaults.outlinedCardBorder()
+                color = MaterialTheme.colorScheme.surface,
+                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.4f))
             ) {
                 Row(
                     modifier = Modifier
@@ -317,7 +366,18 @@ internal fun WalkInBookingScreen(
                         tint = MaterialTheme.colorScheme.primary
                     )
                     Spacer(modifier = Modifier.width(8.dp))
-                    Text("October 14, 2023", style = MaterialTheme.typography.bodyMedium)
+                    Text(
+                        displayDate,
+                        style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold),
+                        color = if (selectedDateMillis != null) MaterialTheme.colorScheme.onSurface
+                        else MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.weight(1f)
+                    )
+                    Icon(
+                        imageVector = Icons.Default.KeyboardArrowDown,
+                        contentDescription = "Select date",
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
                 }
             }
 
@@ -330,22 +390,29 @@ internal fun WalkInBookingScreen(
             Spacer(modifier = Modifier.height(8.dp))
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
                 durationOptions.forEach { duration ->
-                    AssistChip(
+                    val isSelected = selectedDuration == duration
+                    Surface(
                         onClick = { selectedDuration = duration },
-                        label = { Text(duration) },
-                        modifier = Modifier.weight(1f),
-                        colors = if (selectedDuration == duration) {
-                            androidx.compose.material3.AssistChipDefaults.assistChipColors(
-                                containerColor = MaterialTheme.colorScheme.primary,
-                                labelColor = MaterialTheme.colorScheme.onPrimary
-                            )
-                        } else {
-                            androidx.compose.material3.AssistChipDefaults.assistChipColors(
-                                containerColor = MaterialTheme.colorScheme.surface,
-                                labelColor = MaterialTheme.colorScheme.onSurface
+                        modifier = Modifier
+                            .weight(1f)
+                            .height(52.dp),
+                        shape = RoundedCornerShape(12.dp),
+                        color = MaterialTheme.colorScheme.surface,
+                        border = BorderStroke(
+                            width = if (isSelected) 2.dp else 1.dp,
+                            color = if (isSelected) MaterialTheme.colorScheme.primary
+                            else MaterialTheme.colorScheme.outline.copy(alpha = 0.4f)
+                        )
+                    ) {
+                        Box(contentAlignment = Alignment.Center, modifier = Modifier.fillMaxSize()) {
+                            Text(
+                                text = duration,
+                                style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Bold),
+                                color = if (isSelected) MaterialTheme.colorScheme.onSurface
+                                else MaterialTheme.colorScheme.onSurfaceVariant
                             )
                         }
-                    )
+                    }
                 }
             }
 
@@ -362,8 +429,20 @@ internal fun WalkInBookingScreen(
                 modifier = Modifier.fillMaxWidth(),
                 singleLine = true,
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                trailingIcon = { Icon(imageVector = Icons.Default.Edit, contentDescription = null) },
-                placeholder = { Text("1500") },
+                trailingIcon = {
+                    Icon(
+                        imageVector = Icons.Default.Edit,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                },
+                placeholder = {
+                    Text(
+                        "1500",
+                        style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.ExtraBold)
+                    )
+                },
+                textStyle = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.ExtraBold),
                 shape = RoundedCornerShape(12.dp)
             )
         }

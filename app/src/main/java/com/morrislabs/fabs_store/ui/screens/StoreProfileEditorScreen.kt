@@ -400,25 +400,24 @@ private fun StoreHeaderSection(
                 modifier = Modifier
                     .align(Alignment.TopCenter)
                     .offset(y = 108.dp)
-                    .size(126.dp)
-                    .shadow(10.dp, CircleShape)
-                    .background(MaterialTheme.colorScheme.background, CircleShape)
-                    .padding(3.dp),
+                    .size(126.dp),
                 contentAlignment = Alignment.Center
             ) {
                 Box(
                     modifier = Modifier
                         .fillMaxSize()
-                        .background(MaterialTheme.colorScheme.surfaceVariant, CircleShape)
-                        .padding(14.dp),
+                        .shadow(10.dp, CircleShape)
+                        .background(MaterialTheme.colorScheme.background, CircleShape)
+                        .padding(4.dp),
                     contentAlignment = Alignment.Center
                 ) {
                     AsyncImage(
                         model = logoImage,
                         contentDescription = "Store logo",
                         modifier = Modifier
-                            .size(54.dp),
-                        contentScale = ContentScale.Fit
+                            .fillMaxSize()
+                            .clip(CircleShape),
+                        contentScale = ContentScale.Crop
                     )
                 }
                 Surface(

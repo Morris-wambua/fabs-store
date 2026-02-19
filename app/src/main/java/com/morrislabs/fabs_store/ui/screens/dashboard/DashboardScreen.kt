@@ -333,7 +333,7 @@ private fun UpcomingSection(
     val upcoming = when (reservationsState) {
         is StoreViewModel.LoadingState.Success -> reservationsState.data
             .filter { it.status == ReservationStatus.BOOKED_ACCEPTED || it.status == ReservationStatus.BOOKED_PENDING_ACCEPTANCE }
-            .take(5)
+            .take(3)
         else -> emptyList()
     }
 

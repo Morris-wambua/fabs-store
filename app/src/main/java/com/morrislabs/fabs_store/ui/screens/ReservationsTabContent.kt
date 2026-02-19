@@ -172,11 +172,18 @@ internal fun ReservationsTabContent(
             onClick = { showWalkInBooking = true },
             modifier = Modifier
                 .align(Alignment.BottomEnd)
-                .padding(end = 20.dp, bottom = 96.dp),
+                .padding(end = 24.dp, bottom = 30.dp)
+                .size(56.dp),
+            shape = CircleShape,
             containerColor = MaterialTheme.colorScheme.primary,
             contentColor = MaterialTheme.colorScheme.onPrimary
+
         ) {
-            Icon(imageVector = Icons.Default.Add, contentDescription = "Create walk-in booking")
+            Icon(
+                imageVector = Icons.Default.Add,
+                contentDescription = "Create walk-in booking",
+                modifier = Modifier.size(30.dp)
+            )
         }
     }
 }

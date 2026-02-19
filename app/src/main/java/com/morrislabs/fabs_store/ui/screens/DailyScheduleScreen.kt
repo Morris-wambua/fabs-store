@@ -222,7 +222,7 @@ private fun TimelineView(
         else -> emptyList()
     }
 
-    val timeSlots = (9..16).map { hour -> String.format("%02d:00", hour) }
+    val timeSlots = (9..19).map { hour -> String.format("%02d:00", hour) }
 
     Column(
         modifier = Modifier
