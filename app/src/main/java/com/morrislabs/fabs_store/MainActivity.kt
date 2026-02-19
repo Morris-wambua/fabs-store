@@ -28,7 +28,9 @@ import com.morrislabs.fabs_store.ui.screens.ReservationsScreen
 import com.morrislabs.fabs_store.ui.screens.ServicesScreen
 import com.morrislabs.fabs_store.ui.screens.DailyScheduleScreen
 import com.morrislabs.fabs_store.ui.screens.SettingsScreen
+import com.morrislabs.fabs_store.ui.screens.StoreProfileBusinessHoursScreen
 import com.morrislabs.fabs_store.ui.screens.StoreProfileEditorScreen
+import com.morrislabs.fabs_store.ui.screens.StoreProfileLocationEditorScreen
 import com.morrislabs.fabs_store.ui.screens.SetupChecklistScreen
 import com.morrislabs.fabs_store.ui.screens.storeonboarding.BusinessHoursStepScreen
 import com.morrislabs.fabs_store.ui.screens.storeonboarding.StoreInfoStepScreen
@@ -144,9 +146,23 @@ fun StoreApp(
             StoreProfileEditorScreen(
                 onNavigateBack = { navController.popBackStack() },
                 onNavigateToEditLocation = {
-                    // This would navigate to a dedicated location editor if needed
-                    // For now, location editing is handled within the profile editor
+                    navController.navigate("store_profile_editor/location")
+                },
+                onNavigateToBusinessHours = {
+                    navController.navigate("store_profile_editor/hours")
                 }
+            )
+        }
+
+        composable("store_profile_editor/location") {
+            StoreProfileLocationEditorScreen(
+                onNavigateBack = { navController.popBackStack() }
+            )
+        }
+
+        composable("store_profile_editor/hours") {
+            StoreProfileBusinessHoursScreen(
+                onNavigateBack = { navController.popBackStack() }
             )
         }
 

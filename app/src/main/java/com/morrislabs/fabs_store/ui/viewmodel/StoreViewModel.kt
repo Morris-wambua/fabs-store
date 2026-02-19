@@ -1,6 +1,7 @@
 package com.morrislabs.fabs_store.ui.viewmodel
 
 import android.app.Application
+import android.net.Uri
 import android.util.Log
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
@@ -237,6 +238,28 @@ class StoreViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
+    fun uploadStoreImage(
+        uri: Uri,
+        onSuccess: (url: String, key: String) -> Unit,
+        onFailure: (message: String) -> Unit
+    ) {
+        viewModelScope.launch {
+            val userId = tokenManager.getUserId()
+            if (userId.isNullOrBlank()) {
+                onFailure("User not authenticated")
+                return@launch
+            }
+
+            storeApiService.uploadStoreImage(uri, userId)
+                .onSuccess { (url, key) ->
+                    onSuccess(url, key)
+                }
+                .onFailure { error ->
+                    onFailure(error.message ?: "Failed to upload image")
+                }
+        }
+    }
+
     fun resetStoreState() {
         _storeState.value = StoreState.Idle
     }
@@ -245,9 +268,14 @@ class StoreViewModel(application: Application) : AndroidViewModel(application) {
         _createStoreState.value = CreateStoreState.Idle
     }
 
+    fun resetUpdateStoreState() {
+        _updateStoreState.value = UpdateStoreState.Idle
+    }
+
     fun resetAllStates() {
         _storeState.value = StoreState.Idle
         _createStoreState.value = CreateStoreState.Idle
+        _updateStoreState.value = UpdateStoreState.Idle
         _categoriesState.value = LoadingState.Idle
         _servicesByCategoryState.value = LoadingState.Idle
         _servicesState.value = LoadingState.Idle
