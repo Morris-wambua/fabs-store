@@ -189,7 +189,22 @@ data class TypeOfServiceDTO(
     val price: Int,
     val expertAvailable: Boolean,
     val ratings: Double,
-    val duration: Int? = null
+    val duration: Int? = null,
+    val description: String? = null,
+    val imageUrl: String? = null
+)
+
+@Serializable
+data class CreateServicePayload(
+    val name: String,
+    val mainCategory: MainCategory,
+    val subCategory: SubCategory,
+    val price: Int,
+    val expertAvailable: Boolean = false,
+    val ratings: Double = 5.0,
+    val duration: Int = 60,
+    val description: String? = null,
+    val imageUrl: String? = null
 )
 
 @Serializable

@@ -7,6 +7,7 @@ import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -25,7 +26,8 @@ import com.morrislabs.fabs_store.ui.screens.HomeScreen
 import com.morrislabs.fabs_store.ui.screens.LoginScreen
 import com.morrislabs.fabs_store.ui.screens.RegisterScreen
 import com.morrislabs.fabs_store.ui.screens.ReservationsScreen
-import com.morrislabs.fabs_store.ui.screens.ServicesScreen
+import com.morrislabs.fabs_store.ui.screens.services.AddServiceScreen
+import com.morrislabs.fabs_store.ui.screens.services.ServicesManagementListScreen
 import com.morrislabs.fabs_store.ui.screens.DailyScheduleScreen
 import com.morrislabs.fabs_store.ui.screens.SettingsScreen
 import com.morrislabs.fabs_store.ui.screens.StoreProfileBusinessHoursScreen
@@ -61,6 +63,7 @@ fun StoreApp(
 ) {
     val navController = rememberNavController()
     val storeViewModel: com.morrislabs.fabs_store.ui.viewmodel.StoreViewModel = viewModel()
+    val servicesViewModel: com.morrislabs.fabs_store.ui.viewmodel.ServicesViewModel = viewModel()
     var isLoggedIn by remember { mutableStateOf(authViewModel.isLoggedIn()) }
 
     LaunchedEffect(Unit) {
@@ -138,7 +141,8 @@ fun StoreApp(
                     navController.navigate("login") {
                         popUpTo("home") { inclusive = true }
                     }
-                }
+                },
+                storeViewModel = storeViewModel
             )
         }
 
@@ -240,7 +244,8 @@ fun StoreApp(
                 },
                 onNavigateToCreateExpert = { storeId ->
                     navController.navigate("create_expert/$storeId")
-                }
+                },
+                storeViewModel = storeViewModel
             )
         }
 
@@ -277,7 +282,38 @@ fun StoreApp(
         }
 
         composable("services") {
-            ServicesScreen(onNavigateBack = { navController.popBackStack() })
+            ServicesManagementListScreen(
+                onNavigateBack = { navController.popBackStack() },
+                onNavigateToAddService = { navController.navigate("add_service") },
+                onNavigateToEditService = { serviceId ->
+                    navController.navigate("edit_service/$serviceId")
+                },
+                storeViewModel = storeViewModel,
+                servicesViewModel = servicesViewModel
+            )
+        }
+
+        composable("add_service") {
+            AddServiceScreen(
+                onNavigateBack = { navController.popBackStack() },
+                onServiceSaved = { navController.popBackStack() },
+                storeViewModel = storeViewModel,
+                servicesViewModel = servicesViewModel
+            )
+        }
+
+        composable("edit_service/{serviceId}") { backStackEntry ->
+            val serviceId = backStackEntry.arguments?.getString("serviceId") ?: ""
+            val servicesState by servicesViewModel.servicesState.collectAsState()
+            val existingService = (servicesState as? com.morrislabs.fabs_store.ui.viewmodel.ServicesViewModel.ServicesState.Success)
+                ?.services?.find { it.id == serviceId }
+            AddServiceScreen(
+                existingService = existingService,
+                onNavigateBack = { navController.popBackStack() },
+                onServiceSaved = { navController.popBackStack() },
+                storeViewModel = storeViewModel,
+                servicesViewModel = servicesViewModel
+            )
         }
 
         composable("settings") {
