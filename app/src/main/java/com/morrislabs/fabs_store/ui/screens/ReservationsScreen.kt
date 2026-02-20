@@ -2,67 +2,103 @@ package com.morrislabs.fabs_store.ui.screens
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.viewmodel.compose.viewModel
+import com.morrislabs.fabs_store.data.model.ReservationFilter
+import com.morrislabs.fabs_store.ui.viewmodel.StoreViewModel
 
 @Composable
-fun ReservationsScreen(onNavigateBack: () -> Unit) {
+fun ReservationsScreen(
+    onNavigateBack: () -> Unit,
+    storeViewModel: StoreViewModel = viewModel()
+) {
+    val storeState by storeViewModel.storeState.collectAsState()
+    val reservationsState by storeViewModel.reservationsState.collectAsState()
+    val isRefreshing by storeViewModel.isRefreshing.collectAsState()
+    var selectedFilter by remember { mutableStateOf(ReservationFilter.PENDING_APPROVAL) }
+
+    LaunchedEffect(Unit) {
+        storeViewModel.fetchUserStore()
+    }
+
+    LaunchedEffect(storeState) {
+        if (storeState is StoreViewModel.StoreState.Success) {
+            val storeId = (storeState as StoreViewModel.StoreState.Success).data.id.orEmpty()
+            if (storeId.isNotBlank()) {
+                storeViewModel.fetchReservations(storeId, "BOOKED_PENDING_ACCEPTANCE")
+            }
+        }
+    }
+
     Box(
         modifier = Modifier
             .fillMaxSize()
             .background(MaterialTheme.colorScheme.background)
     ) {
-        Column(modifier = Modifier.fillMaxSize()) {
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .background(MaterialTheme.colorScheme.primary)
-                    .padding(16.dp)
-            ) {
-                IconButton(onClick = onNavigateBack) {
-                    Icon(
-                        imageVector = Icons.Default.ArrowBack,
-                        contentDescription = "Back",
-                        tint = MaterialTheme.colorScheme.onPrimary
-                    )
-                }
-                Text(
-                    text = "Reservations",
-                    style = MaterialTheme.typography.headlineSmall.copy(
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.onPrimary
-                    ),
-                    modifier = Modifier.align(Alignment.CenterStart).padding(start = 48.dp)
+        when (val state = storeState) {
+            is StoreViewModel.StoreState.Success -> {
+                ReservationsTabContent(
+                    storeId = state.data.id.orEmpty(),
+                    storeViewModel = storeViewModel,
+                    reservationsState = reservationsState,
+                    isRefreshing = isRefreshing,
+                    selectedFilter = selectedFilter,
+                    onFilterChange = { newFilter ->
+                        selectedFilter = newFilter
+                        val filterStatus = when (newFilter) {
+                            ReservationFilter.PENDING_APPROVAL -> "BOOKED_PENDING_ACCEPTANCE"
+                            ReservationFilter.UPCOMING -> "BOOKED_ACCEPTED"
+                            ReservationFilter.CANCELLED -> "CANCELLED"
+                            ReservationFilter.COMPLETED -> "SERVED"
+                            ReservationFilter.LAPSED_PAID -> "LAPSED_PAID"
+                            ReservationFilter.LAPSED_NOT_ACCEPTED -> "LAPSED_NOT_ACCEPTED"
+                        }
+                        storeViewModel.fetchReservations(state.data.id.orEmpty(), filterStatus)
+                    }
                 )
             }
+            is StoreViewModel.StoreState.Loading -> {
+                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                    Text("Loading reservations...")
+                }
+            }
+            else -> {
+                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                    Text("Unable to load reservations")
+                }
+            }
+        }
 
-            Column(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(16.dp),
-                horizontalAlignment = Alignment.CenterHorizontally
-            ) {
-                Text(
-                    text = "Reservations Screen",
-                    style = MaterialTheme.typography.bodyLarge,
-                    modifier = Modifier.padding(top = 32.dp)
-                )
-                Text(
-                    text = "Coming Soon",
-                    style = MaterialTheme.typography.bodySmall
+        Surface(
+            modifier = Modifier
+                .align(Alignment.TopStart)
+                .padding(8.dp),
+            color = MaterialTheme.colorScheme.background.copy(alpha = 0.0f)
+        ) {
+            IconButton(onClick = onNavigateBack) {
+                Icon(
+                    imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                    contentDescription = "Back",
+                    tint = MaterialTheme.colorScheme.onBackground
                 )
             }
         }

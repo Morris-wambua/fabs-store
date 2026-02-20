@@ -1,17 +1,9 @@
 package com.morrislabs.fabs_store.ui.screens
 
-import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.core.tween
-import androidx.compose.animation.expandVertically
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.animation.shrinkVertically
-import androidx.compose.foundation.clickable
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -22,6 +14,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.ExperimentalMaterialApi
@@ -29,20 +22,19 @@ import androidx.compose.material.pullrefresh.PullRefreshIndicator
 import androidx.compose.material.pullrefresh.pullRefresh
 import androidx.compose.material.pullrefresh.rememberPullRefreshState
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Event
-import androidx.compose.material.icons.filled.KeyboardArrowDown
-import androidx.compose.material.icons.filled.People
-import androidx.compose.material.icons.filled.Schedule
-import androidx.compose.material.icons.filled.Settings
-import androidx.compose.material3.Button
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
+import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.CalendarToday
+import androidx.compose.material.icons.filled.Notifications
+import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.FilterChip
-import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.FilterChipDefaults
+import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -52,13 +44,9 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.rotate
-import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.morrislabs.fabs_store.data.model.ReservationFilter
-import com.morrislabs.fabs_store.data.model.ReservationStatus
 import com.morrislabs.fabs_store.data.model.ReservationWithPaymentDTO
 import com.morrislabs.fabs_store.ui.viewmodel.StoreViewModel
 
@@ -73,40 +61,69 @@ internal fun ReservationsTabContent(
     onFilterChange: (ReservationFilter) -> Unit,
     modifier: Modifier = Modifier
 ) {
-    Column(modifier = modifier.fillMaxSize()) {
-        ReservationFilterRow(
+    var searchQuery by remember { mutableStateOf("") }
+    var selectedReservation by remember { mutableStateOf<ReservationWithPaymentDTO?>(null) }
+    var showWalkInBooking by remember { mutableStateOf(false) }
+
+    if (selectedReservation != null) {
+        ReservationDetailsScreen(
+            reservation = selectedReservation!!,
             selectedFilter = selectedFilter,
-            onFilterChange = onFilterChange,
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 16.dp, vertical = 12.dp)
+            onNavigateBack = { selectedReservation = null }
         )
+        return
+    }
 
-        val pullRefreshState = rememberPullRefreshState(
-            refreshing = isRefreshing,
-            onRefresh = {
-                val filterStatus = when (selectedFilter) {
-                    ReservationFilter.PENDING_APPROVAL -> "BOOKED_PENDING_ACCEPTANCE"
-                    ReservationFilter.UPCOMING -> "BOOKED_ACCEPTED"
-                    ReservationFilter.CANCELLED -> "CANCELLED"
-                    ReservationFilter.COMPLETED -> "SERVED"
-                    ReservationFilter.LAPSED_PAID -> "LAPSED_PAID"
-                    ReservationFilter.LAPSED_NOT_ACCEPTED -> "LAPSED_NOT_ACCEPTED"
+    if (showWalkInBooking) {
+        WalkInBookingScreen(
+            onNavigateBack = { showWalkInBooking = false },
+            onConfirmBooking = { showWalkInBooking = false }
+        )
+        return
+    }
+
+    Box(
+        modifier = modifier
+            .fillMaxSize()
+            .background(MaterialTheme.colorScheme.background)
+    ) {
+        Column(modifier = Modifier.fillMaxSize()) {
+            ReservationsHeader()
+
+            ReservationSearchBar(
+                query = searchQuery,
+                onQueryChange = { searchQuery = it },
+                modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
+            )
+
+            ReservationFilterRow(
+                selectedFilter = selectedFilter,
+                onFilterChange = onFilterChange,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 8.dp)
+            )
+
+            val pullRefreshState = rememberPullRefreshState(
+                refreshing = isRefreshing,
+                onRefresh = {
+                    val filterStatus = when (selectedFilter) {
+                        ReservationFilter.PENDING_APPROVAL -> "BOOKED_PENDING_ACCEPTANCE"
+                        ReservationFilter.UPCOMING -> "BOOKED_ACCEPTED"
+                        ReservationFilter.CANCELLED -> "CANCELLED"
+                        ReservationFilter.COMPLETED -> "SERVED"
+                        ReservationFilter.LAPSED_PAID -> "LAPSED_PAID"
+                        ReservationFilter.LAPSED_NOT_ACCEPTED -> "LAPSED_NOT_ACCEPTED"
+                    }
+                    storeViewModel.refreshReservations(storeId, filterStatus)
                 }
-                storeViewModel.refreshReservations(storeId, filterStatus)
-            }
-        )
+            )
 
-        Box(
-            modifier = Modifier
-                .weight(1f)
-                .fillMaxWidth()
-                .pullRefresh(pullRefreshState)
-        ) {
             Box(
                 modifier = Modifier
-                    .fillMaxSize()
-                    .verticalScroll(rememberScrollState())
+                    .weight(1f)
+                    .fillMaxWidth()
+                    .pullRefresh(pullRefreshState)
             ) {
                 when (reservationsState) {
                     is StoreViewModel.LoadingState.Loading -> {
@@ -115,44 +132,118 @@ internal fun ReservationsTabContent(
                         }
                     }
                     is StoreViewModel.LoadingState.Success -> {
-                        ReservationsListContent(reservationsState.data)
+                        val filtered = reservationsState.data.filter { reservation ->
+                            val query = searchQuery.trim()
+                            if (query.isBlank()) {
+                                true
+                            } else {
+                                reservation.name.contains(query, ignoreCase = true) ||
+                                    reservation.typeOfServiceName.contains(query, ignoreCase = true) ||
+                                    reservation.reservationExpertName.contains(query, ignoreCase = true)
+                            }
+                        }
+                        ReservationsListContent(
+                            reservations = filtered,
+                            selectedFilter = selectedFilter,
+                            onDetailsClick = { selectedReservation = it }
+                        )
                     }
                     is StoreViewModel.LoadingState.Error -> {
                         Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                            Text("Error: ${reservationsState.message}", style = MaterialTheme.typography.bodyLarge)
+                            Text("Error: ${reservationsState.message}")
                         }
                     }
                     else -> {
                         Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                            Text("No reservations yet", style = MaterialTheme.typography.bodyLarge)
+                            Text("No reservations yet")
                         }
                     }
                 }
-            }
 
-            PullRefreshIndicator(
-                refreshing = isRefreshing,
-                state = pullRefreshState,
-                modifier = Modifier.align(Alignment.TopCenter)
+                PullRefreshIndicator(
+                    refreshing = isRefreshing,
+                    state = pullRefreshState,
+                    modifier = Modifier.align(Alignment.TopCenter)
+                )
+            }
+        }
+
+        FloatingActionButton(
+            onClick = { showWalkInBooking = true },
+            modifier = Modifier
+                .align(Alignment.BottomEnd)
+                .padding(end = 24.dp, bottom = 30.dp)
+                .size(56.dp),
+            shape = CircleShape,
+            containerColor = MaterialTheme.colorScheme.primary,
+            contentColor = MaterialTheme.colorScheme.onPrimary
+
+        ) {
+            Icon(
+                imageVector = Icons.Default.Add,
+                contentDescription = "Create walk-in booking",
+                modifier = Modifier.size(30.dp)
             )
         }
     }
 }
 
 @Composable
-private fun ReservationsListContent(reservations: List<ReservationWithPaymentDTO>) {
-    if (reservations.isEmpty()) {
-        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-            Text("No reservations found", style = MaterialTheme.typography.bodyLarge)
-        }
-    } else {
-        Column(modifier = Modifier.fillMaxSize().padding(16.dp)) {
-            reservations.forEach { reservation ->
-                ReservationRow(reservation)
-                Spacer(modifier = Modifier.height(12.dp))
+private fun ReservationsHeader() {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 10.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.SpaceBetween
+    ) {
+        Icon(Icons.Default.CalendarToday, contentDescription = null, tint = MaterialTheme.colorScheme.onBackground)
+        Text(
+            text = "Reservations",
+            style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold)
+        )
+        Box {
+            IconButton(onClick = {}) {
+                Icon(Icons.Default.Notifications, contentDescription = "Notifications")
             }
+            Box(
+                modifier = Modifier
+                    .align(Alignment.TopEnd)
+                    .padding(top = 6.dp, end = 7.dp)
+                    .size(8.dp)
+                    .background(MaterialTheme.colorScheme.primary, CircleShape)
+            )
         }
     }
+}
+
+@Composable
+private fun ReservationSearchBar(
+    query: String,
+    onQueryChange: (String) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    OutlinedTextField(
+        value = query,
+        onValueChange = onQueryChange,
+        modifier = modifier.fillMaxWidth(),
+        placeholder = { Text("Search by customer or service...") },
+        leadingIcon = {
+            Icon(
+                imageVector = Icons.Default.Search,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        },
+        shape = RoundedCornerShape(12.dp),
+        colors = OutlinedTextFieldDefaults.colors(
+            focusedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
+            unfocusedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
+            focusedBorderColor = MaterialTheme.colorScheme.surfaceVariant,
+            unfocusedBorderColor = MaterialTheme.colorScheme.surfaceVariant
+        ),
+        singleLine = true
+    )
 }
 
 @Composable
@@ -170,146 +261,49 @@ private fun ReservationFilterRow(
             FilterChip(
                 selected = selectedFilter == filter,
                 onClick = { onFilterChange(filter) },
-                label = { Text(filter.displayName, style = MaterialTheme.typography.labelSmall) },
-                shape = RoundedCornerShape(8.dp)
+                label = {
+                    Text(
+                        filter.displayName,
+                        style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.SemiBold)
+                    )
+                },
+                shape = RoundedCornerShape(50),
+                colors = FilterChipDefaults.filterChipColors(
+                    selectedContainerColor = MaterialTheme.colorScheme.primary,
+                    selectedLabelColor = MaterialTheme.colorScheme.onPrimary,
+                    containerColor = MaterialTheme.colorScheme.surfaceVariant,
+                    labelColor = MaterialTheme.colorScheme.onSurfaceVariant
+                )
             )
         }
     }
 }
 
 @Composable
-private fun ReservationRow(reservation: ReservationWithPaymentDTO) {
-    var expanded by remember { mutableStateOf(false) }
-    val rotationState by animateFloatAsState(
-        targetValue = if (expanded) 180f else 0f,
-        animationSpec = tween(durationMillis = 300)
-    )
-
-    Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(vertical = 8.dp)
-            .shadow(elevation = 2.dp, shape = RoundedCornerShape(12.dp))
-            .clickable { expanded = !expanded },
-        shape = RoundedCornerShape(12.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
-    ) {
-        Column(modifier = Modifier.fillMaxWidth().padding(16.dp)) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(
-                    text = reservation.name,
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                    modifier = Modifier.weight(1f)
+private fun ReservationsListContent(
+    reservations: List<ReservationWithPaymentDTO>,
+    selectedFilter: ReservationFilter,
+    onDetailsClick: (ReservationWithPaymentDTO) -> Unit
+) {
+    if (reservations.isEmpty()) {
+        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+            Text("No reservations found", style = MaterialTheme.typography.bodyLarge)
+        }
+    } else {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .verticalScroll(rememberScrollState())
+                .padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            reservations.forEach { reservation ->
+                ReservationRow(
+                    reservation = reservation,
+                    selectedFilter = selectedFilter,
+                    onDetailsClick = { onDetailsClick(reservation) }
                 )
-                Icon(
-                    imageVector = Icons.Default.KeyboardArrowDown,
-                    contentDescription = if (expanded) "Collapse" else "Expand",
-                    tint = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.size(24.dp).rotate(rotationState)
-                )
-            }
-
-            Spacer(modifier = Modifier.height(8.dp))
-
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
-                Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.weight(1f)) {
-                    Icon(Icons.Default.Event, contentDescription = "Date", tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(16.dp))
-                    Spacer(modifier = Modifier.width(6.dp))
-                    Text(text = reservation.reservationDate, style = MaterialTheme.typography.bodySmall, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                }
-                StatusBadge(reservation.status.name)
-            }
-
-            Spacer(modifier = Modifier.height(8.dp))
-
-            Text(
-                text = "Price: KES ${reservation.price}",
-                style = MaterialTheme.typography.bodyMedium,
-                fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.primary
-            )
-
-            AnimatedVisibility(
-                visible = expanded,
-                enter = fadeIn() + expandVertically(),
-                exit = fadeOut() + shrinkVertically()
-            ) {
-                Column(modifier = Modifier.fillMaxWidth().padding(top = 16.dp)) {
-                    HorizontalDivider(color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.1f))
-                    Spacer(modifier = Modifier.height(16.dp))
-                    DetailRow(icon = Icons.Default.Schedule, label = "Time", value = "${reservation.startTime} - ${reservation.endTime}")
-                    Spacer(modifier = Modifier.height(12.dp))
-                    DetailRow(icon = Icons.Default.People, label = "Expert", value = reservation.reservationExpertName.ifEmpty { "Not assigned" })
-                    Spacer(modifier = Modifier.height(12.dp))
-                    DetailRow(icon = Icons.Default.Settings, label = "Service", value = reservation.typeOfServiceName.ifEmpty { "Unknown service" })
-                    Spacer(modifier = Modifier.height(16.dp))
-
-                    when (reservation.status) {
-                        ReservationStatus.BOOKED_PENDING_ACCEPTANCE -> {
-                            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                                OutlinedButton(onClick = {}, modifier = Modifier.weight(1f), contentPadding = PaddingValues(vertical = 10.dp)) {
-                                    Text("Reject", style = MaterialTheme.typography.labelMedium)
-                                }
-                                Button(onClick = {}, modifier = Modifier.weight(1f), contentPadding = PaddingValues(vertical = 10.dp)) {
-                                    Text("Approve", style = MaterialTheme.typography.labelMedium)
-                                }
-                            }
-                        }
-                        ReservationStatus.BOOKED_ACCEPTED -> {
-                            Button(onClick = {}, modifier = Modifier.fillMaxWidth(), contentPadding = PaddingValues(vertical = 12.dp)) {
-                                Text("Start Session", style = MaterialTheme.typography.labelMedium)
-                            }
-                        }
-                        else -> {}
-                    }
-                }
             }
         }
-    }
-}
-
-@Composable
-private fun StatusBadge(status: String) {
-    val backgroundColor = when {
-        status.contains("PENDING") -> MaterialTheme.colorScheme.tertiaryContainer
-        status.contains("ACCEPTED") -> MaterialTheme.colorScheme.primaryContainer
-        status.contains("REJECTED") || status.contains("CANCELLED") -> MaterialTheme.colorScheme.errorContainer
-        else -> MaterialTheme.colorScheme.surfaceVariant
-    }
-    val textColor = when {
-        status.contains("PENDING") -> MaterialTheme.colorScheme.onTertiaryContainer
-        status.contains("ACCEPTED") -> MaterialTheme.colorScheme.onPrimaryContainer
-        status.contains("REJECTED") || status.contains("CANCELLED") -> MaterialTheme.colorScheme.onErrorContainer
-        else -> MaterialTheme.colorScheme.onSurfaceVariant
-    }
-    Surface(modifier = Modifier.padding(4.dp), shape = RoundedCornerShape(4.dp), color = backgroundColor) {
-        Text(
-            text = status.replace("_", " "),
-            style = MaterialTheme.typography.labelSmall,
-            color = textColor,
-            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
-        )
-    }
-}
-
-@Composable
-private fun DetailRow(icon: androidx.compose.ui.graphics.vector.ImageVector, label: String, value: String) {
-    Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-        Icon(imageVector = icon, contentDescription = label, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(20.dp))
-        Spacer(modifier = Modifier.width(8.dp))
-        Text(text = "$label:", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f))
-        Spacer(modifier = Modifier.width(8.dp))
-        Text(text = value, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Medium, modifier = Modifier.weight(1f))
     }
 }

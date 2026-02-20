@@ -113,6 +113,10 @@ class StoreApiService(private val context: Context, private val tokenManager: To
     }
 
     suspend fun uploadStoreLogo(uri: Uri, userId: String): Result<Pair<String, String>> {
+        return uploadStoreImage(uri, userId)
+    }
+
+    suspend fun uploadStoreImage(uri: Uri, userId: String): Result<Pair<String, String>> {
         return try {
             val inputStream = context.contentResolver.openInputStream(uri)
                 ?: return Result.failure(Exception("Cannot read image file"))

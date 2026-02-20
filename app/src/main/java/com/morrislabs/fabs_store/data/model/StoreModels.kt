@@ -216,8 +216,11 @@ data class CreateStorePayload(
     val servicesOffered: List<String> = emptyList(),
     val phone: String? = null,
     val about: String? = null,
+    val email: String? = null,
     val logoUrl: String? = null,
     val logoS3Key: String? = null,
+    val coverUrl: String? = null,
+    val coverS3Key: String? = null,
     val businessHours: List<BusinessHourDTO>? = null
 )
 
@@ -234,7 +237,9 @@ data class FetchStoreResponse(
     val discount: Double = 0.0,
     val phone: String? = null,
     val about: String? = null,
+    val email: String? = null,
     val logoUrl: String? = null,
+    val coverUrl: String? = null,
     val businessHours: List<BusinessHourDTO>? = null,
     val locationDTO: LocationDTO? = null,
     val servicesOffered: List<TypeOfServiceDTO>? = null
@@ -254,13 +259,21 @@ data class ServicesByCategoryDTO(
 
 @Serializable
 data class UpdateStorePayload(
-    val name: String,
-    val description: String,
-    val username: String,
-    val noOfExperts: Int = 0,
-    val ratings: Double = 5.0,
-    val badge: Badge = Badge.SILVER,
-    val discount: Double = 0.0,
+    val name: String? = null,
+    val description: String? = null,
+    val username: String? = null,
+    val noOfExperts: Int? = null,
+    val ratings: Double? = null,
+    val badge: Badge? = null,
+    val discount: Double? = null,
+    val phone: String? = null,
+    val about: String? = null,
+    val email: String? = null,
+    val logoUrl: String? = null,
+    val logoS3Key: String? = null,
+    val coverUrl: String? = null,
+    val coverS3Key: String? = null,
+    val businessHours: List<BusinessHourDTO>? = null,
     val location: LocationDTO? = null,
     val servicesOffered: List<String> = emptyList()
 )
