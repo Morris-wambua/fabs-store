@@ -99,7 +99,6 @@ fun AddServiceScreen(
 
     val isEditMode = existingService != null
 
-    var name by rememberSaveable { mutableStateOf(existingService?.name ?: "") }
     var price by rememberSaveable { mutableStateOf(existingService?.price?.toString() ?: "") }
     var selectedDuration by rememberSaveable { mutableStateOf(existingService?.duration ?: 60) }
     var selectedMainCategory by remember { mutableStateOf(existingService?.mainCategory ?: MainCategory.HAIR_SERVICES) }
@@ -194,10 +193,6 @@ fun AddServiceScreen(
 
                 Spacer(modifier = Modifier.height(24.dp))
 
-                ServiceNameField(name = name, onNameChange = { name = it })
-
-                Spacer(modifier = Modifier.height(16.dp))
-
                 PriceAndDurationRow(
                     price = price,
                     onPriceChange = { price = it },
@@ -231,15 +226,17 @@ fun AddServiceScreen(
                 onDiscard = onNavigateBack,
                 onSave = {
                     val priceValue = price.toIntOrNull() ?: 0
-                    if (name.isBlank() || priceValue <= 0 || selectedSubCategory == null) {
-                        errorMessage = "Please fill in all required fields (name, price, category)"
+                    if (priceValue <= 0 || selectedSubCategory == null) {
+                        errorMessage = "Please fill in all required fields (price, category)"
                         showErrorDialog = true
                         return@ActionButtons
                     }
 
+                    val derivedName = selectedSubCategory!!.name.lowercase().replace("_", " ")
+
                     val saveAction: (String) -> Unit = { finalImageUrl ->
                         val payload = CreateServicePayload(
-                            name = name,
+                            name = derivedName,
                             mainCategory = selectedMainCategory,
                             subCategory = selectedSubCategory!!,
                             price = priceValue,
@@ -358,24 +355,6 @@ private fun ImageUploadSection(
             }
         }
     }
-}
-
-@Composable
-private fun ServiceNameField(name: String, onNameChange: (String) -> Unit) {
-    Text(
-        "Service Name",
-        style = MaterialTheme.typography.titleSmall,
-        fontWeight = FontWeight.Bold
-    )
-    Spacer(modifier = Modifier.height(8.dp))
-    OutlinedTextField(
-        value = name,
-        onValueChange = onNameChange,
-        placeholder = { Text("e.g., Premium Haircut") },
-        modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(12.dp),
-        singleLine = true
-    )
 }
 
 @Composable

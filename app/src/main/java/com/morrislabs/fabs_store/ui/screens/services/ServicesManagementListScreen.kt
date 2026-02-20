@@ -56,6 +56,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import coil.compose.AsyncImage
 import com.morrislabs.fabs_store.data.model.TypeOfServiceDTO
+import com.morrislabs.fabs_store.data.model.toDisplayName
 import com.morrislabs.fabs_store.ui.viewmodel.ServicesViewModel
 import com.morrislabs.fabs_store.ui.viewmodel.StoreViewModel
 
@@ -253,13 +254,13 @@ private fun ServiceCard(
                 if (service.imageUrl != null) {
                     AsyncImage(
                         model = service.imageUrl,
-                        contentDescription = service.name,
+                        contentDescription = service.subCategory.toDisplayName(),
                         modifier = Modifier.fillMaxSize(),
                         contentScale = ContentScale.Crop
                     )
                 } else {
                     Text(
-                        text = service.name.take(2).uppercase(),
+                        text = service.subCategory.toDisplayName().take(2).uppercase(),
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold,
                         color = GreenAccent
@@ -271,7 +272,7 @@ private fun ServiceCard(
 
             Column(modifier = Modifier.weight(1f)) {
                 Text(
-                    text = service.name,
+                    text = service.subCategory.toDisplayName(),
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold,
                     maxLines = 1,
@@ -285,7 +286,7 @@ private fun ServiceCard(
                 )
                 Spacer(modifier = Modifier.height(4.dp))
                 Text(
-                    text = service.subCategory.name.replace("_", " "),
+                    text = service.mainCategory.toDisplayName(),
                     style = MaterialTheme.typography.labelSmall,
                     color = GreenAccent
                 )
