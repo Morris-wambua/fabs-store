@@ -133,8 +133,9 @@ internal fun TitleCard(subCategoryName: String, description: String) {
             .padding(horizontal = 16.dp)
             .fillMaxWidth(),
         shape = RoundedCornerShape(20.dp),
-        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp),
-        colors = CardDefaults.cardColors(MaterialTheme.colorScheme.surface)
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        border = CardDefaults.outlinedCardBorder()
     ) {
         Column(modifier = Modifier.padding(20.dp)) {
             Text(
@@ -181,7 +182,8 @@ internal fun GeneralInfoCard(
             .fillMaxWidth(),
         shape = RoundedCornerShape(16.dp),
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        border = CardDefaults.outlinedCardBorder()
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
             SectionHeader(
@@ -256,7 +258,8 @@ internal fun CategoryCard(
             .fillMaxWidth(),
         shape = RoundedCornerShape(16.dp),
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        border = CardDefaults.outlinedCardBorder()
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
             SectionHeader(
@@ -374,7 +377,8 @@ internal fun DurationCard(
             .fillMaxWidth(),
         shape = RoundedCornerShape(16.dp),
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        border = CardDefaults.outlinedCardBorder()
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
             SectionHeader(
