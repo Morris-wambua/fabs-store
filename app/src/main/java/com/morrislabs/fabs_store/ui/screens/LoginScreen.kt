@@ -28,6 +28,8 @@ import androidx.compose.material3.Checkbox
 import androidx.compose.material3.CheckboxDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Divider
+import androidx.compose.material3.DividerDefaults
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -44,7 +46,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
@@ -166,7 +167,7 @@ fun LoginScreen(
             Text(
                 text = "Sign in to manage your store",
                 style = MaterialTheme.typography.bodyLarge.copy(
-                    color = Color.Gray
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
                 ),
                 modifier = Modifier.padding(bottom = 32.dp)
             )
@@ -342,20 +343,24 @@ fun LoginScreen(
                     .padding(vertical = 16.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Divider(
+                HorizontalDivider(
                     modifier = Modifier
                         .weight(1f)
-                        .padding(end = 8.dp)
+                        .padding(end = 8.dp),
+                    thickness = DividerDefaults.Thickness,
+                    color = DividerDefaults.color
                 )
                 Text(
                     text = "OR",
                     style = MaterialTheme.typography.bodyMedium,
-                    color = Color.Gray
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
-                Divider(
+                HorizontalDivider(
                     modifier = Modifier
                         .weight(1f)
-                        .padding(start = 8.dp)
+                        .padding(start = 8.dp),
+                    thickness = DividerDefaults.Thickness,
+                    color = DividerDefaults.color
                 )
             }
 
@@ -369,7 +374,7 @@ fun LoginScreen(
                 Text(
                     text = "Don't have an account?",
                     style = MaterialTheme.typography.bodyMedium,
-                    color = Color.Gray
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
                 TextButton(
                     onClick = onNavigateToRegister,
@@ -388,7 +393,7 @@ fun LoginScreen(
             Text(
                 text = "By signing in, you agree to our Terms of Service and Privacy Policy",
                 style = MaterialTheme.typography.bodySmall,
-                color = Color.Gray,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
                 textAlign = TextAlign.Center,
                 modifier = Modifier.padding(top = 16.dp, bottom = 24.dp)
             )

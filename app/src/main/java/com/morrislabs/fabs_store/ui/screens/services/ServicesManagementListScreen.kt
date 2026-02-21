@@ -23,7 +23,6 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.ChevronRight
-import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -68,7 +67,7 @@ private val LightGreen = Color(0xFFE8F5E9)
 fun ServicesManagementListScreen(
     onNavigateBack: () -> Unit,
     onNavigateToAddService: () -> Unit,
-    onNavigateToEditService: (String) -> Unit,
+    onNavigateToServiceDetails: (String) -> Unit,
     storeViewModel: StoreViewModel = viewModel(),
     servicesViewModel: ServicesViewModel = viewModel()
 ) {
@@ -166,8 +165,8 @@ fun ServicesManagementListScreen(
                         ServiceEmptyState(onAddService = onNavigateToAddService)
                     } else {
                         when (selectedTab) {
-                            0 -> AllServicesTab(services, onNavigateToEditService)
-                            1 -> ByCategoryTab(services, onNavigateToEditService)
+                            0 -> AllServicesTab(services, onNavigateToServiceDetails)
+                            1 -> ByCategoryTab(services, onNavigateToServiceDetails)
                         }
                     }
                 }
@@ -292,31 +291,22 @@ private fun ServiceCard(
                 )
             }
 
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                Box(
-                    modifier = Modifier
-                        .clip(RoundedCornerShape(8.dp))
-                        .background(MaterialTheme.colorScheme.surfaceVariant)
-                        .clickable(onClick = onEdit)
-                        .padding(horizontal = 12.dp, vertical = 6.dp)
-                ) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(
-                            Icons.Default.Edit,
-                            contentDescription = "Edit",
-                            modifier = Modifier.size(14.dp)
-                        )
-                        Spacer(modifier = Modifier.width(4.dp))
-                        Text("Edit", style = MaterialTheme.typography.labelSmall)
-                    }
+            Box(
+                modifier = Modifier
+                    .clip(RoundedCornerShape(8.dp))
+                    .background(MaterialTheme.colorScheme.surfaceVariant)
+                    .clickable(onClick = onEdit)
+                    .padding(horizontal = 12.dp, vertical = 6.dp)
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text("Details", style = MaterialTheme.typography.labelSmall)
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Icon(
+                        Icons.Default.ChevronRight,
+                        contentDescription = "Details",
+                        modifier = Modifier.size(14.dp)
+                    )
                 }
-
-                Icon(
-                    Icons.Default.ChevronRight,
-                    contentDescription = "Details",
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.size(20.dp)
-                )
             }
         }
     }

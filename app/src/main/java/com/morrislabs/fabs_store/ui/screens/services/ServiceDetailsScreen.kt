@@ -14,13 +14,14 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -31,20 +32,21 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.morrislabs.fabs_store.data.model.CreateServicePayload
-import com.morrislabs.fabs_store.data.model.MainCategory
 import com.morrislabs.fabs_store.data.model.SubCategory
 import com.morrislabs.fabs_store.data.model.TypeOfServiceDTO
+import com.morrislabs.fabs_store.data.model.toDisplayName
 import com.morrislabs.fabs_store.ui.viewmodel.ServicesViewModel
 import com.morrislabs.fabs_store.ui.viewmodel.StoreViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun AddServiceScreen(
-    existingService: TypeOfServiceDTO? = null,
+fun ServiceDetailsScreen(
+    service: TypeOfServiceDTO,
     onNavigateBack: () -> Unit,
     onServiceSaved: () -> Unit,
     storeViewModel: StoreViewModel = viewModel(),
@@ -58,27 +60,24 @@ fun AddServiceScreen(
         else -> ""
     }
 
-    val isEditMode = existingService != null
-
-    var price by rememberSaveable { mutableStateOf(existingService?.price?.toString() ?: "") }
-    var selectedDuration by rememberSaveable { mutableStateOf(existingService?.duration ?: 60) }
-    var selectedMainCategory by remember { mutableStateOf(existingService?.mainCategory ?: MainCategory.HAIR_SERVICES) }
-    var selectedSubCategory by remember { mutableStateOf<SubCategory?>(existingService?.subCategory) }
-    var description by rememberSaveable { mutableStateOf(existingService?.description ?: "") }
+    var price by rememberSaveable { mutableStateOf(service.price.toString()) }
+    var description by rememberSaveable { mutableStateOf(service.description ?: "") }
+    var selectedMainCategory by remember { mutableStateOf(service.mainCategory) }
+    var selectedSubCategory by remember { mutableStateOf(service.subCategory) }
+    var selectedDuration by rememberSaveable { mutableStateOf(service.duration ?: 60) }
     var imageUri by remember { mutableStateOf<Uri?>(null) }
-    var imageUrl by rememberSaveable { mutableStateOf(existingService?.imageUrl ?: "") }
+    var imageUrl by rememberSaveable { mutableStateOf(service.imageUrl ?: "") }
     var isUploading by remember { mutableStateOf(false) }
     var showErrorDialog by remember { mutableStateOf(false) }
     var errorMessage by remember { mutableStateOf("") }
-    var showDurationPicker by remember { mutableStateOf(false) }
 
     val subCategories = remember(selectedMainCategory) {
         servicesViewModel.getSubCategoriesForMain(selectedMainCategory)
     }
 
     LaunchedEffect(selectedMainCategory) {
-        if (selectedSubCategory == null || selectedSubCategory?.toMainCategory() != selectedMainCategory) {
-            selectedSubCategory = subCategories.firstOrNull()
+        if (selectedSubCategory.toMainCategory() != selectedMainCategory) {
+            selectedSubCategory = subCategories.firstOrNull() ?: selectedSubCategory
         }
     }
 
@@ -115,114 +114,93 @@ fun AddServiceScreen(
         )
     }
 
-    if (showDurationPicker) {
-        DurationPickerDialog(
-            selectedDuration = selectedDuration,
-            onDurationSelected = {
-                selectedDuration = it
-                showDurationPicker = false
-            },
-            onDismiss = { showDurationPicker = false }
-        )
-    }
-
     Scaffold(
         topBar = {
             TopAppBar(
                 title = {
                     Text(
-                        if (isEditMode) "Edit Service" else "Add New Service",
-                        fontWeight = FontWeight.Bold
+                        "Service Details",
+                        fontWeight = FontWeight.SemiBold
                     )
                 },
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
                         Icon(Icons.Default.ArrowBack, contentDescription = "Back")
                     }
-                }
+                },
+                colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.White)
             )
-        }
+        },
+        containerColor = MaterialTheme.colorScheme.primary
     ) { paddingValues ->
         Column(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(paddingValues)
+                .verticalScroll(rememberScrollState())
         ) {
-            Column(
-                modifier = Modifier
-                    .weight(1f)
-                    .verticalScroll(rememberScrollState())
-                    .padding(horizontal = 16.dp)
-            ) {
-                HorizontalDivider()
-                Spacer(modifier = Modifier.height(16.dp))
+            ImageSection(
+                imageUri = imageUri,
+                imageUrl = imageUrl.ifEmpty { null },
+                onEditClick = { galleryLauncher.launch("image/*") }
+            )
 
-                ImageUploadSection(
-                    imageUri = imageUri,
-                    imageUrl = imageUrl.ifEmpty { null },
-                    isUploading = isUploading,
-                    onSelectImage = { galleryLauncher.launch("image/*") }
-                )
+            TitleCard(
+                subCategoryName = selectedSubCategory.toDisplayName(),
+                description = description
+            )
 
-                Spacer(modifier = Modifier.height(24.dp))
+            Spacer(modifier = Modifier.height(12.dp))
 
-                CategorySection(
-                    selectedMainCategory = selectedMainCategory,
-                    onMainCategoryChange = { selectedMainCategory = it },
-                    selectedSubCategory = selectedSubCategory,
-                    onSubCategoryChange = { selectedSubCategory = it },
-                    subCategories = subCategories
-                )
+            GeneralInfoCard(
+                price = price,
+                onPriceChange = { if (it.all { c -> c.isDigit() }) price = it },
+                description = description,
+                onDescriptionChange = { description = it }
+            )
 
-                Spacer(modifier = Modifier.height(16.dp))
+            Spacer(modifier = Modifier.height(12.dp))
 
-                DescriptionField(
-                    description = description,
-                    onDescriptionChange = { description = it }
-                )
+            CategoryCard(
+                selectedMainCategory = selectedMainCategory,
+                onMainCategoryChange = { selectedMainCategory = it },
+                selectedSubCategory = selectedSubCategory,
+                onSubCategoryChange = { selectedSubCategory = it },
+                subCategories = subCategories
+            )
 
-                Spacer(modifier = Modifier.height(16.dp))
+            Spacer(modifier = Modifier.height(12.dp))
 
-                PriceAndDurationRow(
-                    price = price,
-                    onPriceChange = { price = it },
-                    selectedDuration = selectedDuration,
-                    onDurationClick = { showDurationPicker = true }
-                )
+            DurationCard(
+                selectedDuration = selectedDuration,
+                onDurationChange = { selectedDuration = it }
+            )
 
-                Spacer(modifier = Modifier.height(24.dp))
-            }
+            Spacer(modifier = Modifier.height(16.dp))
 
-            ActionButtons(
+            SaveButton(
                 isLoading = saveState is ServicesViewModel.SaveServiceState.Loading || isUploading,
-                isEditMode = isEditMode,
-                onDiscard = onNavigateBack,
                 onSave = {
                     val priceValue = price.toIntOrNull() ?: 0
-                    if (priceValue <= 0 || selectedSubCategory == null) {
-                        errorMessage = "Please fill in all required fields (price, category)"
+                    if (priceValue <= 0) {
+                        errorMessage = "Please enter a valid price"
                         showErrorDialog = true
-                        return@ActionButtons
+                        return@SaveButton
                     }
 
-                    val derivedName = selectedSubCategory!!.name.lowercase().replace("_", " ")
+                    val derivedName = selectedSubCategory.name.lowercase().replace("_", " ")
 
                     val saveAction: (String) -> Unit = { finalImageUrl ->
                         val payload = CreateServicePayload(
                             name = derivedName,
                             mainCategory = selectedMainCategory,
-                            subCategory = selectedSubCategory!!,
+                            subCategory = selectedSubCategory,
                             price = priceValue,
                             duration = selectedDuration,
                             description = description.ifBlank { null },
                             imageUrl = finalImageUrl.ifBlank { null }
                         )
-
-                        if (isEditMode) {
-                            servicesViewModel.updateService(storeId, existingService!!.id, payload)
-                        } else {
-                            servicesViewModel.createService(storeId, payload)
-                        }
+                        servicesViewModel.updateService(storeId, service.id, payload)
                     }
 
                     if (imageUri != null) {
@@ -245,6 +223,8 @@ fun AddServiceScreen(
                     }
                 }
             )
+
+            Spacer(modifier = Modifier.height(24.dp))
         }
     }
 }

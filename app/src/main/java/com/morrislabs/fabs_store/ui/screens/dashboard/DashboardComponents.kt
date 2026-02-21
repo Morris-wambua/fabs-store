@@ -117,8 +117,8 @@ fun UpcomingAppointmentCard(
     modifier: Modifier = Modifier
 ) {
     val statusColor = when {
-        status.contains("Confirmed", ignoreCase = true) -> Color(0xFF4CAF50)
-        status.contains("Pending", ignoreCase = true) -> Color(0xFFFF9800)
+        status.contains("Confirmed", ignoreCase = true) -> MaterialTheme.colorScheme.primary
+        status.contains("Pending", ignoreCase = true) -> MaterialTheme.colorScheme.tertiary
         else -> MaterialTheme.colorScheme.outline
     }
 
@@ -208,7 +208,7 @@ fun ReviewCard(
                     Icon(
                         imageVector = Icons.Default.Star,
                         contentDescription = null,
-                        tint = Color(0xFFFFC107),
+                        tint = MaterialTheme.colorScheme.tertiary,
                         modifier = Modifier.size(14.dp)
                     )
                 }

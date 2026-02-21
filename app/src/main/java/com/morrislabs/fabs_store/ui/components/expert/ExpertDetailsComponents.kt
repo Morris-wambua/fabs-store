@@ -158,7 +158,7 @@ object ExpertDetailsComponents {
                     modifier = Modifier
                         .size(12.dp)
                         .clip(CircleShape)
-                        .background(if (isAvailable) Color.Green else Color.Red)
+                        .background(if (isAvailable) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error)
                 )
 
                 Spacer(modifier = Modifier.width(8.dp))

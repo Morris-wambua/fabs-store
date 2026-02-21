@@ -22,6 +22,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Notifications
@@ -44,7 +45,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -125,7 +125,7 @@ private fun ScheduleTopBar(
     ) {
         IconButton(onClick = onBack) {
             Icon(
-                Icons.Default.ArrowBack,
+                Icons.AutoMirrored.Filled.ArrowBack,
                 contentDescription = "Back",
                 tint = MaterialTheme.colorScheme.onSurface
             )
@@ -175,7 +175,7 @@ private fun DateSelector(
                     .clickable { onDateSelected(date) },
                 shape = RoundedCornerShape(16.dp),
                 color = when {
-                    isSelected -> Color(0xFF4CAF50)
+                    isSelected -> MaterialTheme.colorScheme.primary
                     else -> MaterialTheme.colorScheme.surface
                 },
                 tonalElevation = if (!isSelected) 1.dp else 0.dp
@@ -187,14 +187,14 @@ private fun DateSelector(
                     Text(
                         text = dayName.uppercase(),
                         style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp),
-                        color = if (isSelected) Color.White.copy(alpha = 0.8f)
+                        color = if (isSelected) MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.8f)
                         else MaterialTheme.colorScheme.onSurfaceVariant
                     )
                     Spacer(modifier = Modifier.height(4.dp))
                     Text(
                         text = dayNumber,
                         style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
-                        color = if (isSelected) Color.White
+                        color = if (isSelected) MaterialTheme.colorScheme.onPrimary
                         else MaterialTheme.colorScheme.onSurface
                     )
                     if (isToday && !isSelected) {
@@ -203,7 +203,7 @@ private fun DateSelector(
                             modifier = Modifier
                                 .size(4.dp)
                                 .clip(CircleShape)
-                                .background(Color(0xFF4CAF50))
+                                .background(MaterialTheme.colorScheme.primary)
                         )
                     }
                 }
@@ -280,7 +280,7 @@ private fun TimelineView(
 private fun ScheduleAppointmentCard(
     reservation: ReservationWithPaymentDTO
 ) {
-    val accentColor = Color(0xFF4CAF50)
+    val accentColor = MaterialTheme.colorScheme.primary
     val statusText = when (reservation.status) {
         ReservationStatus.BOOKED_ACCEPTED -> "Confirmed"
         ReservationStatus.BOOKED_PENDING_ACCEPTANCE -> "Pending"
