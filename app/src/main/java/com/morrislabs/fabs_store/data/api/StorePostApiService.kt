@@ -1,89 +1,258 @@
 package com.morrislabs.fabs_store.data.api
 
+import android.content.Context
+import android.net.Uri
 import android.util.Log
-import com.morrislabs.fabs_store.data.model.StorePostDTO
-import com.morrislabs.fabs_store.data.model.StorePostPayload
+import com.morrislabs.fabs_store.data.model.CommentDTO
+import com.morrislabs.fabs_store.data.model.PagedCommentResponse
+import com.morrislabs.fabs_store.data.model.PagedPostResponse
+import com.morrislabs.fabs_store.data.model.PostDTO
+import com.morrislabs.fabs_store.data.model.PostPayload
+import com.morrislabs.fabs_store.data.model.UploadMediaResponse
+import com.morrislabs.fabs_store.util.AppConfig
 import com.morrislabs.fabs_store.util.ClientConfig
 import com.morrislabs.fabs_store.util.TokenManager
-import io.ktor.client.call.body
+import io.ktor.client.HttpClient
+import io.ktor.client.engine.cio.CIO
+import io.ktor.client.plugins.ClientRequestException
+import io.ktor.client.plugins.HttpTimeout
+import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
+import io.ktor.client.request.bearerAuth
 import io.ktor.client.request.delete
 import io.ktor.client.request.get
+import io.ktor.client.request.parameter
 import io.ktor.client.request.post
 import io.ktor.client.request.setBody
+import io.ktor.client.request.forms.formData
+import io.ktor.client.request.forms.submitFormWithBinaryData
+import io.ktor.client.statement.bodyAsText
 import io.ktor.http.ContentType
+import io.ktor.http.Headers
+import io.ktor.http.HttpHeaders
 import io.ktor.http.contentType
+import io.ktor.serialization.kotlinx.json.json
+import kotlinx.serialization.json.Json
 
-class StorePostApiService {
+private const val TAG = "StorePostApiService"
+
+class StorePostApiService(private val context: Context, private val tokenManager: TokenManager) {
+
+    private val baseUrl = AppConfig.Api.BASE_URL
     private val clientConfig = ClientConfig()
-    private val baseUrl = "http://192.168.100.5:8080/fabs/app"
+    private val json = Json { ignoreUnknownKeys = true }
 
-    suspend fun createStorePost(
-        storeId: String,
-        payload: StorePostPayload
-    ): Result<StorePostDTO> {
+    suspend fun createStorePost(storeId: String, payload: PostPayload): Result<PostDTO> {
         return try {
-            val client = clientConfig.createAuthenticatedClient(
-                android.app.Application(),
-                TokenManager.getInstance(android.app.Application())
-            )
-            
-            val response = client.post("$baseUrl/api/stores/$storeId/posts") {
+            val client = clientConfig.createAuthenticatedClient(context, tokenManager)
+            val response = client.post("$baseUrl/api/posts/store/$storeId") {
                 contentType(ContentType.Application.Json)
                 setBody(payload)
             }
-            
-            Log.d("StorePostApiService", "Create store post response: ${response.status}")
-            val body = response.body<StorePostDTO>()
-            Result.success(body)
+            val responseText = response.bodyAsText()
+            Log.d(TAG, "Create store post response: $responseText")
+            val post = json.decodeFromString<PostDTO>(responseText)
+            Result.success(post)
+        } catch (e: ClientRequestException) {
+            val errorBody = try { e.response.bodyAsText() } catch (ex: Exception) { "Unable to parse error body" }
+            Log.e(TAG, "Create post failed - Status: ${e.response.status.value}, Body: $errorBody")
+            Result.failure(Exception("Failed to create post"))
         } catch (e: Exception) {
-            Log.e("StorePostApiService", "Error creating store post: ${e.message}", e)
-            Result.failure(e)
+            Log.e(TAG, "Create post failed: ${e.message}", e)
+            Result.failure(Exception("Failed to create post"))
         }
     }
 
     suspend fun getStorePosts(
         storeId: String,
+        userId: String? = null,
         page: Int = 0,
         size: Int = 10
-    ): Result<List<StorePostDTO>> {
+    ): Result<PagedPostResponse> {
         return try {
-            val client = clientConfig.createAuthenticatedClient(
-                android.app.Application(),
-                TokenManager.getInstance(android.app.Application())
-            )
-            
-            val response = client.get("$baseUrl/api/stores/$storeId/posts") {
-                url {
-                    parameters.append("page", page.toString())
-                    parameters.append("size", size.toString())
-                }
+            val client = clientConfig.createAuthenticatedClient(context, tokenManager)
+            val response = client.get("$baseUrl/api/posts/store/$storeId") {
+                parameter("page", page)
+                parameter("size", size)
+                userId?.let { parameter("userId", it) }
             }
-            
-            Log.d("StorePostApiService", "Get store posts response: ${response.status}")
-            // Assuming backend returns a list directly or we need to parse paged response
-            val body = response.body<List<StorePostDTO>>()
-            Result.success(body)
+            val responseText = response.bodyAsText()
+            Log.d(TAG, "Get store posts response: $responseText")
+            val pagedResponse = json.decodeFromString<PagedPostResponse>(responseText)
+            Result.success(pagedResponse)
+        } catch (e: ClientRequestException) {
+            val errorBody = try { e.response.bodyAsText() } catch (ex: Exception) { "Unable to parse error body" }
+            Log.e(TAG, "Fetch posts failed - Status: ${e.response.status.value}, Body: $errorBody")
+            Result.failure(Exception("Failed to fetch posts"))
         } catch (e: Exception) {
-            Log.e("StorePostApiService", "Error fetching store posts: ${e.message}", e)
-            Result.failure(e)
+            Log.e(TAG, "Fetch posts failed: ${e.message}", e)
+            Result.failure(Exception("Failed to fetch posts"))
         }
     }
 
-    suspend fun deleteStorePost(
-        storeId: String,
-        postId: String
-    ): Result<Unit> {
+    suspend fun getPostById(
+        postId: String,
+        currentUserId: String? = null,
+        page: Int = 0,
+        size: Int = 10
+    ): Result<PostDTO> {
         return try {
-            val client = clientConfig.createAuthenticatedClient(
-                android.app.Application(),
-                TokenManager.getInstance(android.app.Application())
-            )
-            
-            client.delete("$baseUrl/api/stores/$storeId/posts/$postId")
-            Result.success(Unit)
+            val client = clientConfig.createAuthenticatedClient(context, tokenManager)
+            val response = client.get("$baseUrl/api/posts/$postId") {
+                currentUserId?.let { parameter("currentUserId", it) }
+                parameter("page", page)
+                parameter("size", size)
+            }
+            val responseText = response.bodyAsText()
+            Log.d(TAG, "Get post by ID response: $responseText")
+            val post = json.decodeFromString<PostDTO>(responseText)
+            Result.success(post)
         } catch (e: Exception) {
-            Log.e("StorePostApiService", "Error deleting store post: ${e.message}", e)
-            Result.failure(e)
+            Log.e(TAG, "Fetch post failed: ${e.message}", e)
+            Result.failure(Exception("Failed to fetch post"))
+        }
+    }
+
+    suspend fun getPostComments(
+        postId: String,
+        currentUserId: String? = null,
+        page: Int = 0,
+        size: Int = 10
+    ): Result<PagedCommentResponse> {
+        return try {
+            val client = clientConfig.createAuthenticatedClient(context, tokenManager)
+            val response = client.get("$baseUrl/api/posts/$postId/comments") {
+                parameter("page", page)
+                parameter("size", size)
+                currentUserId?.let { parameter("currentUserId", it) }
+            }
+            val responseText = response.bodyAsText()
+            Log.d(TAG, "Get post comments response: $responseText")
+            val pagedResponse = json.decodeFromString<PagedCommentResponse>(responseText)
+            Result.success(pagedResponse)
+        } catch (e: Exception) {
+            Log.e(TAG, "Fetch comments failed: ${e.message}", e)
+            Result.failure(Exception("Failed to fetch comments"))
+        }
+    }
+
+    suspend fun addComment(postId: String, content: String, userId: String): Result<PostDTO> {
+        return try {
+            val client = clientConfig.createAuthenticatedClient(context, tokenManager)
+            val commentPayload = CommentDTO(content = content)
+            val response = client.post("$baseUrl/api/posts/$postId/comments") {
+                contentType(ContentType.Application.Json)
+                parameter("userId", userId)
+                setBody(commentPayload)
+            }
+            val responseText = response.bodyAsText()
+            Log.d(TAG, "Add comment response: $responseText")
+            val post = json.decodeFromString<PostDTO>(responseText)
+            Result.success(post)
+        } catch (e: Exception) {
+            Log.e(TAG, "Add comment failed: ${e.message}", e)
+            Result.failure(Exception("Failed to add comment"))
+        }
+    }
+
+    suspend fun addCommentReply(
+        postId: String,
+        commentId: String,
+        content: String,
+        userId: String
+    ): Result<PostDTO> {
+        return try {
+            val client = clientConfig.createAuthenticatedClient(context, tokenManager)
+            val replyPayload = CommentDTO(content = content)
+            val response = client.post("$baseUrl/api/posts/$postId/comments/$commentId/replies") {
+                contentType(ContentType.Application.Json)
+                parameter("userId", userId)
+                setBody(replyPayload)
+            }
+            val responseText = response.bodyAsText()
+            Log.d(TAG, "Add reply response: $responseText")
+            val post = json.decodeFromString<PostDTO>(responseText)
+            Result.success(post)
+        } catch (e: Exception) {
+            Log.e(TAG, "Add reply failed: ${e.message}", e)
+            Result.failure(Exception("Failed to add reply"))
+        }
+    }
+
+    suspend fun deleteComment(postId: String, commentId: String, userId: String): Result<PostDTO> {
+        return try {
+            val client = clientConfig.createAuthenticatedClient(context, tokenManager)
+            val response = client.delete("$baseUrl/api/posts/$postId/comments/$commentId") {
+                parameter("userId", userId)
+            }
+            val responseText = response.bodyAsText()
+            val post = json.decodeFromString<PostDTO>(responseText)
+            Result.success(post)
+        } catch (e: Exception) {
+            Log.e(TAG, "Delete comment failed: ${e.message}", e)
+            Result.failure(Exception("Failed to delete comment"))
+        }
+    }
+
+    suspend fun toggleLike(postId: String, userId: String): Result<PostDTO> {
+        return try {
+            val client = clientConfig.createAuthenticatedClient(context, tokenManager)
+            val response = client.post("$baseUrl/api/posts/$postId/like") {
+                parameter("userId", userId)
+            }
+            val responseText = response.bodyAsText()
+            val post = json.decodeFromString<PostDTO>(responseText)
+            Result.success(post)
+        } catch (e: Exception) {
+            Log.e(TAG, "Toggle like failed: ${e.message}", e)
+            Result.failure(Exception("Failed to toggle like"))
+        }
+    }
+
+    suspend fun uploadPostMedia(uri: Uri, userId: String): Result<Pair<String, String>> {
+        return try {
+            val inputStream = context.contentResolver.openInputStream(uri)
+                ?: return Result.failure(Exception("Cannot read media file"))
+            val bytes = inputStream.readBytes()
+            inputStream.close()
+
+            val mimeType = context.contentResolver.getType(uri) ?: "image/jpeg"
+            val extension = if (mimeType.startsWith("video")) "mp4" else "jpg"
+
+            val token = tokenManager.getToken()
+            val uploadClient = HttpClient(CIO) {
+                install(ContentNegotiation) {
+                    json(Json { ignoreUnknownKeys = true; isLenient = true })
+                }
+                install(HttpTimeout) {
+                    requestTimeoutMillis = 120000
+                    connectTimeoutMillis = 30000
+                    socketTimeoutMillis = 120000
+                }
+            }
+
+            try {
+                val response = uploadClient.submitFormWithBinaryData(
+                    url = "$baseUrl/api/media/upload",
+                    formData = formData {
+                        append("file", bytes, Headers.build {
+                            append(HttpHeaders.ContentType, mimeType)
+                            append(HttpHeaders.ContentDisposition, "filename=\"post_media.$extension\"")
+                        })
+                        append("userId", userId)
+                    }
+                ) {
+                    token?.let { bearerAuth(it) }
+                }
+                val responseText = response.bodyAsText()
+                Log.d(TAG, "Upload media response: $responseText")
+                val uploadResponse = json.decodeFromString<UploadMediaResponse>(responseText)
+                Result.success(Pair(uploadResponse.url, uploadResponse.fileName))
+            } finally {
+                uploadClient.close()
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Upload media failed", e)
+            Result.failure(Exception("Failed to upload media: ${e.message}"))
         }
     }
 }

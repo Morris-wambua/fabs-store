@@ -7,18 +7,15 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.ExperimentalMaterialApi
-import androidx.compose.material.pullrefresh.PullRefreshIndicator
-import androidx.compose.material.pullrefresh.pullRefresh
-import androidx.compose.material.pullrefresh.rememberPullRefreshState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CalendarMonth
+import androidx.compose.material.icons.filled.GridView
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.People
-import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.outlined.CalendarMonth
+import androidx.compose.material.icons.outlined.GridView
 import androidx.compose.material.icons.outlined.Home
 import androidx.compose.material.icons.outlined.People
-import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
@@ -34,7 +31,6 @@ import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
@@ -42,9 +38,10 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.dp
 import com.morrislabs.fabs_store.data.model.FetchStoreResponse
 import com.morrislabs.fabs_store.data.model.ReservationFilter
-import com.morrislabs.fabs_store.data.model.ReservationStatus
 import com.morrislabs.fabs_store.ui.screens.dashboard.DashboardScreen
+import com.morrislabs.fabs_store.ui.screens.posts.StorePostsScreen
 import com.morrislabs.fabs_store.ui.viewmodel.ExpertViewModel
+import com.morrislabs.fabs_store.ui.viewmodel.PostViewModel
 import com.morrislabs.fabs_store.ui.viewmodel.StoreViewModel
 
 private enum class BottomNavItem(
@@ -54,8 +51,8 @@ private enum class BottomNavItem(
 ) {
     HOME("Home", Icons.Filled.Home, Icons.Outlined.Home),
     RESERVATIONS("Reservations", Icons.Filled.CalendarMonth, Icons.Outlined.CalendarMonth),
-    EXPERTS("Experts", Icons.Filled.People, Icons.Outlined.People),
-    SETTINGS("Settings", Icons.Filled.Settings, Icons.Outlined.Settings)
+    POSTS("Posts", Icons.Filled.GridView, Icons.Outlined.GridView),
+    EXPERTS("Experts", Icons.Filled.People, Icons.Outlined.People)
 }
 
 @OptIn(ExperimentalMaterialApi::class)
@@ -64,12 +61,15 @@ fun MainScreen(
     store: FetchStoreResponse,
     storeViewModel: StoreViewModel,
     expertViewModel: ExpertViewModel,
+    postViewModel: PostViewModel,
     onNavigateToSettings: () -> Unit,
     onNavigateToCreateExpert: (String) -> Unit,
     onNavigateToExpertDetails: (String) -> Unit,
     onNavigateToServices: () -> Unit,
     onNavigateToDailySchedule: () -> Unit,
     onNavigateToStoreProfile: () -> Unit,
+    onNavigateToCreatePost: () -> Unit,
+    onNavigateToPostDetail: (String) -> Unit,
     onLogout: () -> Unit
 ) {
     val storeId = store.id ?: ""
@@ -77,11 +77,14 @@ fun MainScreen(
     val reservationsState by storeViewModel.reservationsState.collectAsState()
     val isRefreshing by storeViewModel.isRefreshing.collectAsState()
     val expertsState by expertViewModel.expertsState.collectAsState()
+    val postsState by postViewModel.postsState.collectAsState()
+    val isPostsRefreshing by postViewModel.isRefreshing.collectAsState()
     var selectedReservationFilter by rememberSaveable { mutableStateOf(ReservationFilter.PENDING_APPROVAL) }
 
     LaunchedEffect(storeId) {
         if (storeId.isNotEmpty()) {
             expertViewModel.getExpertsByStoreId(storeId)
+            postViewModel.fetchStorePosts(storeId)
         }
     }
 
@@ -169,6 +172,15 @@ fun MainScreen(
                     )
                 }
                 2 -> {
+                    StorePostsScreen(
+                        posts = postsState,
+                        isRefreshing = isPostsRefreshing,
+                        onRefresh = { postViewModel.refreshPosts(storeId) },
+                        onCreatePost = onNavigateToCreatePost,
+                        onPostClick = onNavigateToPostDetail
+                    )
+                }
+                3 -> {
                     ExpertsTabContent(
                         expertsState = expertsState,
                         storeId = storeId,
@@ -180,13 +192,6 @@ fun MainScreen(
                             }
                         },
                         onCreateExpert = { onNavigateToCreateExpert(storeId) }
-                    )
-                }
-                3 -> {
-                    SettingsScreen(
-                        onNavigateBack = { selectedTab = 0 },
-                        onNavigateToStoreProfile = onNavigateToStoreProfile,
-                        onLogout = onLogout
                     )
                 }
             }

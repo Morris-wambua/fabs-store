@@ -35,12 +35,17 @@ import com.morrislabs.fabs_store.ui.screens.StoreProfileBusinessHoursScreen
 import com.morrislabs.fabs_store.ui.screens.StoreProfileEditorScreen
 import com.morrislabs.fabs_store.ui.screens.StoreProfileLocationEditorScreen
 import com.morrislabs.fabs_store.ui.screens.SetupChecklistScreen
+import com.morrislabs.fabs_store.ui.screens.posts.CreatePostScreen
+import com.morrislabs.fabs_store.ui.screens.posts.LiveStreamScreen
+import com.morrislabs.fabs_store.ui.screens.posts.LiveStreamSummaryScreen
+import com.morrislabs.fabs_store.ui.screens.posts.PostDetailScreen
 import com.morrislabs.fabs_store.ui.screens.storeonboarding.BusinessHoursStepScreen
 import com.morrislabs.fabs_store.ui.screens.storeonboarding.StoreInfoStepScreen
 import com.morrislabs.fabs_store.ui.screens.storeonboarding.StoreLocationStepScreen
 import com.morrislabs.fabs_store.ui.theme.FabsstoreTheme
 import com.morrislabs.fabs_store.ui.viewmodel.AuthViewModel
 import com.morrislabs.fabs_store.ui.viewmodel.CreateStoreWizardViewModel
+import com.morrislabs.fabs_store.ui.viewmodel.PostViewModel
 import com.morrislabs.fabs_store.util.AuthenticationStateListener
 import com.morrislabs.fabs_store.util.ClientConfig
 import kotlinx.coroutines.Dispatchers
@@ -65,6 +70,7 @@ fun StoreApp(
     val navController = rememberNavController()
     val storeViewModel: com.morrislabs.fabs_store.ui.viewmodel.StoreViewModel = viewModel()
     val servicesViewModel: com.morrislabs.fabs_store.ui.viewmodel.ServicesViewModel = viewModel()
+    val postViewModel: PostViewModel = viewModel()
     var isLoggedIn by remember { mutableStateOf(authViewModel.isLoggedIn()) }
 
     LaunchedEffect(Unit) {
@@ -135,6 +141,10 @@ fun StoreApp(
                     navController.navigate("create_expert/$storeId")
                 },
                 onNavigateToDailySchedule = { navController.navigate("daily_schedule") },
+                onNavigateToCreatePost = { navController.navigate("create_post") },
+                onNavigateToPostDetail = { postId ->
+                    navController.navigate("post_detail/$postId")
+                },
                 onLogout = {
                     authViewModel.logout()
                     storeViewModel.resetAllStates()
@@ -143,7 +153,8 @@ fun StoreApp(
                         popUpTo("home") { inclusive = true }
                     }
                 },
-                storeViewModel = storeViewModel
+                storeViewModel = storeViewModel,
+                postViewModel = postViewModel
             )
         }
 
@@ -228,7 +239,7 @@ fun StoreApp(
                     navController.navigate("create_expert/$storeId")
                 },
                 onNavigateToCreatePost = {
-                    // TODO: navigate to create post screen
+                    navController.navigate("create_post")
                 }
             )
         }
@@ -336,6 +347,48 @@ fun StoreApp(
         composable("daily_schedule") {
             DailyScheduleScreen(
                 onNavigateBack = { navController.popBackStack() }
+            )
+        }
+
+        composable("create_post") {
+            val storeState by storeViewModel.storeState.collectAsState()
+            val storeId = (storeState as? com.morrislabs.fabs_store.ui.viewmodel.StoreViewModel.StoreState.Success)?.data?.id.orEmpty()
+            CreatePostScreen(
+                storeId = storeId,
+                postViewModel = postViewModel,
+                onNavigateBack = { navController.popBackStack() },
+                onPostCreated = { navController.popBackStack() }
+            )
+        }
+
+        composable("post_detail/{postId}") { backStackEntry ->
+            val postId = backStackEntry.arguments?.getString("postId") ?: ""
+            PostDetailScreen(
+                postId = postId,
+                postViewModel = postViewModel,
+                onNavigateBack = { navController.popBackStack() }
+            )
+        }
+
+        composable("live_stream") {
+            LiveStreamScreen(
+                onEndLive = {
+                    navController.navigate("live_stream_summary") {
+                        popUpTo("live_stream") { inclusive = true }
+                    }
+                },
+                onNavigateBack = { navController.popBackStack() }
+            )
+        }
+
+        composable("live_stream_summary") {
+            LiveStreamSummaryScreen(
+                onNavigateToPost = { navController.popBackStack() },
+                onDone = {
+                    navController.navigate("home") {
+                        popUpTo("live_stream_summary") { inclusive = true }
+                    }
+                }
             )
         }
     }
