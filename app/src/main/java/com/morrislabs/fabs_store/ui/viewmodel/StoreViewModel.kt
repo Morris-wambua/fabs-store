@@ -5,15 +5,22 @@ import android.net.Uri
 import android.util.Log
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
+import com.morrislabs.fabs_store.data.api.ServicesApiService
 import com.morrislabs.fabs_store.data.api.SetupApiService
 import com.morrislabs.fabs_store.data.api.StoreApiService
 import com.morrislabs.fabs_store.data.model.CreateStorePayload
+import com.morrislabs.fabs_store.data.model.ExpertDTO
 import com.morrislabs.fabs_store.data.model.FetchStoreResponse
-import com.morrislabs.fabs_store.data.model.LocationDTO
+import com.morrislabs.fabs_store.data.model.ReservationDTO
+import com.morrislabs.fabs_store.data.model.ReservationTransitionAction
+import com.morrislabs.fabs_store.data.model.TimeSlot
 import com.morrislabs.fabs_store.data.model.ReservationWithPaymentDTO
 import com.morrislabs.fabs_store.data.model.TypeOfServiceDTO
 import com.morrislabs.fabs_store.data.model.UpdateStorePayload
+import com.morrislabs.fabs_store.data.model.UserLookupResponseDTO
+import com.morrislabs.fabs_store.data.repository.ExpertRepository
 import com.morrislabs.fabs_store.data.repository.ReservationRepository
+import com.morrislabs.fabs_store.data.repository.UserRepository
 import com.morrislabs.fabs_store.util.TokenManager
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -28,7 +35,10 @@ class StoreViewModel(application: Application) : AndroidViewModel(application) {
     private val context = application.applicationContext
     private val tokenManager = TokenManager.getInstance(context)
     private val storeApiService = StoreApiService(context, tokenManager)
+    private val servicesApiService = ServicesApiService(context, tokenManager)
     private val setupApiService = SetupApiService(context)
+    private val expertRepository = ExpertRepository(context, tokenManager)
+    private val userRepository = UserRepository(context, tokenManager)
     private val reservationRepository = ReservationRepository(context, tokenManager)
 
     private val _storeState = MutableStateFlow<StoreState>(StoreState.Idle)
@@ -45,6 +55,10 @@ class StoreViewModel(application: Application) : AndroidViewModel(application) {
 
     // Cache for reservations by filter status
     private val reservationsCache = mutableMapOf<String, List<ReservationWithPaymentDTO>>()
+
+    private fun clearReservationsCache() {
+        reservationsCache.clear()
+    }
     
     private val _isRefreshing = MutableStateFlow(false)
     val isRefreshing: StateFlow<Boolean> = _isRefreshing.asStateFlow()
@@ -58,6 +72,25 @@ class StoreViewModel(application: Application) : AndroidViewModel(application) {
 
     private val _servicesByCategoryState = MutableStateFlow<LoadingState<List<TypeOfServiceDTO>>>(LoadingState.Idle)
     val servicesByCategoryState: StateFlow<LoadingState<List<TypeOfServiceDTO>>> = _servicesByCategoryState.asStateFlow()
+
+    private val _walkInServicesState = MutableStateFlow<LoadingState<List<TypeOfServiceDTO>>>(LoadingState.Idle)
+    val walkInServicesState: StateFlow<LoadingState<List<TypeOfServiceDTO>>> = _walkInServicesState.asStateFlow()
+
+    private val _walkInExpertsState = MutableStateFlow<LoadingState<List<ExpertDTO>>>(LoadingState.Idle)
+    val walkInExpertsState: StateFlow<LoadingState<List<ExpertDTO>>> = _walkInExpertsState.asStateFlow()
+
+    private val _walkInAvailableSlotsByExpertState = MutableStateFlow<Map<String, LoadingState<List<TimeSlot>>>>(emptyMap())
+    val walkInAvailableSlotsByExpertState: StateFlow<Map<String, LoadingState<List<TimeSlot>>>> =
+        _walkInAvailableSlotsByExpertState.asStateFlow()
+
+    private val _walkInBookingActionState = MutableStateFlow<WalkInBookingActionState>(WalkInBookingActionState.Idle)
+    val walkInBookingActionState: StateFlow<WalkInBookingActionState> = _walkInBookingActionState.asStateFlow()
+
+    private val _walkInCustomerLookupState = MutableStateFlow<WalkInCustomerLookupState>(WalkInCustomerLookupState.Idle)
+    val walkInCustomerLookupState: StateFlow<WalkInCustomerLookupState> = _walkInCustomerLookupState.asStateFlow()
+
+    private val _reservationTransitionState = MutableStateFlow<ReservationTransitionState>(ReservationTransitionState.Idle)
+    val reservationTransitionState: StateFlow<ReservationTransitionState> = _reservationTransitionState.asStateFlow()
 
     fun fetchUserStore() {
         _storeState.value = StoreState.Loading
@@ -98,24 +131,33 @@ class StoreViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    fun fetchReservations(storeId: String, filterStatus: String = "ALL", pageNumber: Int = 0, pageSize: Int = 20, forceRefresh: Boolean = false) {
+    fun fetchReservations(
+        storeId: String,
+        filterStatus: String = "ALL",
+        query: String? = null,
+        pageNumber: Int = 0,
+        pageSize: Int = 20,
+        forceRefresh: Boolean = false
+    ) {
+        val normalizedQuery = query?.trim()?.lowercase().orEmpty()
+        val cacheKey = "$filterStatus|$normalizedQuery"
         // Check cache first if not forcing refresh
-        if (!forceRefresh && reservationsCache.containsKey(filterStatus)) {
-            Log.d(TAG, "Returning cached reservations for filter: $filterStatus")
-            _reservationsState.value = LoadingState.Success(reservationsCache[filterStatus] ?: emptyList())
+        if (!forceRefresh && reservationsCache.containsKey(cacheKey)) {
+            Log.d(TAG, "Returning cached reservations for filter: $filterStatus (query: $normalizedQuery)")
+            _reservationsState.value = LoadingState.Success(reservationsCache[cacheKey] ?: emptyList())
             return
         }
 
         _reservationsState.value = LoadingState.Loading
 
         viewModelScope.launch {
-            Log.d(TAG, "Fetching reservations for store: $storeId (filter: $filterStatus, page: $pageNumber, size: $pageSize, forceRefresh: $forceRefresh)")
+            Log.d(TAG, "Fetching reservations for store: $storeId (filter: $filterStatus, query: $normalizedQuery, page: $pageNumber, size: $pageSize, forceRefresh: $forceRefresh)")
 
-            reservationRepository.fetchStoreReservations(storeId, filterStatus, pageNumber, pageSize)
+            reservationRepository.fetchStoreReservations(storeId, filterStatus, normalizedQuery, pageNumber, pageSize)
                 .onSuccess { reservations ->
                     Log.d(TAG, "Reservations fetched: ${reservations.size} items")
                     // Cache the results
-                    reservationsCache[filterStatus] = reservations
+                    reservationsCache[cacheKey] = reservations
                     _reservationsState.value = LoadingState.Success(reservations)
                     _isRefreshing.value = false
                 }
@@ -128,7 +170,7 @@ class StoreViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    fun refreshReservations(storeId: String, filterStatus: String = "ALL") {
+    fun refreshReservations(storeId: String, filterStatus: String = "ALL", query: String? = null) {
         // Prevent multiple refreshes in progress
         if (_isRefreshing.value) {
             Log.d(TAG, "Refresh already in progress, ignoring")
@@ -136,8 +178,8 @@ class StoreViewModel(application: Application) : AndroidViewModel(application) {
         }
 
         _isRefreshing.value = true
-        Log.d(TAG, "Refreshing reservations for filter: $filterStatus")
-        fetchReservations(storeId, filterStatus, forceRefresh = true)
+        Log.d(TAG, "Refreshing reservations for filter: $filterStatus (query: ${query ?: ""})")
+        fetchReservations(storeId, filterStatus, query, forceRefresh = true)
     }
 
     fun fetchServices() {
@@ -195,6 +237,140 @@ class StoreViewModel(application: Application) : AndroidViewModel(application) {
                     _servicesByCategoryState.value = LoadingState.Error(errorMessage)
                 }
         }
+    }
+
+    fun fetchWalkInServices(storeId: String, query: String? = null) {
+        _walkInServicesState.value = LoadingState.Loading
+
+        viewModelScope.launch {
+            servicesApiService.fetchServicesByStore(storeId = storeId, query = query)
+                .onSuccess { services ->
+                    _walkInServicesState.value = LoadingState.Success(services)
+                }
+                .onFailure { error ->
+                    _walkInServicesState.value = LoadingState.Error(error.message ?: "Failed to fetch services")
+                }
+        }
+    }
+
+    fun fetchWalkInExperts(storeId: String) {
+        _walkInExpertsState.value = LoadingState.Loading
+
+        viewModelScope.launch {
+            expertRepository.getExpertsByStoreId(storeId)
+                .onSuccess { experts ->
+                    _walkInExpertsState.value = LoadingState.Success(experts)
+                }
+                .onFailure { error ->
+                    _walkInExpertsState.value = LoadingState.Error(error.message ?: "Failed to fetch experts")
+                }
+        }
+    }
+
+    fun lookupWalkInCustomerByEmail(email: String) {
+        if (email.isBlank()) {
+            _walkInCustomerLookupState.value = WalkInCustomerLookupState.Idle
+            return
+        }
+        _walkInCustomerLookupState.value = WalkInCustomerLookupState.Loading
+        viewModelScope.launch {
+            userRepository.lookupUserByEmail(email)
+                .onSuccess { user ->
+                    _walkInCustomerLookupState.value = WalkInCustomerLookupState.Found(user)
+                }
+                .onFailure { error ->
+                    val message = error.message ?: "Failed to lookup user"
+                    if (message.contains("not found", ignoreCase = true)) {
+                        _walkInCustomerLookupState.value = WalkInCustomerLookupState.NotFound
+                    } else {
+                        _walkInCustomerLookupState.value = WalkInCustomerLookupState.Error(message)
+                    }
+                }
+        }
+    }
+
+    fun resetWalkInCustomerLookup() {
+        _walkInCustomerLookupState.value = WalkInCustomerLookupState.Idle
+    }
+
+    fun fetchWalkInAvailableSlots(expertId: String, date: String, durationMinutes: Int) {
+        _walkInAvailableSlotsByExpertState.value =
+            _walkInAvailableSlotsByExpertState.value + (expertId to LoadingState.Loading)
+
+        viewModelScope.launch {
+            expertRepository.getAvailableTimeSlots(expertId, date, durationMinutes)
+                .onSuccess { slots ->
+                    _walkInAvailableSlotsByExpertState.value =
+                        _walkInAvailableSlotsByExpertState.value + (expertId to LoadingState.Success(slots))
+                }
+                .onFailure { error ->
+                    _walkInAvailableSlotsByExpertState.value =
+                        _walkInAvailableSlotsByExpertState.value + (expertId to LoadingState.Error(error.message ?: "Failed to fetch time slots"))
+                }
+        }
+    }
+
+    fun clearWalkInAvailableSlots() {
+        _walkInAvailableSlotsByExpertState.value = emptyMap()
+    }
+
+    fun createWalkInReservations(reservations: List<ReservationDTO>) {
+        if (reservations.isEmpty()) {
+            _walkInBookingActionState.value = WalkInBookingActionState.Error("No reservation payload to submit")
+            return
+        }
+        _walkInBookingActionState.value = WalkInBookingActionState.Loading
+
+        viewModelScope.launch {
+            var createdCount = 0
+            reservations.forEach { reservation ->
+                val result = reservationRepository.createReservation(reservation)
+                if (result.isFailure) {
+                    _walkInBookingActionState.value = WalkInBookingActionState.Error(
+                        result.exceptionOrNull()?.message ?: "Failed to create reservation"
+                    )
+                    return@launch
+                }
+                createdCount += 1
+            }
+            _walkInBookingActionState.value = WalkInBookingActionState.Success(createdCount)
+            val storeId = (storeState.value as? StoreState.Success)?.data?.id.orEmpty()
+            if (storeId.isNotBlank()) {
+                clearReservationsCache()
+                fetchReservations(storeId, forceRefresh = true)
+            }
+        }
+    }
+
+    fun resetWalkInBookingActionState() {
+        _walkInBookingActionState.value = WalkInBookingActionState.Idle
+    }
+
+    fun transitionReservation(
+        reservationId: String,
+        action: ReservationTransitionAction,
+        storeId: String,
+        filterStatus: String = "ALL",
+        query: String? = null
+    ) {
+        _reservationTransitionState.value = ReservationTransitionState.Loading
+        viewModelScope.launch {
+            reservationRepository.transitionReservation(reservationId, action)
+                .onSuccess { status ->
+                    _reservationTransitionState.value = ReservationTransitionState.Success(reservationId, status)
+                    clearReservationsCache()
+                    fetchReservations(storeId, filterStatus, query, forceRefresh = true)
+                }
+                .onFailure { error ->
+                    _reservationTransitionState.value = ReservationTransitionState.Error(
+                        error.message ?: "Failed to update reservation"
+                    )
+                }
+        }
+    }
+
+    fun resetReservationTransitionState() {
+        _reservationTransitionState.value = ReservationTransitionState.Idle
     }
 
     fun createStore(payload: CreateStorePayload) {
@@ -279,6 +455,12 @@ class StoreViewModel(application: Application) : AndroidViewModel(application) {
         _categoriesState.value = LoadingState.Idle
         _servicesByCategoryState.value = LoadingState.Idle
         _servicesState.value = LoadingState.Idle
+        _walkInServicesState.value = LoadingState.Idle
+        _walkInExpertsState.value = LoadingState.Idle
+        _walkInAvailableSlotsByExpertState.value = emptyMap()
+        _walkInBookingActionState.value = WalkInBookingActionState.Idle
+        _walkInCustomerLookupState.value = WalkInCustomerLookupState.Idle
+        _reservationTransitionState.value = ReservationTransitionState.Idle
     }
 
     sealed class StoreState {
@@ -312,5 +494,27 @@ class StoreViewModel(application: Application) : AndroidViewModel(application) {
         data object Loading : UpdateStoreState()
         data class Success(val storeId: String) : UpdateStoreState()
         data class Error(val message: String) : UpdateStoreState()
+    }
+
+    sealed class WalkInBookingActionState {
+        data object Idle : WalkInBookingActionState()
+        data object Loading : WalkInBookingActionState()
+        data class Success(val createdCount: Int) : WalkInBookingActionState()
+        data class Error(val message: String) : WalkInBookingActionState()
+    }
+
+    sealed class WalkInCustomerLookupState {
+        data object Idle : WalkInCustomerLookupState()
+        data object Loading : WalkInCustomerLookupState()
+        data class Found(val user: UserLookupResponseDTO) : WalkInCustomerLookupState()
+        data object NotFound : WalkInCustomerLookupState()
+        data class Error(val message: String) : WalkInCustomerLookupState()
+    }
+
+    sealed class ReservationTransitionState {
+        data object Idle : ReservationTransitionState()
+        data object Loading : ReservationTransitionState()
+        data class Success(val reservationId: String, val status: String) : ReservationTransitionState()
+        data class Error(val message: String) : ReservationTransitionState()
     }
 }

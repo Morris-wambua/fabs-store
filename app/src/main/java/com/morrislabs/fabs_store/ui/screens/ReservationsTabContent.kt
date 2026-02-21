@@ -35,9 +35,9 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -47,8 +47,10 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.morrislabs.fabs_store.data.model.ReservationFilter
+import com.morrislabs.fabs_store.data.model.ReservationTransitionAction
 import com.morrislabs.fabs_store.data.model.ReservationWithPaymentDTO
 import com.morrislabs.fabs_store.ui.viewmodel.StoreViewModel
+import kotlinx.coroutines.delay
 
 @OptIn(ExperimentalMaterialApi::class)
 @Composable
@@ -64,11 +66,49 @@ internal fun ReservationsTabContent(
     var searchQuery by remember { mutableStateOf("") }
     var selectedReservation by remember { mutableStateOf<ReservationWithPaymentDTO?>(null) }
     var showWalkInBooking by remember { mutableStateOf(false) }
+    val currentFilterStatus = selectedFilter.toBackendStatus()
+    val pullRefreshState = rememberPullRefreshState(
+        refreshing = isRefreshing,
+        onRefresh = {
+            if (storeId.isBlank()) {
+                return@rememberPullRefreshState
+            }
+            val query = searchQuery.trim().ifBlank { null }
+            storeViewModel.refreshReservations(storeId, currentFilterStatus, query)
+        }
+    )
+
+    LaunchedEffect(storeId, selectedFilter, searchQuery) {
+        if (storeId.isBlank()) {
+            return@LaunchedEffect
+        }
+        delay(300)
+        val query = searchQuery.trim().ifBlank { null }
+        storeViewModel.fetchReservations(storeId, currentFilterStatus, query)
+    }
 
     if (selectedReservation != null) {
         ReservationDetailsScreen(
             reservation = selectedReservation!!,
             selectedFilter = selectedFilter,
+            onApproveReservation = { reservationId ->
+                storeViewModel.transitionReservation(
+                    reservationId = reservationId,
+                    action = ReservationTransitionAction.STORE_APPROVE_BOOKING,
+                    storeId = storeId,
+                    filterStatus = currentFilterStatus,
+                    query = searchQuery.trim().ifBlank { null }
+                )
+            },
+            onRejectReservation = { reservationId ->
+                storeViewModel.transitionReservation(
+                    reservationId = reservationId,
+                    action = ReservationTransitionAction.CANCEL,
+                    storeId = storeId,
+                    filterStatus = currentFilterStatus,
+                    query = searchQuery.trim().ifBlank { null }
+                )
+            },
             onNavigateBack = { selectedReservation = null }
         )
         return
@@ -76,8 +116,10 @@ internal fun ReservationsTabContent(
 
     if (showWalkInBooking) {
         WalkInBookingScreen(
+            storeId = storeId,
+            storeViewModel = storeViewModel,
             onNavigateBack = { showWalkInBooking = false },
-            onConfirmBooking = { showWalkInBooking = false }
+            onBookingCreated = { showWalkInBooking = false }
         )
         return
     }
@@ -85,6 +127,7 @@ internal fun ReservationsTabContent(
     Box(
         modifier = modifier
             .fillMaxSize()
+            .pullRefresh(pullRefreshState)
             .background(MaterialTheme.colorScheme.background)
     ) {
         Column(modifier = Modifier.fillMaxSize()) {
@@ -104,26 +147,10 @@ internal fun ReservationsTabContent(
                     .padding(horizontal = 16.dp, vertical = 8.dp)
             )
 
-            val pullRefreshState = rememberPullRefreshState(
-                refreshing = isRefreshing,
-                onRefresh = {
-                    val filterStatus = when (selectedFilter) {
-                        ReservationFilter.PENDING_APPROVAL -> "BOOKED_PENDING_ACCEPTANCE"
-                        ReservationFilter.UPCOMING -> "BOOKED_ACCEPTED"
-                        ReservationFilter.CANCELLED -> "CANCELLED"
-                        ReservationFilter.COMPLETED -> "SERVED"
-                        ReservationFilter.LAPSED_PAID -> "LAPSED_PAID"
-                        ReservationFilter.LAPSED_NOT_ACCEPTED -> "LAPSED_NOT_ACCEPTED"
-                    }
-                    storeViewModel.refreshReservations(storeId, filterStatus)
-                }
-            )
-
             Box(
                 modifier = Modifier
                     .weight(1f)
                     .fillMaxWidth()
-                    .pullRefresh(pullRefreshState)
             ) {
                 when (reservationsState) {
                     is StoreViewModel.LoadingState.Loading -> {
@@ -132,29 +159,40 @@ internal fun ReservationsTabContent(
                         }
                     }
                     is StoreViewModel.LoadingState.Success -> {
-                        val filtered = reservationsState.data.filter { reservation ->
-                            val query = searchQuery.trim()
-                            if (query.isBlank()) {
-                                true
-                            } else {
-                                reservation.name.contains(query, ignoreCase = true) ||
-                                    reservation.typeOfServiceName.contains(query, ignoreCase = true) ||
-                                    reservation.reservationExpertName.contains(query, ignoreCase = true)
-                            }
-                        }
                         ReservationsListContent(
-                            reservations = filtered,
+                            reservations = reservationsState.data,
                             selectedFilter = selectedFilter,
-                            onDetailsClick = { selectedReservation = it }
+                            onDetailsClick = { selectedReservation = it },
+                            onTransition = { reservationId, action ->
+                                storeViewModel.transitionReservation(
+                                    reservationId = reservationId,
+                                    action = action,
+                                    storeId = storeId,
+                                    filterStatus = currentFilterStatus,
+                                    query = searchQuery.trim().ifBlank { null }
+                                )
+                            }
                         )
                     }
                     is StoreViewModel.LoadingState.Error -> {
-                        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                        Column(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .verticalScroll(rememberScrollState()),
+                            verticalArrangement = Arrangement.Center,
+                            horizontalAlignment = Alignment.CenterHorizontally
+                        ) {
                             Text("Error: ${reservationsState.message}")
                         }
                     }
                     else -> {
-                        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                        Column(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .verticalScroll(rememberScrollState()),
+                            verticalArrangement = Arrangement.Center,
+                            horizontalAlignment = Alignment.CenterHorizontally
+                        ) {
                             Text("No reservations yet")
                         }
                     }
@@ -186,6 +224,17 @@ internal fun ReservationsTabContent(
             )
         }
     }
+}
+
+private fun ReservationFilter.toBackendStatus(): String = when (this) {
+    ReservationFilter.AWAITING_PAYMENT -> "BOOKED_PENDING_PAYMENT"
+    ReservationFilter.PENDING_APPROVAL -> "PENDING_APPROVAL"
+    ReservationFilter.UPCOMING -> "BOOKED_ACCEPTED"
+    ReservationFilter.IN_PROGRESS -> "ACTIVE_SERVICE"
+    ReservationFilter.CANCELLED -> "CANCELLED"
+    ReservationFilter.COMPLETED -> "SERVED"
+    ReservationFilter.LAPSED_PAID -> "LAPSED_PAID"
+    ReservationFilter.LAPSED_NOT_ACCEPTED -> "LAPSED_NOT_ACCEPTED"
 }
 
 @Composable
@@ -283,10 +332,17 @@ private fun ReservationFilterRow(
 private fun ReservationsListContent(
     reservations: List<ReservationWithPaymentDTO>,
     selectedFilter: ReservationFilter,
-    onDetailsClick: (ReservationWithPaymentDTO) -> Unit
+    onDetailsClick: (ReservationWithPaymentDTO) -> Unit,
+    onTransition: (String, ReservationTransitionAction) -> Unit
 ) {
     if (reservations.isEmpty()) {
-        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .verticalScroll(rememberScrollState()),
+            verticalArrangement = Arrangement.Center,
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
             Text("No reservations found", style = MaterialTheme.typography.bodyLarge)
         }
     } else {
@@ -301,7 +357,8 @@ private fun ReservationsListContent(
                 ReservationRow(
                     reservation = reservation,
                     selectedFilter = selectedFilter,
-                    onDetailsClick = { onDetailsClick(reservation) }
+                    onDetailsClick = { onDetailsClick(reservation) },
+                    onTransitionClick = onTransition
                 )
             }
         }

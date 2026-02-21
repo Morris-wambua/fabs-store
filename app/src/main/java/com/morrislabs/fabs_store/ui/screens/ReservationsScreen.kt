@@ -40,15 +40,6 @@ fun ReservationsScreen(
         storeViewModel.fetchUserStore()
     }
 
-    LaunchedEffect(storeState) {
-        if (storeState is StoreViewModel.StoreState.Success) {
-            val storeId = (storeState as StoreViewModel.StoreState.Success).data.id.orEmpty()
-            if (storeId.isNotBlank()) {
-                storeViewModel.fetchReservations(storeId, "BOOKED_PENDING_ACCEPTANCE")
-            }
-        }
-    }
-
     Box(
         modifier = Modifier
             .fillMaxSize()
@@ -64,15 +55,6 @@ fun ReservationsScreen(
                     selectedFilter = selectedFilter,
                     onFilterChange = { newFilter ->
                         selectedFilter = newFilter
-                        val filterStatus = when (newFilter) {
-                            ReservationFilter.PENDING_APPROVAL -> "BOOKED_PENDING_ACCEPTANCE"
-                            ReservationFilter.UPCOMING -> "BOOKED_ACCEPTED"
-                            ReservationFilter.CANCELLED -> "CANCELLED"
-                            ReservationFilter.COMPLETED -> "SERVED"
-                            ReservationFilter.LAPSED_PAID -> "LAPSED_PAID"
-                            ReservationFilter.LAPSED_NOT_ACCEPTED -> "LAPSED_NOT_ACCEPTED"
-                        }
-                        storeViewModel.fetchReservations(state.data.id.orEmpty(), filterStatus)
                     }
                 )
             }

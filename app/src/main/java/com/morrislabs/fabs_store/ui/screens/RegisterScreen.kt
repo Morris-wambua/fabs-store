@@ -40,7 +40,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
@@ -191,7 +190,7 @@ fun RegisterScreen(
             Text(
                 text = "Register your store to get started",
                 style = MaterialTheme.typography.bodyLarge.copy(
-                    color = Color.Gray
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
                 ),
                 modifier = Modifier.padding(bottom = 24.dp)
             )
@@ -478,7 +477,7 @@ fun RegisterScreen(
                 Text(
                     text = "Already have an account?",
                     style = MaterialTheme.typography.bodyMedium,
-                    color = Color.Gray
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
                 TextButton(
                     onClick = onNavigateToLogin,
@@ -497,7 +496,7 @@ fun RegisterScreen(
             Text(
                 text = "By registering, you agree to our Terms of Service and Privacy Policy",
                 style = MaterialTheme.typography.bodySmall,
-                color = Color.Gray,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
                 textAlign = TextAlign.Center,
                 modifier = Modifier.padding(top = 16.dp, bottom = 24.dp)
             )

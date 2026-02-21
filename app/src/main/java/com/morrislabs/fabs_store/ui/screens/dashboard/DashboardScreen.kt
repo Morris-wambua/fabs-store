@@ -44,7 +44,6 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
@@ -153,7 +152,7 @@ private fun DashboardHeader(
         Surface(
             modifier = Modifier.size(44.dp),
             shape = CircleShape,
-            color = Color(0xFF4CAF50).copy(alpha = 0.2f)
+            color = MaterialTheme.colorScheme.primary.copy(alpha = 0.2f)
         ) {
             if (!logoUrl.isNullOrEmpty()) {
                 AsyncImage(
@@ -172,7 +171,7 @@ private fun DashboardHeader(
                     Icon(
                         imageVector = Icons.Default.Spa,
                         contentDescription = null,
-                        tint = Color(0xFF4CAF50),
+                        tint = MaterialTheme.colorScheme.primary,
                         modifier = Modifier.size(22.dp)
                     )
                 }
@@ -220,7 +219,9 @@ private fun TodaysInsightsSection(
     }
 
     val activeCount = reservations.count {
-        it.status == ReservationStatus.BOOKED_ACCEPTED || it.status == ReservationStatus.IN_PROGRESS
+        it.status == ReservationStatus.BOOKED_ACCEPTED ||
+                it.status == ReservationStatus.IN_PROGRESS ||
+                it.status == ReservationStatus.PENDING_FINAL_PAYMENT
     }
     val earnings = reservations
         .filter { it.status == ReservationStatus.SERVED }
@@ -238,12 +239,12 @@ private fun TodaysInsightsSection(
             Spacer(modifier = Modifier.weight(1f))
             Surface(
                 shape = RoundedCornerShape(4.dp),
-                color = Color(0xFF4CAF50).copy(alpha = 0.15f)
+                color = MaterialTheme.colorScheme.primary.copy(alpha = 0.15f)
             ) {
                 Text(
                     text = "Live",
                     style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp),
-                    color = Color(0xFF4CAF50),
+                    color = MaterialTheme.colorScheme.primary,
                     modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp)
                 )
             }
@@ -267,10 +268,10 @@ private fun TodaysInsightsSection(
             item {
                 InsightCard(
                     title = "PENDING APPROVAL",
-                    value = "${reservations.count { it.status == ReservationStatus.BOOKED_PENDING_ACCEPTANCE }}",
+                    value = "${reservations.count { it.status == ReservationStatus.BOOKED_PENDING_ACCEPTANCE || it.status == ReservationStatus.BOOKED_PENDING_PAYMENT }}",
                     delta = "awaiting action",
-                    containerColor = Color(0xFF4CAF50),
-                    contentColor = Color.White
+                    containerColor = MaterialTheme.colorScheme.primary,
+                    contentColor = MaterialTheme.colorScheme.onPrimary
                 )
             }
             item {
@@ -332,7 +333,11 @@ private fun UpcomingSection(
 ) {
     val upcoming = when (reservationsState) {
         is StoreViewModel.LoadingState.Success -> reservationsState.data
-            .filter { it.status == ReservationStatus.BOOKED_ACCEPTED || it.status == ReservationStatus.BOOKED_PENDING_ACCEPTANCE }
+            .filter {
+                it.status == ReservationStatus.BOOKED_ACCEPTED ||
+                        it.status == ReservationStatus.BOOKED_PENDING_ACCEPTANCE ||
+                        it.status == ReservationStatus.BOOKED_PENDING_PAYMENT
+            }
             .take(3)
         else -> emptyList()
     }
@@ -355,6 +360,7 @@ private fun UpcomingSection(
         } else {
             upcoming.forEach { reservation ->
                 val statusLabel = when (reservation.status) {
+                    ReservationStatus.BOOKED_PENDING_PAYMENT -> "Awaiting Payment"
                     ReservationStatus.BOOKED_ACCEPTED -> "Confirmed"
                     ReservationStatus.BOOKED_PENDING_ACCEPTANCE -> "Pending"
                     else -> reservation.status.name

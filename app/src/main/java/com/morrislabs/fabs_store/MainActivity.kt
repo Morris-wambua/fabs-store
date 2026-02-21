@@ -27,6 +27,7 @@ import com.morrislabs.fabs_store.ui.screens.LoginScreen
 import com.morrislabs.fabs_store.ui.screens.RegisterScreen
 import com.morrislabs.fabs_store.ui.screens.ReservationsScreen
 import com.morrislabs.fabs_store.ui.screens.services.AddServiceScreen
+import com.morrislabs.fabs_store.ui.screens.services.ServiceDetailsScreen
 import com.morrislabs.fabs_store.ui.screens.services.ServicesManagementListScreen
 import com.morrislabs.fabs_store.ui.screens.DailyScheduleScreen
 import com.morrislabs.fabs_store.ui.screens.SettingsScreen
@@ -285,8 +286,8 @@ fun StoreApp(
             ServicesManagementListScreen(
                 onNavigateBack = { navController.popBackStack() },
                 onNavigateToAddService = { navController.navigate("add_service") },
-                onNavigateToEditService = { serviceId ->
-                    navController.navigate("edit_service/$serviceId")
+                onNavigateToServiceDetails = { serviceId ->
+                    navController.navigate("service_details/$serviceId")
                 },
                 storeViewModel = storeViewModel,
                 servicesViewModel = servicesViewModel
@@ -302,18 +303,20 @@ fun StoreApp(
             )
         }
 
-        composable("edit_service/{serviceId}") { backStackEntry ->
+        composable("service_details/{serviceId}") { backStackEntry ->
             val serviceId = backStackEntry.arguments?.getString("serviceId") ?: ""
             val servicesState by servicesViewModel.servicesState.collectAsState()
             val existingService = (servicesState as? com.morrislabs.fabs_store.ui.viewmodel.ServicesViewModel.ServicesState.Success)
                 ?.services?.find { it.id == serviceId }
-            AddServiceScreen(
-                existingService = existingService,
-                onNavigateBack = { navController.popBackStack() },
-                onServiceSaved = { navController.popBackStack() },
-                storeViewModel = storeViewModel,
-                servicesViewModel = servicesViewModel
-            )
+            if (existingService != null) {
+                ServiceDetailsScreen(
+                    service = existingService,
+                    onNavigateBack = { navController.popBackStack() },
+                    onServiceSaved = { navController.popBackStack() },
+                    storeViewModel = storeViewModel,
+                    servicesViewModel = servicesViewModel
+                )
+            }
         }
 
         composable("settings") {

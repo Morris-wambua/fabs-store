@@ -6,6 +6,7 @@ import com.morrislabs.fabs_store.data.api.ExpertApiService
 import com.morrislabs.fabs_store.data.model.CreateExpertPayload
 import com.morrislabs.fabs_store.data.model.ExpertDTO
 import com.morrislabs.fabs_store.data.model.ExpertLeaveDTO
+import com.morrislabs.fabs_store.data.model.TimeSlot
 import com.morrislabs.fabs_store.util.TokenManager
 
 class ExpertRepository(private val context: Context, private val tokenManager: TokenManager) {
@@ -21,6 +22,10 @@ class ExpertRepository(private val context: Context, private val tokenManager: T
 
     suspend fun getExpertsByStoreId(storeId: String): Result<List<ExpertDTO>> {
         return expertApiService.getExpertsByStoreId(storeId)
+    }
+
+    suspend fun getAvailableTimeSlots(expertId: String, date: String, durationMinutes: Int): Result<List<TimeSlot>> {
+        return expertApiService.getAvailableTimeSlots(expertId, date, durationMinutes)
     }
 
     suspend fun createExpertForStore(storeId: String, payload: CreateExpertPayload): Result<String> {

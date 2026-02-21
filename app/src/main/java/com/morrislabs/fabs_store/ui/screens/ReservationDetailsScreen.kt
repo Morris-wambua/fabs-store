@@ -1,5 +1,13 @@
 package com.morrislabs.fabs_store.ui.screens
 
+import android.content.ClipData
+import android.content.ClipboardManager
+import android.content.Context
+import android.content.Intent
+import android.net.Uri
+import android.widget.Toast
+import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -39,6 +47,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.morrislabs.fabs_store.data.model.ReservationFilter
@@ -46,11 +55,17 @@ import com.morrislabs.fabs_store.data.model.ReservationStatus
 import com.morrislabs.fabs_store.data.model.ReservationWithPaymentDTO
 
 @Composable
+@OptIn(ExperimentalFoundationApi::class)
 fun ReservationDetailsScreen(
     reservation: ReservationWithPaymentDTO,
     selectedFilter: ReservationFilter,
+    onApproveReservation: (String) -> Unit,
+    onRejectReservation: (String) -> Unit,
     onNavigateBack: () -> Unit
 ) {
+    val context = LocalContext.current
+    val customerPhone = reservation.customerPhone.orEmpty().trim()
+
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -116,12 +131,37 @@ fun ReservationDetailsScreen(
                         Spacer(modifier = Modifier.size(12.dp))
                         Column {
                             Text(customerName, style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold))
-                            Text("+1234 567 890", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            Text(
+                                text = customerPhone.ifBlank { "No phone available" },
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = if (customerPhone.isNotBlank()) {
+                                    Modifier.combinedClickable(
+                                        onClick = {
+                                            openDialer(context, customerPhone)
+                                        },
+                                        onLongClick = {
+                                            copyPhoneToClipboard(context, customerPhone)
+                                        }
+                                    )
+                                } else {
+                                    Modifier
+                                }
+                            )
                         }
                     }
 
                     Row(horizontalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.fillMaxWidth()) {
-                        Button(onClick = {}, modifier = Modifier.weight(1f), colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)) {
+                        Button(
+                            onClick = {
+                                if (customerPhone.isNotBlank()) {
+                                    openDialer(context, customerPhone)
+                                }
+                            },
+                            modifier = Modifier.weight(1f),
+                            colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
+                            enabled = customerPhone.isNotBlank()
+                        ) {
                             Icon(Icons.Default.Call, contentDescription = null, modifier = Modifier.size(16.dp))
                             Spacer(modifier = Modifier.size(6.dp))
                             Text("Call")
@@ -176,12 +216,15 @@ fun ReservationDetailsScreen(
                     TimelineRow(
                         title = "Awaiting Confirmation",
                         subtitle = "Pending store owner action",
-                        active = reservation.status == ReservationStatus.BOOKED_PENDING_ACCEPTANCE
+                        active = reservation.status == ReservationStatus.BOOKED_PENDING_PAYMENT ||
+                                reservation.status == ReservationStatus.BOOKED_PENDING_ACCEPTANCE
                     )
                     TimelineRow(
                         title = "Session Start",
                         subtitle = "Scheduled for ${reservation.reservationDate}, ${reservation.startTime}",
-                        active = reservation.status == ReservationStatus.BOOKED_ACCEPTED || reservation.status == ReservationStatus.IN_PROGRESS
+                        active = reservation.status == ReservationStatus.BOOKED_ACCEPTED ||
+                                reservation.status == ReservationStatus.IN_PROGRESS ||
+                                reservation.status == ReservationStatus.PENDING_FINAL_PAYMENT
                     )
                 }
             }
@@ -241,10 +284,27 @@ fun ReservationDetailsScreen(
                 }
                 else -> {
                     Row(horizontalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.fillMaxWidth()) {
-                        OutlinedButton(onClick = {}, modifier = Modifier.weight(1f)) {
+                        OutlinedButton(
+                            onClick = {
+                                onRejectReservation(reservation.id)
+                                onNavigateBack()
+                            },
+                            enabled = reservation.status == ReservationStatus.BOOKED_PENDING_PAYMENT ||
+                                    reservation.status == ReservationStatus.BOOKED_PENDING_ACCEPTANCE ||
+                                    reservation.status == ReservationStatus.BOOKED_ACCEPTED,
+                            modifier = Modifier.weight(1f)
+                        ) {
                             Text("Reject")
                         }
-                        Button(onClick = {}, modifier = Modifier.weight(2f), colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)) {
+                        Button(
+                            onClick = {
+                                onApproveReservation(reservation.id)
+                                onNavigateBack()
+                            },
+                            enabled = reservation.status == ReservationStatus.BOOKED_PENDING_ACCEPTANCE,
+                            modifier = Modifier.weight(2f),
+                            colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
+                        ) {
                             Text("Approve Booking")
                         }
                     }
@@ -259,11 +319,13 @@ fun ReservationDetailsScreen(
 @Composable
 private fun StatusPill(status: ReservationStatus) {
     val (text, bg, fg) = when (status) {
+        ReservationStatus.BOOKED_PENDING_PAYMENT -> Triple("Awaiting Payment", MaterialTheme.colorScheme.errorContainer, MaterialTheme.colorScheme.onErrorContainer)
         ReservationStatus.BOOKED_PENDING_ACCEPTANCE -> Triple("Pending Approval", MaterialTheme.colorScheme.primary.copy(alpha = 0.2f), MaterialTheme.colorScheme.primary)
         ReservationStatus.BOOKED_ACCEPTED -> Triple("Upcoming", MaterialTheme.colorScheme.tertiaryContainer, MaterialTheme.colorScheme.onTertiaryContainer)
         ReservationStatus.SERVED -> Triple("Completed", MaterialTheme.colorScheme.surfaceVariant, MaterialTheme.colorScheme.onSurfaceVariant)
         ReservationStatus.CANCELLED -> Triple("Cancelled", MaterialTheme.colorScheme.errorContainer, MaterialTheme.colorScheme.onErrorContainer)
         ReservationStatus.IN_PROGRESS -> Triple("In Progress", MaterialTheme.colorScheme.primaryContainer, MaterialTheme.colorScheme.onPrimaryContainer)
+        ReservationStatus.PENDING_FINAL_PAYMENT -> Triple("Pending Final Payment", MaterialTheme.colorScheme.secondaryContainer, MaterialTheme.colorScheme.onSecondaryContainer)
     }
     Surface(shape = RoundedCornerShape(50), color = bg) {
         Row(
@@ -357,4 +419,24 @@ private fun normalizeCustomerName(raw: String): String {
         .removePrefix("Appointment of")
         .trim()
     return if (cleaned.isBlank()) raw else cleaned
+}
+
+private fun openDialer(context: Context, phone: String) {
+    val cleanedPhone = phone.trim()
+    if (cleanedPhone.isBlank()) {
+        return
+    }
+    context.startActivity(
+        Intent(Intent.ACTION_DIAL, Uri.parse("tel:${Uri.encode(cleanedPhone)}"))
+    )
+}
+
+private fun copyPhoneToClipboard(context: Context, phone: String) {
+    val cleanedPhone = phone.trim()
+    if (cleanedPhone.isBlank()) {
+        return
+    }
+    val clipboardManager = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+    clipboardManager.setPrimaryClip(ClipData.newPlainText("customer_phone", cleanedPhone))
+    Toast.makeText(context, "Phone copied to clipboard", Toast.LENGTH_SHORT).show()
 }

@@ -24,11 +24,10 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CalendarToday
 import androidx.compose.material.icons.filled.ChatBubble
+import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.Schedule
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.HorizontalDivider
@@ -46,9 +45,11 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.morrislabs.fabs_store.data.model.ReservationFilter
+import com.morrislabs.fabs_store.data.model.ReservationTransitionAction
 import com.morrislabs.fabs_store.data.model.ReservationStatus
 import com.morrislabs.fabs_store.data.model.ReservationWithPaymentDTO
 
@@ -56,7 +57,8 @@ import com.morrislabs.fabs_store.data.model.ReservationWithPaymentDTO
 internal fun ReservationRow(
     reservation: ReservationWithPaymentDTO,
     selectedFilter: ReservationFilter,
-    onDetailsClick: () -> Unit
+    onDetailsClick: () -> Unit,
+    onTransitionClick: (String, ReservationTransitionAction) -> Unit
 ) {
     val customerName = normalizeCustomerName(reservation.name)
     var expanded by remember { mutableStateOf(false) }
@@ -72,7 +74,8 @@ internal fun ReservationRow(
             .clickable { expanded = !expanded },
         shape = RoundedCornerShape(14.dp),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
+        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
+        border = CardDefaults.outlinedCardBorder()
     ) {
         Column(modifier = Modifier.padding(14.dp)) {
             Row(
@@ -167,6 +170,26 @@ internal fun ReservationRow(
                         modifier = Modifier.fillMaxWidth()
                     ) {
                         when {
+                            selectedFilter == ReservationFilter.AWAITING_PAYMENT -> {
+                                Row(
+                                    modifier = Modifier.weight(1f),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.Info,
+                                        contentDescription = null,
+                                        tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.8f),
+                                        modifier = Modifier.size(14.dp)
+                                    )
+                                    Spacer(modifier = Modifier.width(6.dp))
+                                    Text(
+                                        text = "Call customer to confirm this booking",
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        textAlign = TextAlign.Start
+                                    )
+                                }
+                            }
                             selectedFilter == ReservationFilter.LAPSED_NOT_ACCEPTED -> {
                                 OutlinedButton(
                                     onClick = {},
@@ -184,26 +207,52 @@ internal fun ReservationRow(
                             }
                             reservation.status == ReservationStatus.BOOKED_PENDING_ACCEPTANCE -> {
                                 Button(
-                                    onClick = {},
+                                    onClick = {
+                                        onTransitionClick(
+                                            reservation.id,
+                                            ReservationTransitionAction.STORE_APPROVE_BOOKING
+                                        )
+                                    },
+                                    enabled = reservation.minimumPaymentMet == true,
                                     modifier = Modifier.weight(1f),
                                     contentPadding = PaddingValues(vertical = 10.dp)
                                 ) {
-                                    Text("Approve")
+                                    Text(if (reservation.minimumPaymentMet == true) "Approve" else "Awaiting Payment")
                                 }
                             }
                             reservation.status == ReservationStatus.BOOKED_ACCEPTED -> {
-                                OutlinedButton(
-                                    onClick = {},
+                                Button(
+                                    onClick = {
+                                        onTransitionClick(
+                                            reservation.id,
+                                            ReservationTransitionAction.STORE_ACCEPT_SESSION
+                                        )
+                                    },
                                     modifier = Modifier.weight(1f),
                                     contentPadding = PaddingValues(vertical = 10.dp)
                                 ) {
-                                    Icon(
-                                        Icons.Default.ChatBubble,
-                                        contentDescription = null,
-                                        modifier = Modifier.size(16.dp)
+                                    Text("Accept Session")
+                                }
+                            }
+                            reservation.status == ReservationStatus.IN_PROGRESS ||
+                                reservation.status == ReservationStatus.PENDING_FINAL_PAYMENT -> {
+                                Button(
+                                    onClick = {
+                                        onTransitionClick(
+                                            reservation.id,
+                                            ReservationTransitionAction.STORE_COMPLETE_SERVICE
+                                        )
+                                    },
+                                    modifier = Modifier.weight(1f),
+                                    contentPadding = PaddingValues(vertical = 10.dp)
+                                ) {
+                                    Text(
+                                        if ((reservation.outstandingBalance ?: 0.0) > 0.0) {
+                                            "Request Settlement"
+                                        } else {
+                                            "Complete Service"
+                                        }
                                     )
-                                    Spacer(modifier = Modifier.width(6.dp))
-                                    Text("Contact")
                                 }
                             }
                             else -> Spacer(modifier = Modifier.weight(1f))
@@ -252,6 +301,11 @@ private fun StatusBadge(status: ReservationStatus) {
             MaterialTheme.colorScheme.primary,
             "PENDING"
         )
+        ReservationStatus.BOOKED_PENDING_PAYMENT -> Triple(
+            MaterialTheme.colorScheme.errorContainer,
+            MaterialTheme.colorScheme.onErrorContainer,
+            "AWAITING PAYMENT"
+        )
         ReservationStatus.BOOKED_ACCEPTED -> Triple(
             MaterialTheme.colorScheme.tertiaryContainer,
             MaterialTheme.colorScheme.onTertiaryContainer,
@@ -271,6 +325,11 @@ private fun StatusBadge(status: ReservationStatus) {
             MaterialTheme.colorScheme.primaryContainer,
             MaterialTheme.colorScheme.onPrimaryContainer,
             "IN PROGRESS"
+        )
+        ReservationStatus.PENDING_FINAL_PAYMENT -> Triple(
+            MaterialTheme.colorScheme.secondaryContainer,
+            MaterialTheme.colorScheme.onSecondaryContainer,
+            "PENDING SETTLEMENT"
         )
     }
     Surface(shape = RoundedCornerShape(50), color = bg) {
