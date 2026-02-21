@@ -12,6 +12,7 @@ import com.morrislabs.fabs_store.data.model.CreateStorePayload
 import com.morrislabs.fabs_store.data.model.ExpertDTO
 import com.morrislabs.fabs_store.data.model.FetchStoreResponse
 import com.morrislabs.fabs_store.data.model.ReservationDTO
+import com.morrislabs.fabs_store.data.model.ReservationTransitionAction
 import com.morrislabs.fabs_store.data.model.TimeSlot
 import com.morrislabs.fabs_store.data.model.ReservationWithPaymentDTO
 import com.morrislabs.fabs_store.data.model.TypeOfServiceDTO
@@ -83,6 +84,9 @@ class StoreViewModel(application: Application) : AndroidViewModel(application) {
 
     private val _walkInCustomerLookupState = MutableStateFlow<WalkInCustomerLookupState>(WalkInCustomerLookupState.Idle)
     val walkInCustomerLookupState: StateFlow<WalkInCustomerLookupState> = _walkInCustomerLookupState.asStateFlow()
+
+    private val _reservationTransitionState = MutableStateFlow<ReservationTransitionState>(ReservationTransitionState.Idle)
+    val reservationTransitionState: StateFlow<ReservationTransitionState> = _reservationTransitionState.asStateFlow()
 
     fun fetchUserStore() {
         _storeState.value = StoreState.Loading
@@ -337,6 +341,32 @@ class StoreViewModel(application: Application) : AndroidViewModel(application) {
         _walkInBookingActionState.value = WalkInBookingActionState.Idle
     }
 
+    fun transitionReservation(
+        reservationId: String,
+        action: ReservationTransitionAction,
+        storeId: String,
+        filterStatus: String = "ALL",
+        query: String? = null
+    ) {
+        _reservationTransitionState.value = ReservationTransitionState.Loading
+        viewModelScope.launch {
+            reservationRepository.transitionReservation(reservationId, action)
+                .onSuccess { status ->
+                    _reservationTransitionState.value = ReservationTransitionState.Success(reservationId, status)
+                    fetchReservations(storeId, filterStatus, query, forceRefresh = true)
+                }
+                .onFailure { error ->
+                    _reservationTransitionState.value = ReservationTransitionState.Error(
+                        error.message ?: "Failed to update reservation"
+                    )
+                }
+        }
+    }
+
+    fun resetReservationTransitionState() {
+        _reservationTransitionState.value = ReservationTransitionState.Idle
+    }
+
     fun createStore(payload: CreateStorePayload) {
         _createStoreState.value = CreateStoreState.Loading
 
@@ -424,6 +454,7 @@ class StoreViewModel(application: Application) : AndroidViewModel(application) {
         _walkInAvailableSlotsByExpertState.value = emptyMap()
         _walkInBookingActionState.value = WalkInBookingActionState.Idle
         _walkInCustomerLookupState.value = WalkInCustomerLookupState.Idle
+        _reservationTransitionState.value = ReservationTransitionState.Idle
     }
 
     sealed class StoreState {
@@ -472,5 +503,12 @@ class StoreViewModel(application: Application) : AndroidViewModel(application) {
         data class Found(val user: UserLookupResponseDTO) : WalkInCustomerLookupState()
         data object NotFound : WalkInCustomerLookupState()
         data class Error(val message: String) : WalkInCustomerLookupState()
+    }
+
+    sealed class ReservationTransitionState {
+        data object Idle : ReservationTransitionState()
+        data object Loading : ReservationTransitionState()
+        data class Success(val reservationId: String, val status: String) : ReservationTransitionState()
+        data class Error(val message: String) : ReservationTransitionState()
     }
 }

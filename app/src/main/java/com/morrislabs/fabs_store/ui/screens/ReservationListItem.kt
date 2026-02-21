@@ -49,6 +49,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.morrislabs.fabs_store.data.model.ReservationFilter
+import com.morrislabs.fabs_store.data.model.ReservationTransitionAction
 import com.morrislabs.fabs_store.data.model.ReservationStatus
 import com.morrislabs.fabs_store.data.model.ReservationWithPaymentDTO
 
@@ -56,7 +57,8 @@ import com.morrislabs.fabs_store.data.model.ReservationWithPaymentDTO
 internal fun ReservationRow(
     reservation: ReservationWithPaymentDTO,
     selectedFilter: ReservationFilter,
-    onDetailsClick: () -> Unit
+    onDetailsClick: () -> Unit,
+    onTransitionClick: (String, ReservationTransitionAction) -> Unit
 ) {
     val customerName = normalizeCustomerName(reservation.name)
     var expanded by remember { mutableStateOf(false) }
@@ -185,26 +187,52 @@ internal fun ReservationRow(
                             }
                             reservation.status == ReservationStatus.BOOKED_PENDING_ACCEPTANCE -> {
                                 Button(
-                                    onClick = {},
+                                    onClick = {
+                                        onTransitionClick(
+                                            reservation.id,
+                                            ReservationTransitionAction.STORE_APPROVE_BOOKING
+                                        )
+                                    },
+                                    enabled = reservation.minimumPaymentMet == true,
                                     modifier = Modifier.weight(1f),
                                     contentPadding = PaddingValues(vertical = 10.dp)
                                 ) {
-                                    Text("Approve")
+                                    Text(if (reservation.minimumPaymentMet == true) "Approve" else "Awaiting Payment")
                                 }
                             }
                             reservation.status == ReservationStatus.BOOKED_ACCEPTED -> {
-                                OutlinedButton(
-                                    onClick = {},
+                                Button(
+                                    onClick = {
+                                        onTransitionClick(
+                                            reservation.id,
+                                            ReservationTransitionAction.STORE_ACCEPT_SESSION
+                                        )
+                                    },
                                     modifier = Modifier.weight(1f),
                                     contentPadding = PaddingValues(vertical = 10.dp)
                                 ) {
-                                    Icon(
-                                        Icons.Default.ChatBubble,
-                                        contentDescription = null,
-                                        modifier = Modifier.size(16.dp)
+                                    Text("Accept Session")
+                                }
+                            }
+                            reservation.status == ReservationStatus.IN_PROGRESS ||
+                                reservation.status == ReservationStatus.PENDING_FINAL_PAYMENT -> {
+                                Button(
+                                    onClick = {
+                                        onTransitionClick(
+                                            reservation.id,
+                                            ReservationTransitionAction.STORE_COMPLETE_SERVICE
+                                        )
+                                    },
+                                    modifier = Modifier.weight(1f),
+                                    contentPadding = PaddingValues(vertical = 10.dp)
+                                ) {
+                                    Text(
+                                        if ((reservation.outstandingBalance ?: 0.0) > 0.0) {
+                                            "Request Settlement"
+                                        } else {
+                                            "Complete Service"
+                                        }
                                     )
-                                    Spacer(modifier = Modifier.width(6.dp))
-                                    Text("Contact")
                                 }
                             }
                             else -> Spacer(modifier = Modifier.weight(1f))
@@ -253,6 +281,11 @@ private fun StatusBadge(status: ReservationStatus) {
             MaterialTheme.colorScheme.primary,
             "PENDING"
         )
+        ReservationStatus.BOOKED_PENDING_PAYMENT -> Triple(
+            MaterialTheme.colorScheme.errorContainer,
+            MaterialTheme.colorScheme.onErrorContainer,
+            "AWAITING PAYMENT"
+        )
         ReservationStatus.BOOKED_ACCEPTED -> Triple(
             MaterialTheme.colorScheme.tertiaryContainer,
             MaterialTheme.colorScheme.onTertiaryContainer,
@@ -272,6 +305,11 @@ private fun StatusBadge(status: ReservationStatus) {
             MaterialTheme.colorScheme.primaryContainer,
             MaterialTheme.colorScheme.onPrimaryContainer,
             "IN PROGRESS"
+        )
+        ReservationStatus.PENDING_FINAL_PAYMENT -> Triple(
+            MaterialTheme.colorScheme.secondaryContainer,
+            MaterialTheme.colorScheme.onSecondaryContainer,
+            "PENDING SETTLEMENT"
         )
     }
     Surface(shape = RoundedCornerShape(50), color = bg) {

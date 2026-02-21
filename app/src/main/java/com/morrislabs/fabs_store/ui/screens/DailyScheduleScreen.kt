@@ -282,9 +282,11 @@ private fun ScheduleAppointmentCard(
 ) {
     val accentColor = MaterialTheme.colorScheme.primary
     val statusText = when (reservation.status) {
+        ReservationStatus.BOOKED_PENDING_PAYMENT -> "Awaiting Payment"
         ReservationStatus.BOOKED_ACCEPTED -> "Confirmed"
         ReservationStatus.BOOKED_PENDING_ACCEPTANCE -> "Pending"
         ReservationStatus.IN_PROGRESS -> "In Progress"
+        ReservationStatus.PENDING_FINAL_PAYMENT -> "Pending Final Payment"
         else -> reservation.status.name.replace("_", " ")
     }
 

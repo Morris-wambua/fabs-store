@@ -219,7 +219,9 @@ private fun TodaysInsightsSection(
     }
 
     val activeCount = reservations.count {
-        it.status == ReservationStatus.BOOKED_ACCEPTED || it.status == ReservationStatus.IN_PROGRESS
+        it.status == ReservationStatus.BOOKED_ACCEPTED ||
+                it.status == ReservationStatus.IN_PROGRESS ||
+                it.status == ReservationStatus.PENDING_FINAL_PAYMENT
     }
     val earnings = reservations
         .filter { it.status == ReservationStatus.SERVED }
@@ -266,7 +268,7 @@ private fun TodaysInsightsSection(
             item {
                 InsightCard(
                     title = "PENDING APPROVAL",
-                    value = "${reservations.count { it.status == ReservationStatus.BOOKED_PENDING_ACCEPTANCE }}",
+                    value = "${reservations.count { it.status == ReservationStatus.BOOKED_PENDING_ACCEPTANCE || it.status == ReservationStatus.BOOKED_PENDING_PAYMENT }}",
                     delta = "awaiting action",
                     containerColor = MaterialTheme.colorScheme.primary,
                     contentColor = MaterialTheme.colorScheme.onPrimary
@@ -331,7 +333,11 @@ private fun UpcomingSection(
 ) {
     val upcoming = when (reservationsState) {
         is StoreViewModel.LoadingState.Success -> reservationsState.data
-            .filter { it.status == ReservationStatus.BOOKED_ACCEPTED || it.status == ReservationStatus.BOOKED_PENDING_ACCEPTANCE }
+            .filter {
+                it.status == ReservationStatus.BOOKED_ACCEPTED ||
+                        it.status == ReservationStatus.BOOKED_PENDING_ACCEPTANCE ||
+                        it.status == ReservationStatus.BOOKED_PENDING_PAYMENT
+            }
             .take(3)
         else -> emptyList()
     }
@@ -354,6 +360,7 @@ private fun UpcomingSection(
         } else {
             upcoming.forEach { reservation ->
                 val statusLabel = when (reservation.status) {
+                    ReservationStatus.BOOKED_PENDING_PAYMENT -> "Awaiting Payment"
                     ReservationStatus.BOOKED_ACCEPTED -> "Confirmed"
                     ReservationStatus.BOOKED_PENDING_ACCEPTANCE -> "Pending"
                     else -> reservation.status.name

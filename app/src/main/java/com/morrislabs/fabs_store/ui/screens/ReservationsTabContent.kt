@@ -47,6 +47,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.morrislabs.fabs_store.data.model.ReservationFilter
+import com.morrislabs.fabs_store.data.model.ReservationTransitionAction
 import com.morrislabs.fabs_store.data.model.ReservationWithPaymentDTO
 import com.morrislabs.fabs_store.ui.viewmodel.StoreViewModel
 import kotlinx.coroutines.delay
@@ -65,6 +66,17 @@ internal fun ReservationsTabContent(
     var searchQuery by remember { mutableStateOf("") }
     var selectedReservation by remember { mutableStateOf<ReservationWithPaymentDTO?>(null) }
     var showWalkInBooking by remember { mutableStateOf(false) }
+    val currentFilterStatus = selectedFilter.toBackendStatus()
+    val pullRefreshState = rememberPullRefreshState(
+        refreshing = isRefreshing,
+        onRefresh = {
+            if (storeId.isBlank()) {
+                return@rememberPullRefreshState
+            }
+            val query = searchQuery.trim().ifBlank { null }
+            storeViewModel.refreshReservations(storeId, currentFilterStatus, query)
+        }
+    )
 
     LaunchedEffect(storeId, selectedFilter, searchQuery) {
         if (storeId.isBlank()) {
@@ -72,15 +84,7 @@ internal fun ReservationsTabContent(
         }
         delay(300)
         val query = searchQuery.trim().ifBlank { null }
-        val filterStatus = when (selectedFilter) {
-            ReservationFilter.PENDING_APPROVAL -> "BOOKED_PENDING_ACCEPTANCE"
-            ReservationFilter.UPCOMING -> "BOOKED_ACCEPTED"
-            ReservationFilter.CANCELLED -> "CANCELLED"
-            ReservationFilter.COMPLETED -> "SERVED"
-            ReservationFilter.LAPSED_PAID -> "LAPSED_PAID"
-            ReservationFilter.LAPSED_NOT_ACCEPTED -> "LAPSED_NOT_ACCEPTED"
-        }
-        storeViewModel.fetchReservations(storeId, filterStatus, query)
+        storeViewModel.fetchReservations(storeId, currentFilterStatus, query)
     }
 
     if (selectedReservation != null) {
@@ -105,6 +109,7 @@ internal fun ReservationsTabContent(
     Box(
         modifier = modifier
             .fillMaxSize()
+            .pullRefresh(pullRefreshState)
             .background(MaterialTheme.colorScheme.background)
     ) {
         Column(modifier = Modifier.fillMaxSize()) {
@@ -124,27 +129,10 @@ internal fun ReservationsTabContent(
                     .padding(horizontal = 16.dp, vertical = 8.dp)
             )
 
-            val pullRefreshState = rememberPullRefreshState(
-                refreshing = isRefreshing,
-                onRefresh = {
-                    val filterStatus = when (selectedFilter) {
-                        ReservationFilter.PENDING_APPROVAL -> "BOOKED_PENDING_ACCEPTANCE"
-                        ReservationFilter.UPCOMING -> "BOOKED_ACCEPTED"
-                        ReservationFilter.CANCELLED -> "CANCELLED"
-                        ReservationFilter.COMPLETED -> "SERVED"
-                        ReservationFilter.LAPSED_PAID -> "LAPSED_PAID"
-                        ReservationFilter.LAPSED_NOT_ACCEPTED -> "LAPSED_NOT_ACCEPTED"
-                    }
-                    val query = searchQuery.trim().ifBlank { null }
-                    storeViewModel.refreshReservations(storeId, filterStatus, query)
-                }
-            )
-
             Box(
                 modifier = Modifier
                     .weight(1f)
                     .fillMaxWidth()
-                    .pullRefresh(pullRefreshState)
             ) {
                 when (reservationsState) {
                     is StoreViewModel.LoadingState.Loading -> {
@@ -156,7 +144,16 @@ internal fun ReservationsTabContent(
                         ReservationsListContent(
                             reservations = reservationsState.data,
                             selectedFilter = selectedFilter,
-                            onDetailsClick = { selectedReservation = it }
+                            onDetailsClick = { selectedReservation = it },
+                            onTransition = { reservationId, action ->
+                                storeViewModel.transitionReservation(
+                                    reservationId = reservationId,
+                                    action = action,
+                                    storeId = storeId,
+                                    filterStatus = currentFilterStatus,
+                                    query = searchQuery.trim().ifBlank { null }
+                                )
+                            }
                         )
                     }
                     is StoreViewModel.LoadingState.Error -> {
@@ -197,6 +194,16 @@ internal fun ReservationsTabContent(
             )
         }
     }
+}
+
+private fun ReservationFilter.toBackendStatus(): String = when (this) {
+    ReservationFilter.PENDING_APPROVAL -> "PENDING_APPROVAL"
+    ReservationFilter.UPCOMING -> "BOOKED_ACCEPTED"
+    ReservationFilter.IN_PROGRESS -> "ACTIVE_SERVICE"
+    ReservationFilter.CANCELLED -> "CANCELLED"
+    ReservationFilter.COMPLETED -> "SERVED"
+    ReservationFilter.LAPSED_PAID -> "LAPSED_PAID"
+    ReservationFilter.LAPSED_NOT_ACCEPTED -> "LAPSED_NOT_ACCEPTED"
 }
 
 @Composable
@@ -294,7 +301,8 @@ private fun ReservationFilterRow(
 private fun ReservationsListContent(
     reservations: List<ReservationWithPaymentDTO>,
     selectedFilter: ReservationFilter,
-    onDetailsClick: (ReservationWithPaymentDTO) -> Unit
+    onDetailsClick: (ReservationWithPaymentDTO) -> Unit,
+    onTransition: (String, ReservationTransitionAction) -> Unit
 ) {
     if (reservations.isEmpty()) {
         Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
@@ -312,7 +320,8 @@ private fun ReservationsListContent(
                 ReservationRow(
                     reservation = reservation,
                     selectedFilter = selectedFilter,
-                    onDetailsClick = { onDetailsClick(reservation) }
+                    onDetailsClick = { onDetailsClick(reservation) },
+                    onTransitionClick = onTransition
                 )
             }
         }

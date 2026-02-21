@@ -3,6 +3,8 @@ package com.morrislabs.fabs_store.data.api
 import android.content.Context
 import android.util.Log
 import com.morrislabs.fabs_store.data.model.ReservationDTO
+import com.morrislabs.fabs_store.data.model.ReservationTransitionAction
+import com.morrislabs.fabs_store.data.model.ReservationTransitionRequest
 import com.morrislabs.fabs_store.data.model.ReservationWithPaymentDTO
 import com.morrislabs.fabs_store.util.AppConfig
 import com.morrislabs.fabs_store.util.ClientConfig
@@ -98,6 +100,29 @@ class ReservationApiService(private val context: Context, private val tokenManag
         } catch (e: Exception) {
             Log.e(TAG, "Create reservation failed with exception: ${e.message}", e)
             Result.failure(Exception("Failed to create reservation: ${e.message}"))
+        }
+    }
+
+    suspend fun transitionReservation(reservationId: String, action: ReservationTransitionAction): Result<String> {
+        return try {
+            val client = clientConfig.createAuthenticatedClient(context, tokenManager)
+            val response = client.post("$baseUrl/api/reservations/$reservationId/transition") {
+                contentType(ContentType.Application.Json)
+                setBody(ReservationTransitionRequest(action))
+            }
+            val responseText = response.bodyAsText()
+            if (response.status == HttpStatusCode.OK) {
+                Result.success(responseText.trim().replace("\"", ""))
+            } else {
+                Result.failure(Exception("Failed to transition reservation: ${response.status.value}"))
+            }
+        } catch (e: ClientRequestException) {
+            val errorBody = try { e.response.bodyAsText() } catch (_: Exception) { "Unable to parse error body" }
+            Log.e(TAG, "Failed to transition reservation - Status: ${e.response.status.value}, Body: $errorBody")
+            Result.failure(Exception("Failed to transition reservation: ${e.response.status.value}"))
+        } catch (e: Exception) {
+            Log.e(TAG, "Transition reservation failed with exception: ${e.message}", e)
+            Result.failure(Exception("Failed to transition reservation: ${e.message}"))
         }
     }
 }

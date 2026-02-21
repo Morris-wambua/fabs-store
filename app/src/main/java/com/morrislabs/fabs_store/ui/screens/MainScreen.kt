@@ -155,8 +155,9 @@ fun MainScreen(
                         onFilterChange = { newFilter ->
                             selectedReservationFilter = newFilter
                             val filterStatus = when (newFilter) {
-                                ReservationFilter.PENDING_APPROVAL -> "BOOKED_PENDING_ACCEPTANCE"
+                                ReservationFilter.PENDING_APPROVAL -> "PENDING_APPROVAL"
                                 ReservationFilter.UPCOMING -> "BOOKED_ACCEPTED"
+                                ReservationFilter.IN_PROGRESS -> "ACTIVE_SERVICE"
                                 ReservationFilter.CANCELLED -> "CANCELLED"
                                 ReservationFilter.COMPLETED -> "SERVED"
                                 ReservationFilter.LAPSED_PAID -> "LAPSED_PAID"

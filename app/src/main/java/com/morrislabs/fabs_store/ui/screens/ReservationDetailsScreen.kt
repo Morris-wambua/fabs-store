@@ -176,12 +176,15 @@ fun ReservationDetailsScreen(
                     TimelineRow(
                         title = "Awaiting Confirmation",
                         subtitle = "Pending store owner action",
-                        active = reservation.status == ReservationStatus.BOOKED_PENDING_ACCEPTANCE
+                        active = reservation.status == ReservationStatus.BOOKED_PENDING_PAYMENT ||
+                                reservation.status == ReservationStatus.BOOKED_PENDING_ACCEPTANCE
                     )
                     TimelineRow(
                         title = "Session Start",
                         subtitle = "Scheduled for ${reservation.reservationDate}, ${reservation.startTime}",
-                        active = reservation.status == ReservationStatus.BOOKED_ACCEPTED || reservation.status == ReservationStatus.IN_PROGRESS
+                        active = reservation.status == ReservationStatus.BOOKED_ACCEPTED ||
+                                reservation.status == ReservationStatus.IN_PROGRESS ||
+                                reservation.status == ReservationStatus.PENDING_FINAL_PAYMENT
                     )
                 }
             }
@@ -259,11 +262,13 @@ fun ReservationDetailsScreen(
 @Composable
 private fun StatusPill(status: ReservationStatus) {
     val (text, bg, fg) = when (status) {
+        ReservationStatus.BOOKED_PENDING_PAYMENT -> Triple("Awaiting Payment", MaterialTheme.colorScheme.errorContainer, MaterialTheme.colorScheme.onErrorContainer)
         ReservationStatus.BOOKED_PENDING_ACCEPTANCE -> Triple("Pending Approval", MaterialTheme.colorScheme.primary.copy(alpha = 0.2f), MaterialTheme.colorScheme.primary)
         ReservationStatus.BOOKED_ACCEPTED -> Triple("Upcoming", MaterialTheme.colorScheme.tertiaryContainer, MaterialTheme.colorScheme.onTertiaryContainer)
         ReservationStatus.SERVED -> Triple("Completed", MaterialTheme.colorScheme.surfaceVariant, MaterialTheme.colorScheme.onSurfaceVariant)
         ReservationStatus.CANCELLED -> Triple("Cancelled", MaterialTheme.colorScheme.errorContainer, MaterialTheme.colorScheme.onErrorContainer)
         ReservationStatus.IN_PROGRESS -> Triple("In Progress", MaterialTheme.colorScheme.primaryContainer, MaterialTheme.colorScheme.onPrimaryContainer)
+        ReservationStatus.PENDING_FINAL_PAYMENT -> Triple("Pending Final Payment", MaterialTheme.colorScheme.secondaryContainer, MaterialTheme.colorScheme.onSecondaryContainer)
     }
     Surface(shape = RoundedCornerShape(50), color = bg) {
         Row(

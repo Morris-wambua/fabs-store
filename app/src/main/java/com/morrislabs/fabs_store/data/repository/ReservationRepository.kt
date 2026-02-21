@@ -3,6 +3,7 @@ package com.morrislabs.fabs_store.data.repository
 import android.content.Context
 import com.morrislabs.fabs_store.data.api.ReservationApiService
 import com.morrislabs.fabs_store.data.model.ReservationDTO
+import com.morrislabs.fabs_store.data.model.ReservationTransitionAction
 import com.morrislabs.fabs_store.data.model.ReservationWithPaymentDTO
 import com.morrislabs.fabs_store.util.TokenManager
 
@@ -21,5 +22,9 @@ class ReservationRepository(context: Context, tokenManager: TokenManager) {
 
     suspend fun createReservation(reservation: ReservationDTO): Result<String> {
         return reservationApiService.createReservation(reservation)
+    }
+
+    suspend fun transitionReservation(reservationId: String, action: ReservationTransitionAction): Result<String> {
+        return reservationApiService.transitionReservation(reservationId, action)
     }
 }
