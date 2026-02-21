@@ -1,5 +1,6 @@
 package com.morrislabs.fabs_store.ui.screens
 
+import android.util.Patterns
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -49,18 +50,17 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import com.morrislabs.fabs_store.data.model.ExpertDTO
 import com.morrislabs.fabs_store.data.model.ReservationDTO
+import com.morrislabs.fabs_store.data.model.ReservationCreatedBy
 import com.morrislabs.fabs_store.data.model.ReservationStatus
 import com.morrislabs.fabs_store.data.model.TimeSlot
 import com.morrislabs.fabs_store.data.model.TypeOfServiceDTO
 import com.morrislabs.fabs_store.data.model.toDisplayName
 import com.morrislabs.fabs_store.ui.viewmodel.StoreViewModel
-import com.morrislabs.fabs_store.util.TokenManager
 import kotlinx.coroutines.delay
 import java.text.SimpleDateFormat
 import java.time.Instant
@@ -76,13 +76,13 @@ internal fun WalkInBookingScreen(
     onNavigateBack: () -> Unit,
     onBookingCreated: () -> Unit
 ) {
-    val context = LocalContext.current
     val walkInServicesState by storeViewModel.walkInServicesState.collectAsState()
     val walkInExpertsState by storeViewModel.walkInExpertsState.collectAsState()
     val walkInAvailableSlotsByExpertState by storeViewModel.walkInAvailableSlotsByExpertState.collectAsState()
     val bookingActionState by storeViewModel.walkInBookingActionState.collectAsState()
+    val customerLookupState by storeViewModel.walkInCustomerLookupState.collectAsState()
 
-    var phone by remember { mutableStateOf("") }
+    var customerEmail by remember { mutableStateOf("") }
     var serviceSearch by remember { mutableStateOf("") }
     var selectedServiceIds by remember { mutableStateOf(setOf<String>()) }
     var selectedExpertsByService by remember { mutableStateOf(mapOf<String, Set<String>>()) }
@@ -103,13 +103,20 @@ internal fun WalkInBookingScreen(
     val selectedPairs = selectedServices.flatMap { service ->
         selectedExpertsByService[service.id].orEmpty().map { expertId -> pairKey(service.id, expertId) }
     }
+    val isEmailValid = customerEmail.isNotBlank() && Patterns.EMAIL_ADDRESS.matcher(customerEmail.trim()).matches()
+    val resolvedReservationUserId = when (val state = customerLookupState) {
+        is StoreViewModel.WalkInCustomerLookupState.Found -> state.user.id
+        StoreViewModel.WalkInCustomerLookupState.NotFound -> storeId
+        else -> null
+    }
 
-    val isFormValid = phone.isNotBlank() &&
+    val isFormValid = isEmailValid &&
         selectedDateMillis != null &&
         selectedDurationMinutes != null &&
         selectedServices.isNotEmpty() &&
         selectedServices.all { selectedExpertsByService[it.id].orEmpty().isNotEmpty() } &&
-        selectedPairs.all { selectedTimeSlotsByPair[it] != null }
+        selectedPairs.all { selectedTimeSlotsByPair[it] != null } &&
+        resolvedReservationUserId != null
 
     LaunchedEffect(storeId) {
         if (storeId.isBlank()) return@LaunchedEffect
@@ -120,6 +127,20 @@ internal fun WalkInBookingScreen(
         if (storeId.isBlank()) return@LaunchedEffect
         delay(300)
         storeViewModel.fetchWalkInServices(storeId, serviceSearch.trim().ifBlank { null })
+    }
+
+    LaunchedEffect(customerEmail) {
+        val normalizedEmail = customerEmail.trim()
+        if (normalizedEmail.isBlank()) {
+            storeViewModel.resetWalkInCustomerLookup()
+            return@LaunchedEffect
+        }
+        if (!Patterns.EMAIL_ADDRESS.matcher(normalizedEmail).matches()) {
+            storeViewModel.resetWalkInCustomerLookup()
+            return@LaunchedEffect
+        }
+        delay(300)
+        storeViewModel.lookupWalkInCustomerByEmail(normalizedEmail)
     }
 
     LaunchedEffect(selectedDateMillis, selectedDurationMinutes, selectedExpertsByService) {
@@ -187,13 +208,13 @@ internal fun WalkInBookingScreen(
                 Button(
                     onClick = {
                         localValidationError = null
-                        val userId = TokenManager.getInstance(context).getUserId()
-                        if (userId.isNullOrBlank()) {
-                            localValidationError = "User authentication missing"
-                            return@Button
-                        }
                         if (!isFormValid) {
                             localValidationError = "Fill all required booking details"
+                            return@Button
+                        }
+                        val userId = resolvedReservationUserId
+                        if (userId.isNullOrBlank()) {
+                            localValidationError = "Customer email lookup is still in progress"
                             return@Button
                         }
                         val bookingDate = Instant.ofEpochMilli(selectedDateMillis!!)
@@ -216,6 +237,7 @@ internal fun WalkInBookingScreen(
                                     endTime = selectedSlot.endTime,
                                     expert = expertName.ifBlank { "Expert" },
                                     status = ReservationStatus.BOOKED_ACCEPTED,
+                                    createdBy = ReservationCreatedBy.STORE,
                                     store = storeId,
                                     typeOfService = service.id,
                                     reservationExpert = expertId
@@ -303,14 +325,46 @@ internal fun WalkInBookingScreen(
             )
             Spacer(modifier = Modifier.height(8.dp))
             androidx.compose.material3.OutlinedTextField(
-                value = phone,
-                onValueChange = { phone = it },
-                label = { Text("Customer Phone Number") },
+                value = customerEmail,
+                onValueChange = { customerEmail = it },
+                label = { Text("Customer Email Address") },
                 modifier = Modifier.fillMaxWidth(),
                 singleLine = true,
-                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone),
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email),
                 shape = RoundedCornerShape(12.dp)
             )
+            Spacer(modifier = Modifier.height(6.dp))
+            when (customerLookupState) {
+                StoreViewModel.WalkInCustomerLookupState.Loading -> {
+                    Text("Checking customer account...")
+                }
+                is StoreViewModel.WalkInCustomerLookupState.Found -> {
+                    val customer = (customerLookupState as StoreViewModel.WalkInCustomerLookupState.Found).user
+                    Text(
+                        text = "Customer found: ${customer.firstName} ${customer.lastName}".trim(),
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                    Text("Payment mode: Customer app")
+                }
+                StoreViewModel.WalkInCustomerLookupState.NotFound -> {
+                    Text(
+                        text = "Email not found. Customer may be new or email may be incorrect.",
+                        color = MaterialTheme.colorScheme.error
+                    )
+                    Text("Payment mode: Cash (new customer)")
+                }
+                is StoreViewModel.WalkInCustomerLookupState.Error -> {
+                    Text(
+                        text = (customerLookupState as StoreViewModel.WalkInCustomerLookupState.Error).message,
+                        color = MaterialTheme.colorScheme.error
+                    )
+                }
+                else -> {
+                    if (customerEmail.isNotBlank() && !isEmailValid) {
+                        Text("Enter a valid email address", color = MaterialTheme.colorScheme.error)
+                    }
+                }
+            }
 
             Spacer(modifier = Modifier.height(18.dp))
             ServiceSelectionSection(

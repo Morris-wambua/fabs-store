@@ -16,8 +16,10 @@ import com.morrislabs.fabs_store.data.model.TimeSlot
 import com.morrislabs.fabs_store.data.model.ReservationWithPaymentDTO
 import com.morrislabs.fabs_store.data.model.TypeOfServiceDTO
 import com.morrislabs.fabs_store.data.model.UpdateStorePayload
+import com.morrislabs.fabs_store.data.model.UserLookupResponseDTO
 import com.morrislabs.fabs_store.data.repository.ExpertRepository
 import com.morrislabs.fabs_store.data.repository.ReservationRepository
+import com.morrislabs.fabs_store.data.repository.UserRepository
 import com.morrislabs.fabs_store.util.TokenManager
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -35,6 +37,7 @@ class StoreViewModel(application: Application) : AndroidViewModel(application) {
     private val servicesApiService = ServicesApiService(context, tokenManager)
     private val setupApiService = SetupApiService(context)
     private val expertRepository = ExpertRepository(context, tokenManager)
+    private val userRepository = UserRepository(context, tokenManager)
     private val reservationRepository = ReservationRepository(context, tokenManager)
 
     private val _storeState = MutableStateFlow<StoreState>(StoreState.Idle)
@@ -77,6 +80,9 @@ class StoreViewModel(application: Application) : AndroidViewModel(application) {
 
     private val _walkInBookingActionState = MutableStateFlow<WalkInBookingActionState>(WalkInBookingActionState.Idle)
     val walkInBookingActionState: StateFlow<WalkInBookingActionState> = _walkInBookingActionState.asStateFlow()
+
+    private val _walkInCustomerLookupState = MutableStateFlow<WalkInCustomerLookupState>(WalkInCustomerLookupState.Idle)
+    val walkInCustomerLookupState: StateFlow<WalkInCustomerLookupState> = _walkInCustomerLookupState.asStateFlow()
 
     fun fetchUserStore() {
         _storeState.value = StoreState.Loading
@@ -253,6 +259,32 @@ class StoreViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
+    fun lookupWalkInCustomerByEmail(email: String) {
+        if (email.isBlank()) {
+            _walkInCustomerLookupState.value = WalkInCustomerLookupState.Idle
+            return
+        }
+        _walkInCustomerLookupState.value = WalkInCustomerLookupState.Loading
+        viewModelScope.launch {
+            userRepository.lookupUserByEmail(email)
+                .onSuccess { user ->
+                    _walkInCustomerLookupState.value = WalkInCustomerLookupState.Found(user)
+                }
+                .onFailure { error ->
+                    val message = error.message ?: "Failed to lookup user"
+                    if (message.contains("not found", ignoreCase = true)) {
+                        _walkInCustomerLookupState.value = WalkInCustomerLookupState.NotFound
+                    } else {
+                        _walkInCustomerLookupState.value = WalkInCustomerLookupState.Error(message)
+                    }
+                }
+        }
+    }
+
+    fun resetWalkInCustomerLookup() {
+        _walkInCustomerLookupState.value = WalkInCustomerLookupState.Idle
+    }
+
     fun fetchWalkInAvailableSlots(expertId: String, date: String, durationMinutes: Int) {
         _walkInAvailableSlotsByExpertState.value =
             _walkInAvailableSlotsByExpertState.value + (expertId to LoadingState.Loading)
@@ -391,6 +423,7 @@ class StoreViewModel(application: Application) : AndroidViewModel(application) {
         _walkInExpertsState.value = LoadingState.Idle
         _walkInAvailableSlotsByExpertState.value = emptyMap()
         _walkInBookingActionState.value = WalkInBookingActionState.Idle
+        _walkInCustomerLookupState.value = WalkInCustomerLookupState.Idle
     }
 
     sealed class StoreState {
@@ -431,5 +464,13 @@ class StoreViewModel(application: Application) : AndroidViewModel(application) {
         data object Loading : WalkInBookingActionState()
         data class Success(val createdCount: Int) : WalkInBookingActionState()
         data class Error(val message: String) : WalkInBookingActionState()
+    }
+
+    sealed class WalkInCustomerLookupState {
+        data object Idle : WalkInCustomerLookupState()
+        data object Loading : WalkInCustomerLookupState()
+        data class Found(val user: UserLookupResponseDTO) : WalkInCustomerLookupState()
+        data object NotFound : WalkInCustomerLookupState()
+        data class Error(val message: String) : WalkInCustomerLookupState()
     }
 }

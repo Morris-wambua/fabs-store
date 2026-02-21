@@ -12,6 +12,13 @@ enum class ReservationStatus {
 }
 
 @Serializable
+enum class ReservationCreatedBy {
+    STORE,
+    CUSTOMER,
+    MARKETING_TEAM
+}
+
+@Serializable
 data class ReservationWithPaymentDTO(
     val id: String = "",
     val name: String = "",
@@ -26,7 +33,8 @@ data class ReservationWithPaymentDTO(
     val typeOfService: String = "",
     val typeOfServiceName: String = "",
     val reservationExpert: String = "",
-    val reservationExpertName: String = ""
+    val reservationExpertName: String = "",
+    val createdBy: ReservationCreatedBy? = null
 )
 
 @Serializable
@@ -40,6 +48,7 @@ data class ReservationDTO(
     val endTime: String,
     val expert: String,
     val status: ReservationStatus? = null,
+    val createdBy: ReservationCreatedBy? = null,
     val store: String,
     val typeOfService: String,
     val reservationExpert: String
