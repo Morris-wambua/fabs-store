@@ -72,7 +72,8 @@ internal fun ReservationRow(
             .clickable { expanded = !expanded },
         shape = RoundedCornerShape(14.dp),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
+        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
+        border = CardDefaults.outlinedCardBorder()
     ) {
         Column(modifier = Modifier.padding(14.dp)) {
             Row(
