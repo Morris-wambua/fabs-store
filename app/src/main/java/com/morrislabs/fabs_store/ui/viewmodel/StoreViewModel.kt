@@ -55,6 +55,10 @@ class StoreViewModel(application: Application) : AndroidViewModel(application) {
 
     // Cache for reservations by filter status
     private val reservationsCache = mutableMapOf<String, List<ReservationWithPaymentDTO>>()
+
+    private fun clearReservationsCache() {
+        reservationsCache.clear()
+    }
     
     private val _isRefreshing = MutableStateFlow(false)
     val isRefreshing: StateFlow<Boolean> = _isRefreshing.asStateFlow()
@@ -332,6 +336,7 @@ class StoreViewModel(application: Application) : AndroidViewModel(application) {
             _walkInBookingActionState.value = WalkInBookingActionState.Success(createdCount)
             val storeId = (storeState.value as? StoreState.Success)?.data?.id.orEmpty()
             if (storeId.isNotBlank()) {
+                clearReservationsCache()
                 fetchReservations(storeId, forceRefresh = true)
             }
         }
@@ -353,6 +358,7 @@ class StoreViewModel(application: Application) : AndroidViewModel(application) {
             reservationRepository.transitionReservation(reservationId, action)
                 .onSuccess { status ->
                     _reservationTransitionState.value = ReservationTransitionState.Success(reservationId, status)
+                    clearReservationsCache()
                     fetchReservations(storeId, filterStatus, query, forceRefresh = true)
                 }
                 .onFailure { error ->

@@ -157,12 +157,24 @@ internal fun ReservationsTabContent(
                         )
                     }
                     is StoreViewModel.LoadingState.Error -> {
-                        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                        Column(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .verticalScroll(rememberScrollState()),
+                            verticalArrangement = Arrangement.Center,
+                            horizontalAlignment = Alignment.CenterHorizontally
+                        ) {
                             Text("Error: ${reservationsState.message}")
                         }
                     }
                     else -> {
-                        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                        Column(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .verticalScroll(rememberScrollState()),
+                            verticalArrangement = Arrangement.Center,
+                            horizontalAlignment = Alignment.CenterHorizontally
+                        ) {
                             Text("No reservations yet")
                         }
                     }
@@ -305,7 +317,13 @@ private fun ReservationsListContent(
     onTransition: (String, ReservationTransitionAction) -> Unit
 ) {
     if (reservations.isEmpty()) {
-        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .verticalScroll(rememberScrollState()),
+            verticalArrangement = Arrangement.Center,
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
             Text("No reservations found", style = MaterialTheme.typography.bodyLarge)
         }
     } else {
