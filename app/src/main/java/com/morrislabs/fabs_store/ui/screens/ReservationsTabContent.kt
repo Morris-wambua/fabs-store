@@ -91,6 +91,24 @@ internal fun ReservationsTabContent(
         ReservationDetailsScreen(
             reservation = selectedReservation!!,
             selectedFilter = selectedFilter,
+            onApproveReservation = { reservationId ->
+                storeViewModel.transitionReservation(
+                    reservationId = reservationId,
+                    action = ReservationTransitionAction.STORE_APPROVE_BOOKING,
+                    storeId = storeId,
+                    filterStatus = currentFilterStatus,
+                    query = searchQuery.trim().ifBlank { null }
+                )
+            },
+            onRejectReservation = { reservationId ->
+                storeViewModel.transitionReservation(
+                    reservationId = reservationId,
+                    action = ReservationTransitionAction.CANCEL,
+                    storeId = storeId,
+                    filterStatus = currentFilterStatus,
+                    query = searchQuery.trim().ifBlank { null }
+                )
+            },
             onNavigateBack = { selectedReservation = null }
         )
         return

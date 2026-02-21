@@ -47,6 +47,7 @@ data class ReservationWithPaymentDTO(
     val typeOfServiceName: String = "",
     val reservationExpert: String = "",
     val reservationExpertName: String = "",
+    val customerPhone: String? = null,
     val createdBy: ReservationCreatedBy? = null,
     val paymentStatus: PaymentStatus? = null,
     val amountPaid: Double? = null,
