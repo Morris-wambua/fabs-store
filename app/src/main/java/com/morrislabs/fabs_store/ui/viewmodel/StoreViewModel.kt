@@ -11,8 +11,8 @@ import com.morrislabs.fabs_store.data.api.StoreApiService
 import com.morrislabs.fabs_store.data.model.CreateStorePayload
 import com.morrislabs.fabs_store.data.model.ExpertDTO
 import com.morrislabs.fabs_store.data.model.FetchStoreResponse
-import com.morrislabs.fabs_store.data.model.LocationDTO
 import com.morrislabs.fabs_store.data.model.ReservationDTO
+import com.morrislabs.fabs_store.data.model.TimeSlot
 import com.morrislabs.fabs_store.data.model.ReservationWithPaymentDTO
 import com.morrislabs.fabs_store.data.model.TypeOfServiceDTO
 import com.morrislabs.fabs_store.data.model.UpdateStorePayload
@@ -70,6 +70,10 @@ class StoreViewModel(application: Application) : AndroidViewModel(application) {
 
     private val _walkInExpertsState = MutableStateFlow<LoadingState<List<ExpertDTO>>>(LoadingState.Idle)
     val walkInExpertsState: StateFlow<LoadingState<List<ExpertDTO>>> = _walkInExpertsState.asStateFlow()
+
+    private val _walkInAvailableSlotsByExpertState = MutableStateFlow<Map<String, LoadingState<List<TimeSlot>>>>(emptyMap())
+    val walkInAvailableSlotsByExpertState: StateFlow<Map<String, LoadingState<List<TimeSlot>>>> =
+        _walkInAvailableSlotsByExpertState.asStateFlow()
 
     private val _walkInBookingActionState = MutableStateFlow<WalkInBookingActionState>(WalkInBookingActionState.Idle)
     val walkInBookingActionState: StateFlow<WalkInBookingActionState> = _walkInBookingActionState.asStateFlow()
@@ -249,6 +253,27 @@ class StoreViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
+    fun fetchWalkInAvailableSlots(expertId: String, date: String, durationMinutes: Int) {
+        _walkInAvailableSlotsByExpertState.value =
+            _walkInAvailableSlotsByExpertState.value + (expertId to LoadingState.Loading)
+
+        viewModelScope.launch {
+            expertRepository.getAvailableTimeSlots(expertId, date, durationMinutes)
+                .onSuccess { slots ->
+                    _walkInAvailableSlotsByExpertState.value =
+                        _walkInAvailableSlotsByExpertState.value + (expertId to LoadingState.Success(slots))
+                }
+                .onFailure { error ->
+                    _walkInAvailableSlotsByExpertState.value =
+                        _walkInAvailableSlotsByExpertState.value + (expertId to LoadingState.Error(error.message ?: "Failed to fetch time slots"))
+                }
+        }
+    }
+
+    fun clearWalkInAvailableSlots() {
+        _walkInAvailableSlotsByExpertState.value = emptyMap()
+    }
+
     fun createWalkInReservations(reservations: List<ReservationDTO>) {
         if (reservations.isEmpty()) {
             _walkInBookingActionState.value = WalkInBookingActionState.Error("No reservation payload to submit")
@@ -364,6 +389,7 @@ class StoreViewModel(application: Application) : AndroidViewModel(application) {
         _servicesState.value = LoadingState.Idle
         _walkInServicesState.value = LoadingState.Idle
         _walkInExpertsState.value = LoadingState.Idle
+        _walkInAvailableSlotsByExpertState.value = emptyMap()
         _walkInBookingActionState.value = WalkInBookingActionState.Idle
     }
 

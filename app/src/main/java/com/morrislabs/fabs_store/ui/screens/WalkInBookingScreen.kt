@@ -56,6 +56,7 @@ import androidx.compose.ui.unit.dp
 import com.morrislabs.fabs_store.data.model.ExpertDTO
 import com.morrislabs.fabs_store.data.model.ReservationDTO
 import com.morrislabs.fabs_store.data.model.ReservationStatus
+import com.morrislabs.fabs_store.data.model.TimeSlot
 import com.morrislabs.fabs_store.data.model.TypeOfServiceDTO
 import com.morrislabs.fabs_store.data.model.toDisplayName
 import com.morrislabs.fabs_store.ui.viewmodel.StoreViewModel
@@ -63,13 +64,9 @@ import com.morrislabs.fabs_store.util.TokenManager
 import kotlinx.coroutines.delay
 import java.text.SimpleDateFormat
 import java.time.Instant
-import java.time.LocalTime
 import java.time.ZoneId
-import java.time.format.DateTimeFormatter
 import java.util.Date
 import java.util.Locale
-
-private val timeFormatter: DateTimeFormatter = DateTimeFormatter.ofPattern("HH:mm")
 
 @OptIn(ExperimentalLayoutApi::class, androidx.compose.material3.ExperimentalMaterial3Api::class)
 @Composable
@@ -82,6 +79,7 @@ internal fun WalkInBookingScreen(
     val context = LocalContext.current
     val walkInServicesState by storeViewModel.walkInServicesState.collectAsState()
     val walkInExpertsState by storeViewModel.walkInExpertsState.collectAsState()
+    val walkInAvailableSlotsByExpertState by storeViewModel.walkInAvailableSlotsByExpertState.collectAsState()
     val bookingActionState by storeViewModel.walkInBookingActionState.collectAsState()
 
     var phone by remember { mutableStateOf("") }
@@ -90,6 +88,7 @@ internal fun WalkInBookingScreen(
     var selectedExpertsByService by remember { mutableStateOf(mapOf<String, Set<String>>()) }
     var selectedDurationMinutes by remember { mutableStateOf<Int?>(null) }
     var selectedDateMillis by remember { mutableStateOf<Long?>(null) }
+    var selectedTimeSlotsByPair by remember { mutableStateOf(mapOf<String, TimeSlot>()) }
     var showDatePicker by remember { mutableStateOf(false) }
     var showOtherDurationDialog by remember { mutableStateOf(false) }
     var localValidationError by remember { mutableStateOf<String?>(null) }
@@ -101,12 +100,16 @@ internal fun WalkInBookingScreen(
     val expertsById = remember(experts) { experts.associateBy { it.id } }
     val selectedServices = remember(services, selectedServiceIds) { services.filter { selectedServiceIds.contains(it.id) } }
     val totalPrice = selectedServices.sumOf { service -> service.price * selectedExpertsByService[service.id].orEmpty().size }
+    val selectedPairs = selectedServices.flatMap { service ->
+        selectedExpertsByService[service.id].orEmpty().map { expertId -> pairKey(service.id, expertId) }
+    }
 
     val isFormValid = phone.isNotBlank() &&
         selectedDateMillis != null &&
         selectedDurationMinutes != null &&
         selectedServices.isNotEmpty() &&
-        selectedServices.all { selectedExpertsByService[it.id].orEmpty().isNotEmpty() }
+        selectedServices.all { selectedExpertsByService[it.id].orEmpty().isNotEmpty() } &&
+        selectedPairs.all { selectedTimeSlotsByPair[it] != null }
 
     LaunchedEffect(storeId) {
         if (storeId.isBlank()) return@LaunchedEffect
@@ -117,6 +120,36 @@ internal fun WalkInBookingScreen(
         if (storeId.isBlank()) return@LaunchedEffect
         delay(300)
         storeViewModel.fetchWalkInServices(storeId, serviceSearch.trim().ifBlank { null })
+    }
+
+    LaunchedEffect(selectedDateMillis, selectedDurationMinutes, selectedExpertsByService) {
+        val dateMillis = selectedDateMillis
+        val duration = selectedDurationMinutes
+        if (dateMillis == null || duration == null) {
+            storeViewModel.clearWalkInAvailableSlots()
+            selectedTimeSlotsByPair = emptyMap()
+            return@LaunchedEffect
+        }
+
+        val bookingDate = Instant.ofEpochMilli(dateMillis)
+            .atZone(ZoneId.systemDefault())
+            .toLocalDate()
+            .toString()
+
+        val selectedExpertIds = selectedExpertsByService.values.flatten().toSet()
+        if (selectedExpertIds.isEmpty()) {
+            storeViewModel.clearWalkInAvailableSlots()
+            selectedTimeSlotsByPair = emptyMap()
+            return@LaunchedEffect
+        }
+
+        storeViewModel.clearWalkInAvailableSlots()
+        selectedTimeSlotsByPair = selectedTimeSlotsByPair.filterKeys { key ->
+            selectedPairs.contains(key)
+        }
+        selectedExpertIds.forEach { expertId ->
+            storeViewModel.fetchWalkInAvailableSlots(expertId, bookingDate, duration)
+        }
     }
 
     LaunchedEffect(bookingActionState) {
@@ -166,25 +199,32 @@ internal fun WalkInBookingScreen(
                         val bookingDate = Instant.ofEpochMilli(selectedDateMillis!!)
                             .atZone(ZoneId.systemDefault())
                             .toLocalDate()
-                        val startTime = LocalTime.of(9, 0)
-                        val endTime = startTime.plusMinutes(selectedDurationMinutes!!.toLong())
                         val payloads = selectedServices.flatMap { service ->
                             selectedExpertsByService[service.id].orEmpty().map { expertId ->
                                 val expertName = expertsById[expertId]?.name.orEmpty()
+                                val selectedSlot = selectedTimeSlotsByPair[pairKey(service.id, expertId)]
+                                if (selectedSlot == null) {
+                                    localValidationError = "Select a time slot for each service-expert pair"
+                                    return@map null
+                                }
                                 ReservationDTO(
                                     userId = userId,
                                     name = "Appointment for ${service.subCategory.toDisplayName()}",
                                     price = service.price.toDouble(),
                                     reservationDate = bookingDate.toString(),
-                                    startTime = startTime.format(timeFormatter),
-                                    endTime = endTime.format(timeFormatter),
+                                    startTime = selectedSlot.startTime,
+                                    endTime = selectedSlot.endTime,
                                     expert = expertName.ifBlank { "Expert" },
                                     status = ReservationStatus.BOOKED_ACCEPTED,
                                     store = storeId,
                                     typeOfService = service.id,
                                     reservationExpert = expertId
                                 )
-                            }
+                            }.filterNotNull()
+                        }
+                        if (payloads.isEmpty()) {
+                            localValidationError = "No valid reservation payload generated"
+                            return@Button
                         }
                         storeViewModel.createWalkInReservations(payloads)
                     },
@@ -283,6 +323,9 @@ internal fun WalkInBookingScreen(
                     if (selectedServiceIds.contains(service.id)) {
                         selectedServiceIds = selectedServiceIds - service.id
                         selectedExpertsByService = selectedExpertsByService - service.id
+                        selectedTimeSlotsByPair = selectedTimeSlotsByPair.filterKeys { key ->
+                            !key.startsWith("${service.id}|")
+                        }
                     } else {
                         selectedServiceIds = selectedServiceIds + service.id
                         selectedExpertsByService = selectedExpertsByService + (service.id to emptySet())
@@ -300,6 +343,21 @@ internal fun WalkInBookingScreen(
                     val selected = selectedExpertsByService[serviceId].orEmpty()
                     val updated = if (selected.contains(expertId)) selected - expertId else selected + expertId
                     selectedExpertsByService = selectedExpertsByService + (serviceId to updated)
+                    if (!updated.contains(expertId)) {
+                        selectedTimeSlotsByPair = selectedTimeSlotsByPair - pairKey(serviceId, expertId)
+                    }
+                }
+            )
+
+            Spacer(modifier = Modifier.height(18.dp))
+            TimeSlotAssignmentSection(
+                selectedServices = selectedServices,
+                expertsById = expertsById,
+                selectedExpertsByService = selectedExpertsByService,
+                availableSlotsByExpertState = walkInAvailableSlotsByExpertState,
+                selectedTimeSlotsByPair = selectedTimeSlotsByPair,
+                onTimeSlotSelected = { serviceId, expertId, slot ->
+                    selectedTimeSlotsByPair = selectedTimeSlotsByPair + (pairKey(serviceId, expertId) to slot)
                 }
             )
 

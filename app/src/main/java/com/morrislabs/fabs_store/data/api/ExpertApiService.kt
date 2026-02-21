@@ -4,9 +4,9 @@ import android.content.Context
 import android.net.Uri
 import android.util.Log
 import com.morrislabs.fabs_store.data.model.CreateExpertPayload
-import com.morrislabs.fabs_store.data.model.ErrorResponse
 import com.morrislabs.fabs_store.data.model.ExpertDTO
 import com.morrislabs.fabs_store.data.model.ExpertLeaveDTO
+import com.morrislabs.fabs_store.data.model.TimeSlot
 import com.morrislabs.fabs_store.data.model.UploadMediaResponse
 import com.morrislabs.fabs_store.util.AppConfig
 import com.morrislabs.fabs_store.util.ClientConfig
@@ -21,6 +21,7 @@ import io.ktor.client.request.delete
 import io.ktor.client.request.forms.formData
 import io.ktor.client.request.forms.submitFormWithBinaryData
 import io.ktor.client.request.get
+import io.ktor.client.request.parameter
 import io.ktor.client.request.post
 import io.ktor.client.request.put
 import io.ktor.client.request.setBody
@@ -29,7 +30,6 @@ import io.ktor.http.Headers
 import io.ktor.http.HttpHeaders
 import io.ktor.http.contentType
 import io.ktor.client.statement.bodyAsText
-import io.ktor.http.HttpStatusCode
 import io.ktor.serialization.kotlinx.json.json
 import kotlinx.serialization.json.Json
 
@@ -112,6 +112,26 @@ class ExpertApiService(private val context: Context, private val tokenManager: T
         } catch (e: Exception) {
             Log.e(TAG, "Exception during store experts fetch", e)
             Result.failure(Exception("Failed to fetch store experts: ${e.message}"))
+        }
+    }
+
+    suspend fun getAvailableTimeSlots(expertId: String, date: String, durationMinutes: Int): Result<List<TimeSlot>> {
+        return try {
+            val client = clientConfig.createAuthenticatedClient(context, tokenManager)
+            val response = client.get("$baseUrl/api/experts/timeslots/duration") {
+                parameter("expertId", expertId)
+                parameter("date", date)
+                parameter("durationMinutes", durationMinutes)
+            }
+            val responseText = response.bodyAsText()
+            val slots = prettyJson.decodeFromString<List<TimeSlot>>(responseText)
+            Result.success(slots)
+        } catch (e: ClientRequestException) {
+            Log.e(TAG, "Failed to fetch available slots: ${e.response.status}", e)
+            Result.failure(Exception("Failed to fetch available slots: ${e.response.status.value}"))
+        } catch (e: Exception) {
+            Log.e(TAG, "Exception during available slots fetch", e)
+            Result.failure(Exception("Failed to fetch available slots: ${e.message}"))
         }
     }
 

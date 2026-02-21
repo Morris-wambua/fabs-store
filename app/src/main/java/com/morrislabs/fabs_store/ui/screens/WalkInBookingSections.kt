@@ -31,9 +31,12 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.morrislabs.fabs_store.data.model.ExpertDTO
+import com.morrislabs.fabs_store.data.model.TimeSlot
 import com.morrislabs.fabs_store.data.model.TypeOfServiceDTO
 import com.morrislabs.fabs_store.data.model.toDisplayName
 import com.morrislabs.fabs_store.ui.viewmodel.StoreViewModel
+import java.time.LocalTime
+import java.time.format.DateTimeFormatter
 
 internal val quickDurations = listOf(30, 45, 60)
 internal val extendedDurations = listOf(90, 120, 180, 240, 300, 360, 420, 480, 540)
@@ -212,6 +215,102 @@ internal fun DurationSection(
     }
 }
 
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+internal fun TimeSlotAssignmentSection(
+    selectedServices: List<TypeOfServiceDTO>,
+    expertsById: Map<String, ExpertDTO>,
+    selectedExpertsByService: Map<String, Set<String>>,
+    availableSlotsByExpertState: Map<String, StoreViewModel.LoadingState<List<TimeSlot>>>,
+    selectedTimeSlotsByPair: Map<String, TimeSlot>,
+    onTimeSlotSelected: (serviceId: String, expertId: String, slot: TimeSlot) -> Unit
+) {
+    Text(
+        text = "SELECT TIME SLOTS",
+        style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
+        color = MaterialTheme.colorScheme.onSurfaceVariant
+    )
+    Spacer(modifier = Modifier.height(8.dp))
+
+    if (selectedServices.isEmpty()) {
+        Text("Select services and experts first")
+        return
+    }
+
+    selectedServices.forEach { service ->
+        val selectedExpertIds = selectedExpertsByService[service.id].orEmpty()
+        if (selectedExpertIds.isEmpty()) {
+            return@forEach
+        }
+        Surface(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(bottom = 10.dp),
+            shape = RoundedCornerShape(12.dp),
+            tonalElevation = 1.dp
+        ) {
+            androidx.compose.foundation.layout.Column(modifier = Modifier.padding(12.dp)) {
+                Text(
+                    text = service.subCategory.toDisplayName(),
+                    style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold)
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+                selectedExpertIds.forEach { expertId ->
+                    val expertName = expertsById[expertId]?.name ?: "Expert"
+                    Text(
+                        text = expertName,
+                        style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.SemiBold)
+                    )
+                    Spacer(modifier = Modifier.height(6.dp))
+                    when (val state = availableSlotsByExpertState[expertId]) {
+                        is StoreViewModel.LoadingState.Loading -> {
+                            CircularProgressIndicator(modifier = Modifier.size(18.dp), strokeWidth = 2.dp)
+                        }
+                        is StoreViewModel.LoadingState.Error -> {
+                            Text(state.message, color = MaterialTheme.colorScheme.error)
+                        }
+                        is StoreViewModel.LoadingState.Success -> {
+                            val slots = state.data
+                            if (slots.isEmpty()) {
+                                Text("No available slots")
+                            } else {
+                                FlowRow(
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                                ) {
+                                    slots.forEach { slot ->
+                                        val key = pairKey(service.id, expertId)
+                                        val selectedSlot = selectedTimeSlotsByPair[key]
+                                        val selected = selectedSlot == slot
+                                        FilterChip(
+                                            selected = selected,
+                                            onClick = { onTimeSlotSelected(service.id, expertId, slot) },
+                                            label = { Text(formatTimeLabel(slot.startTime)) },
+                                            leadingIcon = if (selected) {
+                                                {
+                                                    Icon(
+                                                        imageVector = Icons.Default.Check,
+                                                        contentDescription = null,
+                                                        modifier = Modifier.size(16.dp)
+                                                    )
+                                                }
+                                            } else null
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                        else -> {
+                            Text("Select date, duration, and experts to load slots")
+                        }
+                    }
+                    Spacer(modifier = Modifier.height(10.dp))
+                }
+            }
+        }
+    }
+}
+
 @Composable
 internal fun ReadOnlyPriceSection(totalPrice: Int) {
     Text(
@@ -239,4 +338,16 @@ internal fun formatDuration(minutes: Int): String {
         return if (hours == 1) "1 hr" else "$hours hrs"
     }
     return "$minutes min"
+}
+
+internal fun pairKey(serviceId: String, expertId: String): String = "$serviceId|$expertId"
+
+private fun formatTimeLabel(timeString: String): String {
+    return try {
+        val input = DateTimeFormatter.ofPattern("HH:mm")
+        val output = DateTimeFormatter.ofPattern("h:mm a")
+        LocalTime.parse(timeString, input).format(output)
+    } catch (_: Exception) {
+        timeString
+    }
 }

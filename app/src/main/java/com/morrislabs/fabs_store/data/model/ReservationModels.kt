@@ -45,6 +45,12 @@ data class ReservationDTO(
     val reservationExpert: String
 )
 
+@Serializable
+data class TimeSlot(
+    val startTime: String,
+    val endTime: String
+)
+
 enum class ReservationFilter(val displayName: String) {
     PENDING_APPROVAL("Pending Approval"),
     UPCOMING("Upcoming"),
