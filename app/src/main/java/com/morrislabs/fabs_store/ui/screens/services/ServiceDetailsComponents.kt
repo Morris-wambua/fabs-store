@@ -135,7 +135,7 @@ internal fun TitleCard(subCategoryName: String, description: String) {
             .fillMaxWidth(),
         shape = RoundedCornerShape(20.dp),
         elevation = CardDefaults.cardElevation(defaultElevation = 4.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
+        colors = CardDefaults.cardColors(MaterialTheme.colorScheme.surface)
     ) {
         Column(modifier = Modifier.padding(20.dp)) {
             Text(
@@ -182,7 +182,7 @@ internal fun GeneralInfoCard(
             .fillMaxWidth(),
         shape = RoundedCornerShape(16.dp),
         elevation = CardDefaults.cardElevation(defaultElevation = 3.dp),
-        colors = CardDefaults.cardColors(containerColor = Color.White)
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
             SectionHeader(
@@ -249,7 +249,7 @@ internal fun CategoryCard(
             .fillMaxWidth(),
         shape = RoundedCornerShape(16.dp),
         elevation = CardDefaults.cardElevation(defaultElevation = 3.dp),
-        colors = CardDefaults.cardColors(containerColor = Color.White)
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
             SectionHeader(
@@ -359,7 +359,7 @@ internal fun DurationCard(
             .fillMaxWidth(),
         shape = RoundedCornerShape(16.dp),
         elevation = CardDefaults.cardElevation(defaultElevation = 3.dp),
-        colors = CardDefaults.cardColors(containerColor = Color.White)
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
             SectionHeader(
@@ -387,7 +387,7 @@ internal fun DurationCard(
                         ),
                         border = if (isSelected) BorderStroke(1.dp, MaterialTheme.colorScheme.primary) else null,
                         colors = CardDefaults.cardColors(
-                            containerColor = if (isSelected) Color.White else MaterialTheme.colorScheme.surfaceVariant
+                            containerColor = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceVariant
                         )
                     ) {
                         Box(
@@ -397,7 +397,7 @@ internal fun DurationCard(
                             Text(
                                 text = formatDuration(duration),
                                 style = MaterialTheme.typography.labelMedium,
-                                color = if (isSelected) MaterialTheme.colorScheme.primary else Color.Gray,
+                                color = if (isSelected) MaterialTheme.colorScheme.onPrimary else Color.Gray,
                                 fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal
                             )
                         }
