@@ -11,9 +11,10 @@ class ReservationRepository(context: Context, tokenManager: TokenManager) {
     suspend fun fetchStoreReservations(
         storeId: String,
         filterStatus: String = "ALL",
+        query: String? = null,
         pageNumber: Int = 0,
         pageSize: Int = 20
     ): Result<List<ReservationWithPaymentDTO>> {
-        return reservationApiService.fetchStoreReservations(storeId, filterStatus, pageNumber, pageSize)
+        return reservationApiService.fetchStoreReservations(storeId, filterStatus, query, pageNumber, pageSize)
     }
 }

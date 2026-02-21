@@ -35,9 +35,9 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -49,6 +49,7 @@ import androidx.compose.ui.unit.dp
 import com.morrislabs.fabs_store.data.model.ReservationFilter
 import com.morrislabs.fabs_store.data.model.ReservationWithPaymentDTO
 import com.morrislabs.fabs_store.ui.viewmodel.StoreViewModel
+import kotlinx.coroutines.delay
 
 @OptIn(ExperimentalMaterialApi::class)
 @Composable
@@ -64,6 +65,23 @@ internal fun ReservationsTabContent(
     var searchQuery by remember { mutableStateOf("") }
     var selectedReservation by remember { mutableStateOf<ReservationWithPaymentDTO?>(null) }
     var showWalkInBooking by remember { mutableStateOf(false) }
+
+    LaunchedEffect(storeId, selectedFilter, searchQuery) {
+        if (storeId.isBlank()) {
+            return@LaunchedEffect
+        }
+        delay(300)
+        val query = searchQuery.trim().ifBlank { null }
+        val filterStatus = when (selectedFilter) {
+            ReservationFilter.PENDING_APPROVAL -> "BOOKED_PENDING_ACCEPTANCE"
+            ReservationFilter.UPCOMING -> "BOOKED_ACCEPTED"
+            ReservationFilter.CANCELLED -> "CANCELLED"
+            ReservationFilter.COMPLETED -> "SERVED"
+            ReservationFilter.LAPSED_PAID -> "LAPSED_PAID"
+            ReservationFilter.LAPSED_NOT_ACCEPTED -> "LAPSED_NOT_ACCEPTED"
+        }
+        storeViewModel.fetchReservations(storeId, filterStatus, query)
+    }
 
     if (selectedReservation != null) {
         ReservationDetailsScreen(
@@ -115,7 +133,8 @@ internal fun ReservationsTabContent(
                         ReservationFilter.LAPSED_PAID -> "LAPSED_PAID"
                         ReservationFilter.LAPSED_NOT_ACCEPTED -> "LAPSED_NOT_ACCEPTED"
                     }
-                    storeViewModel.refreshReservations(storeId, filterStatus)
+                    val query = searchQuery.trim().ifBlank { null }
+                    storeViewModel.refreshReservations(storeId, filterStatus, query)
                 }
             )
 
@@ -132,18 +151,8 @@ internal fun ReservationsTabContent(
                         }
                     }
                     is StoreViewModel.LoadingState.Success -> {
-                        val filtered = reservationsState.data.filter { reservation ->
-                            val query = searchQuery.trim()
-                            if (query.isBlank()) {
-                                true
-                            } else {
-                                reservation.name.contains(query, ignoreCase = true) ||
-                                    reservation.typeOfServiceName.contains(query, ignoreCase = true) ||
-                                    reservation.reservationExpertName.contains(query, ignoreCase = true)
-                            }
-                        }
                         ReservationsListContent(
-                            reservations = filtered,
+                            reservations = reservationsState.data,
                             selectedFilter = selectedFilter,
                             onDetailsClick = { selectedReservation = it }
                         )

@@ -22,6 +22,7 @@ class ReservationApiService(private val context: Context, private val tokenManag
     suspend fun fetchStoreReservations(
         storeId: String,
         filterStatus: String = "ALL",
+        query: String? = null,
         pageNumber: Int = 0,
         pageSize: Int = 20
     ): Result<List<ReservationWithPaymentDTO>> {
@@ -30,11 +31,14 @@ class ReservationApiService(private val context: Context, private val tokenManag
 
             val response = client.get("$baseUrl/api/reservations/store/$storeId") {
                 parameter("status", filterStatus)
+                if (!query.isNullOrBlank()) {
+                    parameter("query", query.trim())
+                }
                 parameter("page", pageNumber)
                 parameter("size", pageSize)
             }
 
-            Log.d(TAG, "Fetching reservations for store: $storeId (filter: $filterStatus, page: $pageNumber, size: $pageSize)")
+            Log.d(TAG, "Fetching reservations for store: $storeId (filter: $filterStatus, query: ${query ?: ""}, page: $pageNumber, size: $pageSize)")
 
             val responseText = response.bodyAsText()
             Log.d(TAG, "Fetch reservations response: $responseText")

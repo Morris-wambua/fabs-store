@@ -98,24 +98,33 @@ class StoreViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    fun fetchReservations(storeId: String, filterStatus: String = "ALL", pageNumber: Int = 0, pageSize: Int = 20, forceRefresh: Boolean = false) {
+    fun fetchReservations(
+        storeId: String,
+        filterStatus: String = "ALL",
+        query: String? = null,
+        pageNumber: Int = 0,
+        pageSize: Int = 20,
+        forceRefresh: Boolean = false
+    ) {
+        val normalizedQuery = query?.trim()?.lowercase().orEmpty()
+        val cacheKey = "$filterStatus|$normalizedQuery"
         // Check cache first if not forcing refresh
-        if (!forceRefresh && reservationsCache.containsKey(filterStatus)) {
-            Log.d(TAG, "Returning cached reservations for filter: $filterStatus")
-            _reservationsState.value = LoadingState.Success(reservationsCache[filterStatus] ?: emptyList())
+        if (!forceRefresh && reservationsCache.containsKey(cacheKey)) {
+            Log.d(TAG, "Returning cached reservations for filter: $filterStatus (query: $normalizedQuery)")
+            _reservationsState.value = LoadingState.Success(reservationsCache[cacheKey] ?: emptyList())
             return
         }
 
         _reservationsState.value = LoadingState.Loading
 
         viewModelScope.launch {
-            Log.d(TAG, "Fetching reservations for store: $storeId (filter: $filterStatus, page: $pageNumber, size: $pageSize, forceRefresh: $forceRefresh)")
+            Log.d(TAG, "Fetching reservations for store: $storeId (filter: $filterStatus, query: $normalizedQuery, page: $pageNumber, size: $pageSize, forceRefresh: $forceRefresh)")
 
-            reservationRepository.fetchStoreReservations(storeId, filterStatus, pageNumber, pageSize)
+            reservationRepository.fetchStoreReservations(storeId, filterStatus, normalizedQuery, pageNumber, pageSize)
                 .onSuccess { reservations ->
                     Log.d(TAG, "Reservations fetched: ${reservations.size} items")
                     // Cache the results
-                    reservationsCache[filterStatus] = reservations
+                    reservationsCache[cacheKey] = reservations
                     _reservationsState.value = LoadingState.Success(reservations)
                     _isRefreshing.value = false
                 }
@@ -128,7 +137,7 @@ class StoreViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    fun refreshReservations(storeId: String, filterStatus: String = "ALL") {
+    fun refreshReservations(storeId: String, filterStatus: String = "ALL", query: String? = null) {
         // Prevent multiple refreshes in progress
         if (_isRefreshing.value) {
             Log.d(TAG, "Refresh already in progress, ignoring")
@@ -136,8 +145,8 @@ class StoreViewModel(application: Application) : AndroidViewModel(application) {
         }
 
         _isRefreshing.value = true
-        Log.d(TAG, "Refreshing reservations for filter: $filterStatus")
-        fetchReservations(storeId, filterStatus, forceRefresh = true)
+        Log.d(TAG, "Refreshing reservations for filter: $filterStatus (query: ${query ?: ""})")
+        fetchReservations(storeId, filterStatus, query, forceRefresh = true)
     }
 
     fun fetchServices() {
