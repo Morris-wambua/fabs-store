@@ -19,6 +19,7 @@ import io.ktor.client.request.delete
 import io.ktor.client.request.forms.formData
 import io.ktor.client.request.forms.submitFormWithBinaryData
 import io.ktor.client.request.get
+import io.ktor.client.request.parameter
 import io.ktor.client.request.post
 import io.ktor.client.request.put
 import io.ktor.client.request.setBody
@@ -38,10 +39,21 @@ class ServicesApiService(private val context: Context, private val tokenManager:
     private val clientConfig = ClientConfig()
     private val json = Json { ignoreUnknownKeys = true }
 
-    suspend fun fetchServicesByStore(storeId: String, page: Int = 0, size: Int = 100): Result<List<TypeOfServiceDTO>> {
+    suspend fun fetchServicesByStore(
+        storeId: String,
+        page: Int = 0,
+        size: Int = 100,
+        query: String? = null
+    ): Result<List<TypeOfServiceDTO>> {
         return try {
             val client = clientConfig.createAuthenticatedClient(context, tokenManager)
-            val response = client.get("$baseUrl/api/typeOfServices/by-store/$storeId?page=$page&size=$size")
+            val response = client.get("$baseUrl/api/typeOfServices/by-store/$storeId") {
+                parameter("page", page)
+                parameter("size", size)
+                if (!query.isNullOrBlank()) {
+                    parameter("query", query.trim())
+                }
+            }
             val responseText = response.bodyAsText()
             Log.d(TAG, "Fetch services by store response: $responseText")
 

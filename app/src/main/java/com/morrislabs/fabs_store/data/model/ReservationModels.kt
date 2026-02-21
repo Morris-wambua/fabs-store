@@ -29,6 +29,22 @@ data class ReservationWithPaymentDTO(
     val reservationExpertName: String = ""
 )
 
+@Serializable
+data class ReservationDTO(
+    val id: String? = null,
+    val userId: String,
+    val name: String,
+    val price: Double,
+    val reservationDate: String,
+    val startTime: String,
+    val endTime: String,
+    val expert: String,
+    val status: ReservationStatus? = null,
+    val store: String,
+    val typeOfService: String,
+    val reservationExpert: String
+)
+
 enum class ReservationFilter(val displayName: String) {
     PENDING_APPROVAL("Pending Approval"),
     UPCOMING("Upcoming"),

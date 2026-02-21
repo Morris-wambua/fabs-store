@@ -2,14 +2,20 @@ package com.morrislabs.fabs_store.data.api
 
 import android.content.Context
 import android.util.Log
+import com.morrislabs.fabs_store.data.model.ReservationDTO
 import com.morrislabs.fabs_store.data.model.ReservationWithPaymentDTO
 import com.morrislabs.fabs_store.util.AppConfig
 import com.morrislabs.fabs_store.util.ClientConfig
 import com.morrislabs.fabs_store.util.TokenManager
 import io.ktor.client.plugins.ClientRequestException
+import io.ktor.client.request.post
+import io.ktor.client.request.setBody
 import io.ktor.client.request.get
 import io.ktor.client.request.parameter
 import io.ktor.client.statement.bodyAsText
+import io.ktor.http.ContentType
+import io.ktor.http.HttpStatusCode
+import io.ktor.http.contentType
 import kotlinx.serialization.json.Json
 
 private const val TAG = "ReservationApiService"
@@ -67,6 +73,31 @@ class ReservationApiService(private val context: Context, private val tokenManag
         } catch (e: Exception) {
             Log.e(TAG, "Fetch reservations failed with exception: ${e.message}", e)
             Result.failure(Exception("Failed to fetch reservations: ${e.message}"))
+        }
+    }
+
+    suspend fun createReservation(reservation: ReservationDTO): Result<String> {
+        return try {
+            val client = clientConfig.createAuthenticatedClient(context, tokenManager)
+            val response = client.post("$baseUrl/api/reservations") {
+                contentType(ContentType.Application.Json)
+                setBody(reservation)
+            }
+
+            val responseText = response.bodyAsText()
+            if (response.status == HttpStatusCode.Created) {
+                val createdId = responseText.trim().replace("\"", "")
+                Result.success(createdId)
+            } else {
+                Result.failure(Exception("Failed to create reservation: ${response.status.value}"))
+            }
+        } catch (e: ClientRequestException) {
+            val errorBody = try { e.response.bodyAsText() } catch (ex: Exception) { "Unable to parse error body" }
+            Log.e(TAG, "Failed to create reservation - Status: ${e.response.status.value}, Body: $errorBody")
+            Result.failure(Exception("Failed to create reservation: ${e.response.status.value}"))
+        } catch (e: Exception) {
+            Log.e(TAG, "Create reservation failed with exception: ${e.message}", e)
+            Result.failure(Exception("Failed to create reservation: ${e.message}"))
         }
     }
 }

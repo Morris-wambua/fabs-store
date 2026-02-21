@@ -94,8 +94,10 @@ internal fun ReservationsTabContent(
 
     if (showWalkInBooking) {
         WalkInBookingScreen(
+            storeId = storeId,
+            storeViewModel = storeViewModel,
             onNavigateBack = { showWalkInBooking = false },
-            onConfirmBooking = { showWalkInBooking = false }
+            onBookingCreated = { showWalkInBooking = false }
         )
         return
     }
