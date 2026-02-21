@@ -316,31 +316,91 @@ enum class PostType {
 }
 
 @Serializable
+enum class PostTypeLevel {
+    PUBLIC, PRIVATE, FOLLOWERS_ONLY
+}
+
+@Serializable
 data class MediaS3Data(
-    val url: String,
-    val key: String,
-    val mediaType: PostType
+    val mediaUrl: String,
+    val filename: String,
+    val lastRefreshed: String? = null
 )
 
 @Serializable
-data class StorePostPayload(
-    val caption: String,
+data class PostPayload(
+    val caption: String? = null,
     val type: PostType,
     val mediaS3Data: MediaS3Data,
-    val storeId: String
+    val autoPlay: Boolean = false,
+    val postTypeLevel: PostTypeLevel? = null
 )
 
 @Serializable
-data class StorePostDTO(
+data class CommentDTO(
     val id: String? = null,
-    val caption: String,
-    val type: PostType,
-    val mediaUrl: String,
-    val mediaKey: String,
-    val storeId: String,
-    val storeName: String,
-    val createdAt: String? = null,
-    val updatedAt: String? = null,
-    val likes: Int = 0,
-    val comments: Int = 0
+    val userId: String? = null,
+    val userFirstName: String? = null,
+    val userLastName: String? = null,
+    val content: String,
+    val dateCreated: String? = null,
+    val lastEdited: String? = null,
+    val parentCommentId: String? = null,
+    val replies: List<CommentDTO> = emptyList(),
+    val edited: Boolean = false,
+    val totalReplies: Int = 0,
+    val currentPage: Int = 0,
+    val totalPages: Int = 0,
+    val hasMoreReplies: Boolean = false,
+    val likeCount: Int = 0,
+    val likedByCurrentUser: Boolean = false
+)
+
+@Serializable
+data class PostDTO(
+    val id: String? = null,
+    val storeId: String? = null,
+    val storeName: String? = null,
+    val caption: String? = null,
+    val type: PostType = PostType.IMAGE,
+    val mediaUrl: String? = null,
+    val comments: List<CommentDTO> = emptyList(),
+    val likeCount: Int = 0,
+    val shareCount: Int = 0,
+    val saveCount: Int = 0,
+    val dateCreated: String? = null,
+    val autoPlay: Boolean = false,
+    val likedByCurrentUser: Boolean = false,
+    val savedByCurrentUser: Boolean = false,
+    val totalComments: Int = 0,
+    @kotlinx.serialization.SerialName("currentPage")
+    val commentsCurrentPage: Int = 0,
+    @kotlinx.serialization.SerialName("totalPages")
+    val commentsTotalPages: Int = 0,
+    val hasMoreComments: Boolean = false,
+    val userId: String? = null,
+    val userFirstName: String? = null,
+    val userLastName: String? = null,
+    val displayName: String? = null,
+    val isUserPost: Boolean = false
+)
+
+@Serializable
+data class PagedPostResponse(
+    val content: List<PostDTO> = emptyList(),
+    val page: Int = 0,
+    val size: Int = 0,
+    val totalElements: Long = 0,
+    val totalPages: Int = 0,
+    val last: Boolean = true
+)
+
+@Serializable
+data class PagedCommentResponse(
+    val content: List<CommentDTO> = emptyList(),
+    val page: Int = 0,
+    val size: Int = 0,
+    val totalElements: Long = 0,
+    val totalPages: Int = 0,
+    val last: Boolean = true
 )
