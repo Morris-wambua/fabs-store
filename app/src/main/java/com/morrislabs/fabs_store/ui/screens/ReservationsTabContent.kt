@@ -209,6 +209,7 @@ internal fun ReservationsTabContent(
 }
 
 private fun ReservationFilter.toBackendStatus(): String = when (this) {
+    ReservationFilter.AWAITING_PAYMENT -> "BOOKED_PENDING_PAYMENT"
     ReservationFilter.PENDING_APPROVAL -> "PENDING_APPROVAL"
     ReservationFilter.UPCOMING -> "BOOKED_ACCEPTED"
     ReservationFilter.IN_PROGRESS -> "ACTIVE_SERVICE"

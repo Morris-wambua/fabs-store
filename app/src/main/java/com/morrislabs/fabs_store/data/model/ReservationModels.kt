@@ -80,6 +80,7 @@ data class TimeSlot(
 )
 
 enum class ReservationFilter(val displayName: String) {
+    AWAITING_PAYMENT("Awaiting Payment"),
     PENDING_APPROVAL("Pending Approval"),
     UPCOMING("Upcoming"),
     IN_PROGRESS("In Progress"),
