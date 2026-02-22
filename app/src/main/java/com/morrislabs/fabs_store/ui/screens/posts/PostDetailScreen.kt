@@ -20,8 +20,11 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.ChatBubbleOutline
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.FavoriteBorder
+import androidx.compose.material.icons.filled.Bookmark
+import androidx.compose.material.icons.filled.BookmarkBorder
 import androidx.compose.material.icons.filled.PlayCircleOutline
 import androidx.compose.material.icons.filled.Share
+import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
@@ -61,6 +64,7 @@ fun PostDetailScreen(
 ) {
     val postDetailState by postViewModel.postDetailState.collectAsState()
     val commentsState by postViewModel.commentsState.collectAsState()
+    val hasMoreComments by postViewModel.hasMoreComments.collectAsState()
 
     LaunchedEffect(postId) {
         postViewModel.fetchPostDetail(postId)
@@ -108,6 +112,7 @@ fun PostDetailScreen(
                 PostDetailContent(
                     post = state.data,
                     commentsState = commentsState,
+                    hasMoreComments = hasMoreComments,
                     postViewModel = postViewModel,
                     modifier = Modifier.padding(paddingValues)
                 )
@@ -139,6 +144,7 @@ fun PostDetailScreen(
 private fun PostDetailContent(
     post: PostDTO,
     commentsState: StoreViewModel.LoadingState<List<com.morrislabs.fabs_store.data.model.CommentDTO>>,
+    hasMoreComments: Boolean,
     postViewModel: PostViewModel,
     modifier: Modifier = Modifier
 ) {
@@ -168,7 +174,9 @@ private fun PostDetailContent(
 
             InteractionStatsRow(
                 post = post,
-                onLikeClick = { postViewModel.toggleLike(post.id ?: "") }
+                onLikeClick = { postViewModel.toggleLike(post.id ?: "") },
+                onSaveClick = { postViewModel.toggleSave(post.id ?: "") },
+                onShareClick = { postViewModel.sharePost(post.id ?: "") }
             )
 
             Spacer(modifier = Modifier.height(8.dp))
@@ -227,10 +235,16 @@ private fun PostDetailContent(
                         onDeleteComment = { commentId ->
                             postViewModel.deleteComment(post.id ?: "", commentId)
                         },
+                        onToggleCommentLike = { commentId ->
+                            postViewModel.toggleCommentLike(post.id ?: "", commentId)
+                        },
+                        onEditComment = { commentId, content ->
+                            postViewModel.editComment(post.id ?: "", commentId, content)
+                        },
                         onLoadMore = {
                             postViewModel.loadMoreComments(post.id ?: "")
                         },
-                        hasMore = post.hasMoreComments
+                        hasMore = hasMoreComments
                     )
                 }
 
@@ -285,7 +299,9 @@ private fun PostMediaSection(post: PostDTO) {
 @Composable
 private fun InteractionStatsRow(
     post: PostDTO,
-    onLikeClick: () -> Unit
+    onLikeClick: () -> Unit,
+    onSaveClick: () -> Unit,
+    onShareClick: () -> Unit
 ) {
     Row(
         modifier = Modifier
@@ -334,15 +350,56 @@ private fun InteractionStatsRow(
         }
 
         Row(verticalAlignment = Alignment.CenterVertically) {
+            IconButton(
+                onClick = onSaveClick,
+                modifier = Modifier.size(36.dp)
+            ) {
+                Icon(
+                    imageVector = if (post.savedByCurrentUser) Icons.Default.Bookmark else Icons.Default.BookmarkBorder,
+                    contentDescription = "Save",
+                    tint = if (post.savedByCurrentUser) MaterialTheme.colorScheme.primary
+                    else MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.size(22.dp)
+                )
+            }
+            Spacer(modifier = Modifier.width(2.dp))
+            Text(
+                text = "${post.saveCount}",
+                style = MaterialTheme.typography.labelLarge,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            IconButton(
+                onClick = onShareClick,
+                modifier = Modifier.size(36.dp)
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Share,
+                    contentDescription = "Shares",
+                    modifier = Modifier.size(20.dp),
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+            Spacer(modifier = Modifier.width(2.dp))
+            Text(
+                text = "${post.shareCount}",
+                style = MaterialTheme.typography.labelLarge,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+
+        Row(verticalAlignment = Alignment.CenterVertically) {
             Icon(
-                imageVector = Icons.Default.Share,
-                contentDescription = "Shares",
+                imageVector = Icons.Default.Visibility,
+                contentDescription = "Views",
                 modifier = Modifier.size(20.dp),
                 tint = MaterialTheme.colorScheme.onSurfaceVariant
             )
             Spacer(modifier = Modifier.width(6.dp))
             Text(
-                text = "${post.shareCount}",
+                text = "${post.viewCount}",
                 style = MaterialTheme.typography.labelLarge,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )

@@ -22,6 +22,7 @@ import io.ktor.client.request.delete
 import io.ktor.client.request.get
 import io.ktor.client.request.parameter
 import io.ktor.client.request.post
+import io.ktor.client.request.put
 import io.ktor.client.request.setBody
 import io.ktor.client.request.forms.formData
 import io.ktor.client.request.forms.submitFormWithBinaryData
@@ -135,6 +136,29 @@ class StorePostApiService(private val context: Context, private val tokenManager
         }
     }
 
+    suspend fun getCommentReplies(
+        postId: String,
+        commentId: String,
+        currentUserId: String? = null,
+        page: Int = 0,
+        size: Int = 10
+    ): Result<PagedCommentResponse> {
+        return try {
+            val client = clientConfig.createAuthenticatedClient(context, tokenManager)
+            val response = client.get("$baseUrl/api/posts/$postId/comments/$commentId/replies") {
+                parameter("page", page)
+                parameter("size", size)
+                currentUserId?.let { parameter("currentUserId", it) }
+            }
+            val responseText = response.bodyAsText()
+            val pagedResponse = json.decodeFromString<PagedCommentResponse>(responseText)
+            Result.success(pagedResponse)
+        } catch (e: Exception) {
+            Log.e(TAG, "Fetch replies failed: ${e.message}", e)
+            Result.failure(Exception("Failed to fetch replies"))
+        }
+    }
+
     suspend fun addComment(postId: String, content: String, userId: String): Result<PostDTO> {
         return try {
             val client = clientConfig.createAuthenticatedClient(context, tokenManager)
@@ -205,6 +229,82 @@ class StorePostApiService(private val context: Context, private val tokenManager
         } catch (e: Exception) {
             Log.e(TAG, "Toggle like failed: ${e.message}", e)
             Result.failure(Exception("Failed to toggle like"))
+        }
+    }
+
+    suspend fun toggleSave(postId: String, userId: String): Result<PostDTO> {
+        return try {
+            val client = clientConfig.createAuthenticatedClient(context, tokenManager)
+            val response = client.post("$baseUrl/api/posts/$postId/save") {
+                parameter("userId", userId)
+            }
+            val responseText = response.bodyAsText()
+            val post = json.decodeFromString<PostDTO>(responseText)
+            Result.success(post)
+        } catch (e: Exception) {
+            Log.e(TAG, "Toggle save failed: ${e.message}", e)
+            Result.failure(Exception("Failed to toggle save"))
+        }
+    }
+
+    suspend fun sharePost(postId: String): Result<PostDTO> {
+        return try {
+            val client = clientConfig.createAuthenticatedClient(context, tokenManager)
+            val response = client.post("$baseUrl/api/posts/$postId/share")
+            val responseText = response.bodyAsText()
+            val post = json.decodeFromString<PostDTO>(responseText)
+            Result.success(post)
+        } catch (e: Exception) {
+            Log.e(TAG, "Share post failed: ${e.message}", e)
+            Result.failure(Exception("Failed to share post"))
+        }
+    }
+
+    suspend fun incrementView(postId: String, userId: String? = null): Result<PostDTO> {
+        return try {
+            val client = clientConfig.createAuthenticatedClient(context, tokenManager)
+            val response = client.post("$baseUrl/api/posts/$postId/view") {
+                userId?.let { parameter("userId", it) }
+            }
+            val responseText = response.bodyAsText()
+            val post = json.decodeFromString<PostDTO>(responseText)
+            Result.success(post)
+        } catch (e: Exception) {
+            Log.e(TAG, "Increment view failed: ${e.message}", e)
+            Result.failure(Exception("Failed to increment view"))
+        }
+    }
+
+    suspend fun toggleCommentLike(postId: String, commentId: String, userId: String): Result<PostDTO> {
+        return try {
+            val client = clientConfig.createAuthenticatedClient(context, tokenManager)
+            val response = client.post("$baseUrl/api/posts/$postId/comments/$commentId/like") {
+                parameter("userId", userId)
+            }
+            val responseText = response.bodyAsText()
+            val post = json.decodeFromString<PostDTO>(responseText)
+            Result.success(post)
+        } catch (e: Exception) {
+            Log.e(TAG, "Toggle comment like failed: ${e.message}", e)
+            Result.failure(Exception("Failed to toggle comment like"))
+        }
+    }
+
+    suspend fun editComment(postId: String, commentId: String, content: String, userId: String): Result<PostDTO> {
+        return try {
+            val client = clientConfig.createAuthenticatedClient(context, tokenManager)
+            val payload = CommentDTO(content = content)
+            val response = client.put("$baseUrl/api/posts/$postId/comments/$commentId") {
+                contentType(ContentType.Application.Json)
+                parameter("userId", userId)
+                setBody(payload)
+            }
+            val responseText = response.bodyAsText()
+            val post = json.decodeFromString<PostDTO>(responseText)
+            Result.success(post)
+        } catch (e: Exception) {
+            Log.e(TAG, "Edit comment failed: ${e.message}", e)
+            Result.failure(Exception("Failed to edit comment"))
         }
     }
 

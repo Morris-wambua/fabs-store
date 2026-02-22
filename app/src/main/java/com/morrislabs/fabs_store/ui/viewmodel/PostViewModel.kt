@@ -44,8 +44,12 @@ class PostViewModel(application: Application) : AndroidViewModel(application) {
     private val _isRefreshing = MutableStateFlow(false)
     val isRefreshing: StateFlow<Boolean> = _isRefreshing.asStateFlow()
 
-    private var hasMoreComments = false
+    private val _hasMoreComments = MutableStateFlow(false)
+    val hasMoreComments: StateFlow<Boolean> = _hasMoreComments.asStateFlow()
+
+    private var hasMoreCommentsInternal = false
     private var currentCommentsPage = 0
+    private val viewedPostIds = mutableSetOf<String>()
 
     fun fetchStorePosts(storeId: String, page: Int = 0, size: Int = 20) {
         if (page == 0) _postsState.value = StoreViewModel.LoadingState.Loading
@@ -80,6 +84,7 @@ class PostViewModel(application: Application) : AndroidViewModel(application) {
             postApiService.getPostById(postId, userId)
                 .onSuccess { post ->
                     _postDetailState.value = StoreViewModel.LoadingState.Success(post)
+                    maybeTrackView(postId)
                 }
                 .onFailure { error ->
                     _postDetailState.value = StoreViewModel.LoadingState.Error(error.message ?: "Failed to fetch post")
@@ -91,6 +96,8 @@ class PostViewModel(application: Application) : AndroidViewModel(application) {
         if (page == 0) {
             _commentsState.value = StoreViewModel.LoadingState.Loading
             currentCommentsPage = 0
+            hasMoreCommentsInternal = false
+            _hasMoreComments.value = false
         }
 
         viewModelScope.launch {
@@ -101,7 +108,8 @@ class PostViewModel(application: Application) : AndroidViewModel(application) {
                         (_commentsState.value as? StoreViewModel.LoadingState.Success)?.data.orEmpty()
                     } else emptyList()
                     _commentsState.value = StoreViewModel.LoadingState.Success(currentComments + pagedResponse.content)
-                    hasMoreComments = !pagedResponse.last
+                    hasMoreCommentsInternal = !pagedResponse.last
+                    _hasMoreComments.value = hasMoreCommentsInternal
                     currentCommentsPage = pagedResponse.page
                 }
                 .onFailure { error ->
@@ -111,7 +119,7 @@ class PostViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun loadMoreComments(postId: String) {
-        if (!hasMoreComments) return
+        if (!hasMoreCommentsInternal) return
         fetchComments(postId, currentCommentsPage + 1)
     }
 
@@ -161,13 +169,63 @@ class PostViewModel(application: Application) : AndroidViewModel(application) {
             val userId = tokenManager.getUserId() ?: return@launch
             postApiService.toggleLike(postId, userId)
                 .onSuccess { updatedPost ->
-                    _postDetailState.value = StoreViewModel.LoadingState.Success(updatedPost)
-                    val currentPosts = (_postsState.value as? StoreViewModel.LoadingState.Success)?.data
-                    if (currentPosts != null) {
-                        _postsState.value = StoreViewModel.LoadingState.Success(
-                            currentPosts.map { if (it.id == postId) updatedPost else it }
-                        )
-                    }
+                    updatePostInState(updatedPost)
+                }
+                .onFailure { error ->
+                    Log.e(TAG, "Toggle like failed: ${error.message}", error)
+                }
+        }
+    }
+
+    fun toggleSave(postId: String) {
+        viewModelScope.launch {
+            val userId = tokenManager.getUserId() ?: return@launch
+            postApiService.toggleSave(postId, userId)
+                .onSuccess { updatedPost ->
+                    updatePostInState(updatedPost)
+                }
+                .onFailure { error ->
+                    Log.e(TAG, "Toggle save failed: ${error.message}", error)
+                }
+        }
+    }
+
+    fun sharePost(postId: String) {
+        viewModelScope.launch {
+            postApiService.sharePost(postId)
+                .onSuccess { updatedPost ->
+                    updatePostInState(updatedPost)
+                }
+                .onFailure { error ->
+                    Log.e(TAG, "Share post failed: ${error.message}", error)
+                }
+        }
+    }
+
+    fun toggleCommentLike(postId: String, commentId: String) {
+        viewModelScope.launch {
+            val userId = tokenManager.getUserId() ?: return@launch
+            postApiService.toggleCommentLike(postId, commentId, userId)
+                .onSuccess { updatedPost ->
+                    updatePostInState(updatedPost)
+                    fetchComments(postId)
+                }
+                .onFailure { error ->
+                    Log.e(TAG, "Toggle comment like failed: ${error.message}", error)
+                }
+        }
+    }
+
+    fun editComment(postId: String, commentId: String, content: String) {
+        viewModelScope.launch {
+            val userId = tokenManager.getUserId() ?: return@launch
+            postApiService.editComment(postId, commentId, content, userId)
+                .onSuccess { updatedPost ->
+                    updatePostInState(updatedPost)
+                    fetchComments(postId)
+                }
+                .onFailure { error ->
+                    Log.e(TAG, "Edit comment failed: ${error.message}", error)
                 }
         }
     }
@@ -223,6 +281,31 @@ class PostViewModel(application: Application) : AndroidViewModel(application) {
     fun resetCreatePostState() {
         _createPostState.value = CreatePostState.Idle
         _uploadState.value = UploadState.Idle
+    }
+
+    private fun updatePostInState(updatedPost: PostDTO) {
+        _postDetailState.value = StoreViewModel.LoadingState.Success(updatedPost)
+        val currentPosts = (_postsState.value as? StoreViewModel.LoadingState.Success)?.data
+        if (currentPosts != null) {
+            _postsState.value = StoreViewModel.LoadingState.Success(
+                currentPosts.map { if (it.id == updatedPost.id) updatedPost else it }
+            )
+        }
+    }
+
+    private fun maybeTrackView(postId: String) {
+        if (viewedPostIds.contains(postId)) return
+        viewedPostIds.add(postId)
+        viewModelScope.launch {
+            val userId = tokenManager.getUserId()
+            postApiService.incrementView(postId, userId)
+                .onSuccess { updatedPost ->
+                    updatePostInState(updatedPost)
+                }
+                .onFailure { error ->
+                    Log.e(TAG, "Increment view failed: ${error.message}", error)
+                }
+        }
     }
 
     sealed class CreatePostState {

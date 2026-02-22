@@ -58,7 +58,7 @@ fun PostGridItem(
     onMenuClick: (PostDTO) -> Unit,
     modifier: Modifier = Modifier
 ) {
-    val viewCount = post.likeCount + post.shareCount + post.saveCount
+    val viewCount = post.viewCount
     val isTrending = viewCount >= 100
 
     Card(

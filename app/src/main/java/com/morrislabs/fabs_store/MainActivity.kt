@@ -357,7 +357,8 @@ fun StoreApp(
                 storeId = storeId,
                 postViewModel = postViewModel,
                 onNavigateBack = { navController.popBackStack() },
-                onPostCreated = { navController.popBackStack() }
+                onPostCreated = { navController.popBackStack() },
+                onNavigateToLiveStream = { navController.navigate("live_stream") }
             )
         }
 
