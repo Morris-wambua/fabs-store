@@ -4,6 +4,7 @@ import android.content.Context
 import android.net.Uri
 import android.util.Log
 import com.morrislabs.fabs_store.data.model.CommentDTO
+import com.morrislabs.fabs_store.data.model.HashtagSuggestionDTO
 import com.morrislabs.fabs_store.data.model.PagedCommentResponse
 import com.morrislabs.fabs_store.data.model.PagedPostResponse
 import com.morrislabs.fabs_store.data.model.PostDTO
@@ -287,6 +288,22 @@ class StorePostApiService(private val context: Context, private val tokenManager
         } catch (e: Exception) {
             Log.e(TAG, "Toggle comment like failed: ${e.message}", e)
             Result.failure(Exception("Failed to toggle comment like"))
+        }
+    }
+
+    suspend fun getHashtagSuggestions(prefix: String? = null, size: Int = 10): Result<List<HashtagSuggestionDTO>> {
+        return try {
+            val client = clientConfig.createAuthenticatedClient(context, tokenManager)
+            val response = client.get("$baseUrl/api/posts/hashtags") {
+                parameter("size", size)
+                prefix?.let { parameter("prefix", it) }
+            }
+            val responseText = response.bodyAsText()
+            val hashtags = json.decodeFromString<List<HashtagSuggestionDTO>>(responseText)
+            Result.success(hashtags)
+        } catch (e: Exception) {
+            Log.e(TAG, "Fetch hashtag suggestions failed: ${e.message}", e)
+            Result.failure(Exception("Failed to fetch hashtag suggestions"))
         }
     }
 

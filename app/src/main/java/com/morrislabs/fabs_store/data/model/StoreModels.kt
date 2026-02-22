@@ -405,3 +405,9 @@ data class PagedCommentResponse(
     val totalPages: Int = 0,
     val last: Boolean = true
 )
+
+@Serializable
+data class HashtagSuggestionDTO(
+    val hashtag: String,
+    val usageCount: Long = 0
+)
