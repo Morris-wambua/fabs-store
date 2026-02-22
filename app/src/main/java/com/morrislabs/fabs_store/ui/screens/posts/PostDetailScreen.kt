@@ -243,11 +243,17 @@ private fun PostQueuePage(
     onShareClick: () -> Unit
 ) {
     var showHeart by remember(post.id) { mutableStateOf(false) }
+    var isPausedByUser by remember(post.id) { mutableStateOf(false) }
 
     LaunchedEffect(showHeart) {
         if (showHeart) {
             delay(650L)
             showHeart = false
+        }
+    }
+    LaunchedEffect(isVisiblePage) {
+        if (!isVisiblePage) {
+            isPausedByUser = false
         }
     }
 
@@ -258,12 +264,17 @@ private fun PostQueuePage(
     ) {
         PostMediaSection(
             post = post,
-            shouldAutoPlay = isVisiblePage,
+            shouldAutoPlay = isVisiblePage && !isPausedByUser,
             onMediaForbidden = onRefreshPost,
             modifier = Modifier
                 .fillMaxSize()
                 .pointerInput(post.id, post.likedByCurrentUser) {
                     detectTapGestures(
+                        onTap = {
+                            if (post.type == PostType.VIDEO && !post.mediaUrl.isNullOrBlank()) {
+                                isPausedByUser = !isPausedByUser
+                            }
+                        },
                         onDoubleTap = {
                             if (!post.likedByCurrentUser) {
                                 onLikeClick()

@@ -53,6 +53,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.graphics.drawscope.Stroke
@@ -76,6 +77,8 @@ fun CreatePostScreen(
 ) {
     val createPostState by postViewModel.createPostState.collectAsState()
     val uploadState by postViewModel.uploadState.collectAsState()
+    val hashtagSuggestions by postViewModel.hashtagSuggestions.collectAsState()
+    val showHashtagSuggestions by postViewModel.showHashtagSuggestions.collectAsState()
     val context = LocalContext.current
 
     var selectedTab by rememberSaveable { mutableIntStateOf(0) }
@@ -181,15 +184,15 @@ fun CreatePostScreen(
 
                     CaptionSection(
                         caption = caption,
-                        onCaptionChange = { caption = it }
-                    )
-
-                    Spacer(modifier = Modifier.height(20.dp))
-
-                    SuggestedTagsSection(
+                        onCaptionChange = {
+                            caption = it
+                            postViewModel.onCaptionInputChanged(it)
+                        },
+                        suggestions = hashtagSuggestions.map { it.hashtag to it.usageCount },
+                        showSuggestions = showHashtagSuggestions,
                         onTagClick = { tag ->
-                            caption = if (caption.isBlank()) tag
-                            else "$caption $tag"
+                            caption = applyHashtagSuggestion(caption, tag)
+                            postViewModel.clearHashtagSuggestions()
                         }
                     )
 
@@ -332,7 +335,10 @@ private fun MediaUploadArea(
 @Composable
 private fun CaptionSection(
     caption: String,
-    onCaptionChange: (String) -> Unit
+    onCaptionChange: (String) -> Unit,
+    suggestions: List<Pair<String, Long>>,
+    showSuggestions: Boolean,
+    onTagClick: (String) -> Unit
 ) {
     Text(
         "Caption",
@@ -352,55 +358,78 @@ private fun CaptionSection(
         maxLines = 6,
         shape = RoundedCornerShape(12.dp)
     )
-}
-
-@Composable
-private fun SuggestedTagsSection(
-    onTagClick: (String) -> Unit
-) {
-    val tags = listOf("#NewArrival", "#SpecialOffer", "#StoreUpdate", "#LimitedEdition")
-
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.SpaceBetween,
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Text(
-            "Suggested Tags",
-            style = MaterialTheme.typography.titleSmall,
-            fontWeight = FontWeight.SemiBold,
-            color = MaterialTheme.colorScheme.onSurface
-        )
-        Text(
-            "Add more",
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.primary,
-            fontWeight = FontWeight.Medium
-        )
-    }
-    Spacer(modifier = Modifier.height(8.dp))
-    Row(
-        horizontalArrangement = Arrangement.spacedBy(8.dp),
-        modifier = Modifier.fillMaxWidth()
-    ) {
-        tags.forEach { tag ->
-            Text(
-                text = tag,
-                modifier = Modifier
-                    .clip(RoundedCornerShape(20.dp))
-                    .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.1f))
-                    .border(
-                        1.dp,
-                        MaterialTheme.colorScheme.primary.copy(alpha = 0.3f),
-                        RoundedCornerShape(20.dp)
-                    )
-                    .clickable { onTagClick(tag) }
-                    .padding(horizontal = 12.dp, vertical = 6.dp),
-                style = MaterialTheme.typography.labelMedium,
-                color = MaterialTheme.colorScheme.primary
+    if (showSuggestions && suggestions.isNotEmpty()) {
+        Spacer(modifier = Modifier.height(8.dp))
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .shadow(8.dp, RoundedCornerShape(12.dp))
+                .clip(RoundedCornerShape(12.dp))
+                .background(MaterialTheme.colorScheme.surface)
+                .border(
+                    1.dp,
+                    MaterialTheme.colorScheme.outline.copy(alpha = 0.25f),
+                    RoundedCornerShape(12.dp)
+                )
+                .padding(6.dp)
+        ) {
+            HashtagSuggestionsSection(
+                tags = suggestions,
+                onTagClick = onTagClick
             )
         }
     }
+}
+
+@Composable
+private fun HashtagSuggestionsSection(
+    tags: List<Pair<String, Long>>,
+    onTagClick: (String) -> Unit
+) {
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        tags.forEach { (tag, usageCount) ->
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(12.dp))
+                    .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f))
+                    .border(
+                        1.dp,
+                        MaterialTheme.colorScheme.primary.copy(alpha = 0.25f),
+                        RoundedCornerShape(12.dp)
+                    )
+                    .clickable { onTagClick(tag) }
+                    .padding(horizontal = 12.dp, vertical = 10.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = tag,
+                    style = MaterialTheme.typography.labelLarge,
+                    color = MaterialTheme.colorScheme.primary
+                )
+                Text(
+                    text = "$usageCount uses",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+        }
+    }
+}
+
+private fun applyHashtagSuggestion(caption: String, hashtag: String): String {
+    if (caption.isBlank()) return "$hashtag "
+    var index = caption.length - 1
+    while (index >= 0 && !caption[index].isWhitespace()) {
+        index--
+    }
+    val tokenStart = index + 1
+    val token = caption.substring(tokenStart)
+    if (token.startsWith("#")) {
+        return caption.substring(0, tokenStart) + hashtag + " "
+    }
+    return if (caption.endsWith(" ")) "$caption$hashtag " else "$caption $hashtag "
 }
 
 @Composable

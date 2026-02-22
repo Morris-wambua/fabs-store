@@ -7,6 +7,7 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.morrislabs.fabs_store.data.api.StorePostApiService
 import com.morrislabs.fabs_store.data.model.CommentDTO
+import com.morrislabs.fabs_store.data.model.HashtagSuggestionDTO
 import com.morrislabs.fabs_store.data.model.MediaS3Data
 import com.morrislabs.fabs_store.data.model.PostDTO
 import com.morrislabs.fabs_store.data.model.PostPayload
@@ -15,6 +16,8 @@ import com.morrislabs.fabs_store.util.TokenManager
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
 class PostViewModel(application: Application) : AndroidViewModel(application) {
@@ -47,9 +50,16 @@ class PostViewModel(application: Application) : AndroidViewModel(application) {
     private val _hasMoreComments = MutableStateFlow(false)
     val hasMoreComments: StateFlow<Boolean> = _hasMoreComments.asStateFlow()
 
+    private val _hashtagSuggestions = MutableStateFlow<List<HashtagSuggestionDTO>>(emptyList())
+    val hashtagSuggestions: StateFlow<List<HashtagSuggestionDTO>> = _hashtagSuggestions.asStateFlow()
+
+    private val _showHashtagSuggestions = MutableStateFlow(false)
+    val showHashtagSuggestions: StateFlow<Boolean> = _showHashtagSuggestions.asStateFlow()
+
     private var hasMoreCommentsInternal = false
     private var currentCommentsPage = 0
     private val viewedPostIds = mutableSetOf<String>()
+    private var hashtagSearchJob: Job? = null
 
     fun fetchStorePosts(storeId: String, page: Int = 0, size: Int = 20) {
         if (page == 0) _postsState.value = StoreViewModel.LoadingState.Loading
@@ -281,6 +291,34 @@ class PostViewModel(application: Application) : AndroidViewModel(application) {
     fun resetCreatePostState() {
         _createPostState.value = CreatePostState.Idle
         _uploadState.value = UploadState.Idle
+        clearHashtagSuggestions()
+    }
+
+    fun onCaptionInputChanged(caption: String) {
+        val activeToken = extractActiveHashtagToken(caption)
+        if (activeToken == null) {
+            clearHashtagSuggestions()
+            return
+        }
+
+        hashtagSearchJob?.cancel()
+        hashtagSearchJob = viewModelScope.launch {
+            delay(180)
+            postApiService.getHashtagSuggestions(activeToken.removePrefix("#"), 12)
+                .onSuccess { tags ->
+                    _hashtagSuggestions.value = tags
+                    _showHashtagSuggestions.value = tags.isNotEmpty()
+                }
+                .onFailure {
+                    clearHashtagSuggestions()
+                }
+        }
+    }
+
+    fun clearHashtagSuggestions() {
+        hashtagSearchJob?.cancel()
+        _hashtagSuggestions.value = emptyList()
+        _showHashtagSuggestions.value = false
     }
 
     private fun updatePostInState(updatedPost: PostDTO) {
@@ -306,6 +344,19 @@ class PostViewModel(application: Application) : AndroidViewModel(application) {
                     Log.e(TAG, "Increment view failed: ${error.message}", error)
                 }
         }
+    }
+
+    private fun extractActiveHashtagToken(caption: String): String? {
+        if (caption.isBlank()) return null
+        var index = caption.length - 1
+        while (index >= 0 && !caption[index].isWhitespace()) {
+            index--
+        }
+        val token = caption.substring(index + 1)
+        if (!token.startsWith("#")) return null
+        if (token == "#") return token
+        val body = token.removePrefix("#")
+        return if (body.all { it.isLetterOrDigit() || it == '_' }) token else null
     }
 
     sealed class CreatePostState {
