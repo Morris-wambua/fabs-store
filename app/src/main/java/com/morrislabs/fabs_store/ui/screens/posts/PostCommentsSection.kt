@@ -1,4 +1,4 @@
-package com.morrislabs.fabs_store.ui.screens.posts
+﻿package com.morrislabs.fabs_store.ui.screens.posts
 
 import androidx.compose.animation.animateContentSize
 import androidx.compose.foundation.background
@@ -15,13 +15,11 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.Reply
 import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material.icons.filled.ChatBubbleOutline
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.FavoriteBorder
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -53,6 +51,8 @@ fun PostCommentsSection(
     onAddComment: (String) -> Unit,
     onReply: (commentId: String, content: String) -> Unit,
     onDeleteComment: (String) -> Unit,
+    onToggleCommentLike: (String) -> Unit,
+    onEditComment: (commentId: String, content: String) -> Unit,
     onLoadMore: () -> Unit,
     hasMore: Boolean
 ) {
@@ -72,6 +72,8 @@ fun PostCommentsSection(
                         comment = comment,
                         onReply = onReply,
                         onDeleteComment = onDeleteComment,
+                        onToggleCommentLike = onToggleCommentLike,
+                        onEditComment = onEditComment,
                         isLastItem = comment == comments.lastOrNull()
                     )
                 }
@@ -187,10 +189,14 @@ private fun CommentItem(
     comment: CommentDTO,
     onReply: (commentId: String, content: String) -> Unit,
     onDeleteComment: (String) -> Unit,
+    onToggleCommentLike: (String) -> Unit,
+    onEditComment: (commentId: String, content: String) -> Unit,
     isLastItem: Boolean = false
 ) {
     var showReplyField by remember { mutableStateOf(false) }
     var replyText by remember { mutableStateOf("") }
+    var isEditing by remember { mutableStateOf(false) }
+    var editedText by remember { mutableStateOf(comment.content) }
 
     Column(
         modifier = Modifier
@@ -243,6 +249,18 @@ private fun CommentItem(
             }
 
             IconButton(
+                onClick = { isEditing = !isEditing },
+                modifier = Modifier.size(32.dp)
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Edit,
+                    contentDescription = "Edit comment",
+                    modifier = Modifier.size(18.dp),
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
+                )
+            }
+
+            IconButton(
                 onClick = { onDeleteComment(comment.id ?: "") },
                 modifier = Modifier.size(32.dp)
             ) {
@@ -257,11 +275,47 @@ private fun CommentItem(
 
         Spacer(modifier = Modifier.height(4.dp))
 
-        Text(
-            text = comment.content,
-            style = MaterialTheme.typography.bodyMedium,
-            modifier = Modifier.padding(start = 44.dp)
-        )
+        if (isEditing) {
+            OutlinedTextField(
+                value = editedText,
+                onValueChange = { editedText = it },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(start = 44.dp),
+                textStyle = MaterialTheme.typography.bodyMedium,
+                maxLines = 4
+            )
+            Row(modifier = Modifier.padding(start = 44.dp, top = 4.dp)) {
+                Text(
+                    text = "Save",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.primary,
+                    fontWeight = FontWeight.SemiBold,
+                    modifier = Modifier.clickable {
+                        if (editedText.isNotBlank()) {
+                            onEditComment(comment.id ?: "", editedText.trim())
+                            isEditing = false
+                        }
+                    }
+                )
+                Spacer(modifier = Modifier.width(12.dp))
+                Text(
+                    text = "Cancel",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.clickable {
+                        editedText = comment.content
+                        isEditing = false
+                    }
+                )
+            }
+        } else {
+            Text(
+                text = comment.content,
+                style = MaterialTheme.typography.bodyMedium,
+                modifier = Modifier.padding(start = 44.dp)
+            )
+        }
 
         Spacer(modifier = Modifier.height(4.dp))
 
@@ -271,11 +325,13 @@ private fun CommentItem(
         ) {
             Row(
                 verticalAlignment = Alignment.CenterVertically,
-                modifier = Modifier.padding(end = 16.dp)
+                modifier = Modifier
+                    .padding(end = 16.dp)
+                    .clickable { onToggleCommentLike(comment.id ?: "") }
             ) {
                 Icon(
                     imageVector = Icons.Default.FavoriteBorder,
-                    contentDescription = "Like count",
+                    contentDescription = "Like comment",
                     modifier = Modifier.size(16.dp),
                     tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
                 )
@@ -306,10 +362,6 @@ private fun CommentItem(
                         replyText = ""
                         showReplyField = false
                     }
-                },
-                onDismiss = {
-                    showReplyField = false
-                    replyText = ""
                 }
             )
         }
@@ -335,8 +387,7 @@ private fun CommentItem(
 private fun ReplyInput(
     replyText: String,
     onReplyTextChange: (String) -> Unit,
-    onSend: () -> Unit,
-    onDismiss: () -> Unit
+    onSend: () -> Unit
 ) {
     Row(
         modifier = Modifier
@@ -442,3 +493,4 @@ private fun CommentAvatar(
         )
     }
 }
+

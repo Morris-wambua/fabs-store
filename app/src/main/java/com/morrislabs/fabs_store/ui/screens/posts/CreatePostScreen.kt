@@ -111,7 +111,7 @@ fun CreatePostScreen(
 
     val isUploading = uploadState is PostViewModel.UploadState.Uploading
     val isCreating = createPostState is PostViewModel.CreatePostState.Loading
-    val canPost = mediaUrl.isNotBlank() && caption.isNotBlank() && !isUploading && !isCreating
+    val canPost = storeId.isNotBlank() && mediaUrl.isNotBlank() && caption.isNotBlank() && !isUploading && !isCreating
 
     Scaffold(
         topBar = {

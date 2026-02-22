@@ -1,5 +1,6 @@
 package com.morrislabs.fabs_store.ui.screens.posts
 
+import androidx.annotation.OptIn
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -16,6 +17,12 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.tween
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.MoreVert
@@ -36,20 +43,38 @@ import androidx.compose.material3.TabRowDefaults
 import androidx.compose.material3.TabRowDefaults.tabIndicatorOffset
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.viewinterop.AndroidView
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.media3.common.MediaItem
+import androidx.media3.common.Player
+import androidx.media3.common.util.UnstableApi
+import androidx.media3.exoplayer.ExoPlayer
+import androidx.media3.ui.AspectRatioFrameLayout
+import androidx.media3.ui.PlayerView
 import coil.compose.AsyncImage
 import coil.request.ImageRequest
 import com.morrislabs.fabs_store.data.model.PostDTO
 import com.morrislabs.fabs_store.data.model.PostType
+import kotlinx.coroutines.delay
 
 @Composable
 fun PostGridItem(
@@ -58,8 +83,11 @@ fun PostGridItem(
     onMenuClick: (PostDTO) -> Unit,
     modifier: Modifier = Modifier
 ) {
-    val viewCount = post.likeCount + post.shareCount + post.saveCount
+    val viewCount = post.viewCount
     val isTrending = viewCount >= 100
+    var isMediaLoaded by remember(post.id, post.mediaUrl, post.type) {
+        mutableStateOf(post.mediaUrl.isNullOrEmpty())
+    }
 
     Card(
         modifier = modifier
@@ -78,7 +106,13 @@ fun PostGridItem(
                     .clip(RoundedCornerShape(12.dp))
                     .background(MaterialTheme.colorScheme.surfaceVariant)
             ) {
-                if (!post.mediaUrl.isNullOrEmpty()) {
+                if (post.type == PostType.VIDEO && !post.mediaUrl.isNullOrEmpty()) {
+                    VideoThumbnailPreview(
+                        mediaUrl = post.mediaUrl,
+                        onFirstFrameRendered = { isMediaLoaded = true },
+                        modifier = Modifier.fillMaxSize()
+                    )
+                } else if (!post.mediaUrl.isNullOrEmpty()) {
                     AsyncImage(
                         model = ImageRequest.Builder(LocalContext.current)
                             .data(post.mediaUrl)
@@ -86,21 +120,35 @@ fun PostGridItem(
                             .build(),
                         contentDescription = post.caption,
                         modifier = Modifier.fillMaxSize(),
-                        contentScale = ContentScale.Crop
+                        contentScale = ContentScale.Crop,
+                        onSuccess = { isMediaLoaded = true },
+                        onError = { isMediaLoaded = true }
+                    )
+                }
+
+                if (!isMediaLoaded) {
+                    VerticalRippleLoadingPlaceholder(
+                        modifier = Modifier.fillMaxSize()
                     )
                 }
 
                 // Video play icon overlay
                 if (post.type == PostType.VIDEO) {
                     Box(
-                        modifier = Modifier.fillMaxSize(),
-                        contentAlignment = Alignment.Center
+                        modifier = Modifier
+                            .align(Alignment.TopStart)
+                            .padding(8.dp)
+                            .background(
+                                Color.Black.copy(alpha = 0.45f),
+                                RoundedCornerShape(4.dp)
+                            )
+                            .padding(horizontal = 4.dp, vertical = 2.dp)
                     ) {
                         Icon(
                             imageVector = Icons.Default.PlayCircleFilled,
                             contentDescription = "Video",
-                            tint = Color.White.copy(alpha = 0.9f),
-                            modifier = Modifier.size(40.dp)
+                            tint = Color.White.copy(alpha = 0.95f),
+                            modifier = Modifier.size(16.dp)
                         )
                     }
                 }
@@ -195,6 +243,100 @@ fun PostGridItem(
     }
 }
 
+@OptIn(UnstableApi::class)
+@Composable
+private fun VideoThumbnailPreview(
+    mediaUrl: String,
+    onFirstFrameRendered: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val context = LocalContext.current
+    val exoPlayer = remember(mediaUrl) {
+        ExoPlayer.Builder(context).build().apply {
+            setMediaItem(MediaItem.fromUri(mediaUrl))
+            volume = 0f
+            playWhenReady = true
+            repeatMode = ExoPlayer.REPEAT_MODE_OFF
+            prepare()
+        }
+    }
+
+    LaunchedEffect(exoPlayer) {
+        while (true) {
+            if (exoPlayer.isPlaying && exoPlayer.currentPosition >= 4_000L) {
+                exoPlayer.seekTo(0L)
+            }
+            delay(200L)
+        }
+    }
+
+    DisposableEffect(exoPlayer) {
+        val listener = object : Player.Listener {
+            override fun onRenderedFirstFrame() {
+                onFirstFrameRendered()
+            }
+        }
+        exoPlayer.addListener(listener)
+        onDispose {
+            exoPlayer.removeListener(listener)
+        }
+    }
+
+    DisposableEffect(exoPlayer) {
+        onDispose {
+            exoPlayer.release()
+        }
+    }
+
+    AndroidView(
+        factory = { ctx ->
+            PlayerView(ctx).apply {
+                useController = false
+                resizeMode = AspectRatioFrameLayout.RESIZE_MODE_ZOOM
+                player = exoPlayer
+            }
+        },
+        modifier = modifier,
+        update = { view ->
+            view.player = exoPlayer
+        }
+    )
+}
+
+@Composable
+private fun VerticalRippleLoadingPlaceholder(modifier: Modifier = Modifier) {
+    val transition = rememberInfiniteTransition(label = "ripple_transition")
+    val progress by transition.animateFloat(
+        initialValue = 1f,
+        targetValue = -0.25f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(durationMillis = 1200, easing = LinearEasing),
+            repeatMode = RepeatMode.Restart
+        ),
+        label = "ripple_progress"
+    )
+    val bandWidthPx = with(LocalDensity.current) { 72.dp.toPx() }
+
+    Box(
+        modifier = modifier
+            .background(Color(0xFFBDBDBD))
+            .drawWithContent {
+                drawContent()
+                val startX = size.width * progress
+                val brush = Brush.linearGradient(
+                    colors = listOf(
+                        Color.Transparent,
+                        Color.White.copy(alpha = 0.32f),
+                        Color.Transparent
+                    ),
+                    start = Offset(startX, 0f),
+                    end = Offset(startX + bandWidthPx, 0f)
+                )
+                drawRect(brush = brush)
+            }
+    )
+}
+
 @Composable
 fun PostsTabRow(
     selectedTabIndex: Int,
@@ -218,19 +360,17 @@ fun PostsTabRow(
         }
     ) {
         tabs.forEachIndexed { index, title ->
-            val enabled = index == 0
             Tab(
                 selected = selectedTabIndex == index,
-                onClick = { if (enabled) onTabSelected(index) },
-                enabled = enabled,
+                onClick = { onTabSelected(index) },
                 text = {
                     Text(
                         text = title,
                         style = MaterialTheme.typography.labelLarge,
-                        color = when {
-                            selectedTabIndex == index -> MaterialTheme.colorScheme.primary
-                            !enabled -> MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f)
-                            else -> MaterialTheme.colorScheme.onSurfaceVariant
+                        color = if (selectedTabIndex == index) {
+                            MaterialTheme.colorScheme.primary
+                        } else {
+                            MaterialTheme.colorScheme.onSurfaceVariant
                         }
                     )
                 }

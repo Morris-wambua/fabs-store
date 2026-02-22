@@ -368,6 +368,7 @@ data class PostDTO(
     val likeCount: Int = 0,
     val shareCount: Int = 0,
     val saveCount: Int = 0,
+    val viewCount: Int = 0,
     val dateCreated: String? = null,
     val autoPlay: Boolean = false,
     val likedByCurrentUser: Boolean = false,

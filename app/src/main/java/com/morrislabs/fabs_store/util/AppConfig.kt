@@ -6,6 +6,6 @@ object AppConfig {
         const val STAGING_BASE_URL = "https://fabs-backend.onrender.com/fabs/app"
         const val ADB_REVERSE_LOCALHOST_URL = "http://127.0.0.1:8080/fabs/app"
         const val LOCAL_NETWORK_URL = "http://192.168.100.253:8080/fabs/app"
-        const val BASE_URL = ADB_REVERSE_LOCALHOST_URL
+        const val BASE_URL = STAGING_BASE_URL
     }
 }
