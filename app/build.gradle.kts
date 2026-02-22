@@ -79,6 +79,8 @@ dependencies {
 
     // Image loading
     implementation(libs.coil.compose)
+    implementation(libs.androidx.media3.exoplayer)
+    implementation(libs.androidx.media3.ui)
 
     // Security Crypto (for encryption)
     implementation(libs.androidx.security.crypto)
@@ -89,6 +91,7 @@ dependencies {
     implementation(libs.mapsCompose)
     implementation(libs.androidMapsUtils)
     implementation(libs.accompanistPermissions)
+    implementation(libs.media3.exoplayer)
 
     // Testing
     testImplementation(libs.junit)

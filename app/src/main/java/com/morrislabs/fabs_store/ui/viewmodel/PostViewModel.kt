@@ -83,7 +83,7 @@ class PostViewModel(application: Application) : AndroidViewModel(application) {
             val userId = tokenManager.getUserId()
             postApiService.getPostById(postId, userId)
                 .onSuccess { post ->
-                    _postDetailState.value = StoreViewModel.LoadingState.Success(post)
+                    updatePostInState(post)
                     maybeTrackView(postId)
                 }
                 .onFailure { error ->
