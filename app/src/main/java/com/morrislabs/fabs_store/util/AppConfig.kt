@@ -12,10 +12,12 @@ object AppConfig {
         // 10.0.2.2 is the specific IP for the standard Android Emulator to see your PC's localhost
         const val EMULATOR_BASE_URL = "http://10.0.2.2:8080/fabs/app"
 
+        const val ADB_REVERSE_LOCALHOST_URL = "http://127.0.0.1:8080/fabs/app"
+
         // This is perfect for physical device testing on the same WiFi
         const val LOCAL_NETWORK_URL = "http://192.168.100.253:8080/fabs/app"
 
         // 💡 Pro-Tip: Switch this automatically based on BuildType
-        val BASE_URL = if (BuildConfig.DEBUG) LOCAL_NETWORK_URL else LOCAL_NETWORK_URL
+        val BASE_URL = if (BuildConfig.DEBUG) ADB_REVERSE_LOCALHOST_URL else ADB_REVERSE_LOCALHOST_URL
     }
 }
