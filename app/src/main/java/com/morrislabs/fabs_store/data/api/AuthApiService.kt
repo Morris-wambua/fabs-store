@@ -3,6 +3,7 @@ package com.morrislabs.fabs_store.data.api
 import android.util.Log
 import com.morrislabs.fabs_store.data.model.CredentialsDTO
 import com.morrislabs.fabs_store.data.model.ErrorResponse
+import com.morrislabs.fabs_store.data.model.GoogleAuthRequest
 import com.morrislabs.fabs_store.data.model.LoginDTO
 import com.morrislabs.fabs_store.data.model.RefreshTokenDTO
 import com.morrislabs.fabs_store.data.model.RegisterDTO
@@ -202,6 +203,39 @@ class AuthApiService {
         } catch (e: Exception) {
             Log.e(TAG, "Token refresh failed with exception", e)
             Result.failure(e)
+        }
+    }
+
+    suspend fun googleAuth(idToken: String, role: UserRole = UserRole.STORE_OWNER): Result<LoginDTO> {
+        return try {
+            val request = GoogleAuthRequest(idToken = idToken, role = role)
+
+            Log.d(TAG, "Attempting Google auth")
+
+            val response = client.post("$baseUrl/api/google/auth") {
+                contentType(ContentType.Application.Json)
+                setBody(request)
+            }
+
+            val responseText = response.bodyAsText()
+            Log.d(TAG, "Google auth response received")
+
+            val json = Json { ignoreUnknownKeys = true }
+            val loginDTO = json.decodeFromString<LoginDTO>(responseText)
+
+            if (loginDTO.token.isNullOrEmpty() || loginDTO.id.isNullOrEmpty()) {
+                Result.failure(Exception("Invalid Google auth response: missing token or user ID"))
+            } else {
+                Result.success(loginDTO)
+            }
+        } catch (e: ClientRequestException) {
+            val errorBody = e.response.bodyAsText()
+            Log.e(TAG, "Google auth failed with status ${e.response.status}: $errorBody")
+            val errorMessage = parseErrorResponse(errorBody)
+            Result.failure(Exception(errorMessage))
+        } catch (e: Exception) {
+            Log.e(TAG, "Google auth failed with exception", e)
+            Result.failure(Exception(e.message ?: "Google authentication failed"))
         }
     }
 

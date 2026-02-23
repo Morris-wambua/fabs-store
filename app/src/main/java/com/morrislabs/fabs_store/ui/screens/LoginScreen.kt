@@ -1,5 +1,9 @@
 package com.morrislabs.fabs_store.ui.screens
 
+import android.app.Activity
+import android.widget.Toast
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -58,7 +62,11 @@ import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.google.android.gms.auth.api.signin.GoogleSignIn
+import com.google.android.gms.auth.api.signin.GoogleSignInOptions
+import com.google.android.gms.common.api.ApiException
 import com.morrislabs.fabs_store.R
 import com.morrislabs.fabs_store.ui.components.ErrorDialog
 import com.morrislabs.fabs_store.ui.viewmodel.AuthViewModel
@@ -70,6 +78,8 @@ fun LoginScreen(
     onForgotPassword: () -> Unit,
     authViewModel: AuthViewModel = viewModel()
 ) {
+    val context = LocalContext.current
+
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
     var rememberMe by remember { mutableStateOf(false) }
@@ -78,6 +88,34 @@ fun LoginScreen(
     val scrollState = rememberScrollState()
 
     val loginState by authViewModel.loginState.collectAsState()
+    val googleAuthState by authViewModel.googleAuthState.collectAsState()
+
+    val gso = remember {
+        GoogleSignInOptions.Builder(GoogleSignInOptions.DEFAULT_SIGN_IN)
+            .requestIdToken("531035990883-6noorqsn6p61ilak4b7j3muhcspp3ifj.apps.googleusercontent.com")
+            .requestEmail()
+            .build()
+    }
+
+    val googleSignInClient = remember { GoogleSignIn.getClient(context, gso) }
+
+    val googleSignInLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.StartActivityForResult()
+    ) { result ->
+        if (result.resultCode == Activity.RESULT_OK) {
+            val task = GoogleSignIn.getSignedInAccountFromIntent(result.data)
+            try {
+                val account = task.getResult(ApiException::class.java)
+                account.idToken?.let { idToken ->
+                    authViewModel.googleAuth(idToken)
+                } ?: run {
+                    Toast.makeText(context, "Failed to get Google ID token", Toast.LENGTH_SHORT).show()
+                }
+            } catch (e: ApiException) {
+                Toast.makeText(context, "Google sign-in failed", Toast.LENGTH_SHORT).show()
+            }
+        }
+    }
 
     var showErrorDialog by remember { mutableStateOf(false) }
     var generalErrorMessage by remember { mutableStateOf("") }
@@ -134,6 +172,20 @@ fun LoginScreen(
                 hasInvalidCredentialsError = false
                 showErrorDialog = false
             }
+        }
+    }
+
+    LaunchedEffect(googleAuthState) {
+        when (googleAuthState) {
+            is AuthViewModel.GoogleAuthState.Success -> {
+                val userId = (googleAuthState as AuthViewModel.GoogleAuthState.Success).data.id ?: ""
+                onLoginSuccess(userId)
+            }
+            is AuthViewModel.GoogleAuthState.Error -> {
+                generalErrorMessage = (googleAuthState as AuthViewModel.GoogleAuthState.Error).message
+                showErrorDialog = true
+            }
+            else -> {}
         }
     }
 
@@ -376,6 +428,50 @@ fun LoginScreen(
                     color = DividerDefaults.color
                 )
             }
+
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(48.dp)
+                    .clip(RoundedCornerShape(8.dp))
+                    .border(
+                        width = 1.dp,
+                        color = Color.LightGray,
+                        shape = RoundedCornerShape(8.dp)
+                    )
+                    .clickable(
+                        enabled = googleAuthState !is AuthViewModel.GoogleAuthState.Loading
+                    ) {
+                        googleSignInClient.signOut().addOnCompleteListener {
+                            googleSignInLauncher.launch(googleSignInClient.signInIntent)
+                        }
+                    }
+                    .padding(horizontal = 16.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                if (googleAuthState is AuthViewModel.GoogleAuthState.Loading) {
+                    CircularProgressIndicator(modifier = Modifier.size(24.dp))
+                } else {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.Center
+                    ) {
+                        Icon(
+                            painter = painterResource(id = R.drawable.fabs_store_logo),
+                            contentDescription = "Google",
+                            modifier = Modifier.size(20.dp),
+                            tint = Color.Unspecified
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(
+                            text = "Sign in with Google",
+                            style = MaterialTheme.typography.bodyMedium
+                        )
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(8.dp))
 
             Row(
                 modifier = Modifier

@@ -69,3 +69,9 @@ data class ErrorResponse(
     val status: Int? = null,
     val code: String? = null
 )
+
+@Serializable
+data class GoogleAuthRequest(
+    val idToken: String,
+    val role: UserRole = UserRole.STORE_OWNER
+)
