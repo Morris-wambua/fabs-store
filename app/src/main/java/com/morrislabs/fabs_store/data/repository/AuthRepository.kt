@@ -3,6 +3,7 @@ package com.morrislabs.fabs_store.data.repository
 import com.morrislabs.fabs_store.data.api.AuthApiService
 import com.morrislabs.fabs_store.data.model.LoginDTO
 import com.morrislabs.fabs_store.data.model.RefreshTokenDTO
+import com.morrislabs.fabs_store.data.model.UserRole
 
 class AuthRepository(
     private val apiService: AuthApiService = AuthApiService()
@@ -28,5 +29,9 @@ class AuthRepository(
 
     suspend fun refreshToken(refreshToken: String): Result<RefreshTokenDTO> {
         return apiService.refreshToken(refreshToken)
+    }
+
+    suspend fun googleAuth(idToken: String, role: UserRole = UserRole.STORE_OWNER): Result<LoginDTO> {
+        return apiService.googleAuth(idToken, role)
     }
 }

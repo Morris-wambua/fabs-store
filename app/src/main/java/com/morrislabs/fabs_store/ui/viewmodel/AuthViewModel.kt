@@ -26,6 +26,9 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
     private val _registerState = MutableStateFlow<RegisterState>(RegisterState.Idle)
     val registerState: StateFlow<RegisterState> = _registerState.asStateFlow()
 
+    private val _googleAuthState = MutableStateFlow<GoogleAuthState>(GoogleAuthState.Idle)
+    val googleAuthState: StateFlow<GoogleAuthState> = _googleAuthState.asStateFlow()
+
     fun login(email: String, password: String) {
         _loginState.value = LoginState.Loading
 
@@ -103,6 +106,37 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
+    fun googleAuth(idToken: String) {
+        _googleAuthState.value = GoogleAuthState.Loading
+
+        viewModelScope.launch {
+            Log.d(TAG, "Attempting Google auth")
+
+            repository.googleAuth(idToken)
+                .onSuccess { loginDTO ->
+                    Log.d(TAG, "Google auth successful")
+
+                    loginDTO.token?.let { tokenManager.saveToken(it) }
+                    loginDTO.refreshToken?.let { tokenManager.saveRefreshToken(it) }
+
+                    if (loginDTO.id != null && loginDTO.firstName != null && loginDTO.lastName != null) {
+                        tokenManager.saveUserInfo(loginDTO.id, loginDTO.firstName, loginDTO.lastName)
+                    }
+
+                    _googleAuthState.value = GoogleAuthState.Success(loginDTO)
+                }
+                .onFailure { error ->
+                    val errorMessage = error.message ?: "Google authentication failed"
+                    Log.e(TAG, "Google auth failed: $errorMessage", error)
+                    _googleAuthState.value = GoogleAuthState.Error(errorMessage)
+                }
+        }
+    }
+
+    fun resetGoogleAuthState() {
+        _googleAuthState.value = GoogleAuthState.Idle
+    }
+
     fun isLoggedIn(): Boolean {
         return tokenManager.isLoggedIn()
     }
@@ -150,6 +184,7 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
     fun resetAllStates() {
         _loginState.value = LoginState.Idle
         _registerState.value = RegisterState.Idle
+        _googleAuthState.value = GoogleAuthState.Idle
     }
 
     fun resetLoginState() {
@@ -178,5 +213,12 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
         data object Loading : RegisterState()
         data class Success(val data: LoginDTO) : RegisterState()
         data class Error(val message: String) : RegisterState()
+    }
+
+    sealed class GoogleAuthState {
+        data object Idle : GoogleAuthState()
+        data object Loading : GoogleAuthState()
+        data class Success(val data: LoginDTO) : GoogleAuthState()
+        data class Error(val message: String) : GoogleAuthState()
     }
 }
