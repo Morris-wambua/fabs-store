@@ -42,6 +42,7 @@ import com.morrislabs.fabs_store.ui.screens.dashboard.DashboardScreen
 import com.morrislabs.fabs_store.ui.screens.posts.StorePostsScreen
 import com.morrislabs.fabs_store.ui.viewmodel.ExpertViewModel
 import com.morrislabs.fabs_store.ui.viewmodel.PostViewModel
+import com.morrislabs.fabs_store.ui.viewmodel.ReviewViewModel
 import com.morrislabs.fabs_store.ui.viewmodel.StoreViewModel
 
 private enum class BottomNavItem(
@@ -62,6 +63,7 @@ fun MainScreen(
     storeViewModel: StoreViewModel,
     expertViewModel: ExpertViewModel,
     postViewModel: PostViewModel,
+    reviewViewModel: ReviewViewModel,
     onNavigateToSettings: () -> Unit,
     onNavigateToCreateExpert: (String) -> Unit,
     onNavigateToExpertDetails: (String) -> Unit,
@@ -70,6 +72,7 @@ fun MainScreen(
     onNavigateToStoreProfile: () -> Unit,
     onNavigateToCreatePost: () -> Unit,
     onNavigateToPostDetail: (String) -> Unit,
+    onNavigateToReviews: () -> Unit,
     onLogout: () -> Unit
 ) {
     val storeId = store.id ?: ""
@@ -79,12 +82,14 @@ fun MainScreen(
     val expertsState by expertViewModel.expertsState.collectAsState()
     val postsState by postViewModel.postsState.collectAsState()
     val isPostsRefreshing by postViewModel.isRefreshing.collectAsState()
+    val reviewsState by reviewViewModel.reviewsState.collectAsState()
     var selectedReservationFilter by rememberSaveable { mutableStateOf(ReservationFilter.PENDING_APPROVAL) }
 
     LaunchedEffect(storeId) {
         if (storeId.isNotEmpty()) {
             expertViewModel.getExpertsByStoreId(storeId)
             postViewModel.fetchStorePosts(storeId)
+            reviewViewModel.fetchStoreReviews(storeId)
         }
     }
 
@@ -133,19 +138,22 @@ fun MainScreen(
                     DashboardScreen(
                         store = store,
                         reservationsState = reservationsState,
+                        reviewsState = reviewsState,
                         isRefreshing = isRefreshing,
                         onRefresh = {
                             storeViewModel.fetchUserStore()
                             if (storeId.isNotEmpty()) {
                                 storeViewModel.refreshReservations(storeId)
                                 expertViewModel.getExpertsByStoreId(storeId)
+                                reviewViewModel.fetchStoreReviews(storeId)
                             }
                         },
                         onNavigateToSettings = onNavigateToSettings,
                         onNavigateToCreateExpert = onNavigateToCreateExpert,
                         onNavigateToServices = onNavigateToServices,
                         onNavigateToDailySchedule = onNavigateToDailySchedule,
-                        onNavigateToReservations = { selectedTab = 1 }
+                        onNavigateToReservations = { selectedTab = 1 },
+                        onNavigateToReviews = onNavigateToReviews
                     )
                 }
                 1 -> {

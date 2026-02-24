@@ -25,6 +25,7 @@ import androidx.compose.material.pullrefresh.PullRefreshIndicator
 import androidx.compose.material.pullrefresh.pullRefresh
 import androidx.compose.material.pullrefresh.rememberPullRefreshState
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.ArrowForward
 import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material.icons.filled.Notifications
@@ -32,6 +33,8 @@ import androidx.compose.material.icons.filled.PersonAdd
 import androidx.compose.material.icons.filled.Schedule
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Spa
+import androidx.compose.material.icons.filled.Star
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -54,6 +57,7 @@ import coil.request.ImageRequest
 import com.morrislabs.fabs_store.data.model.FetchStoreResponse
 import com.morrislabs.fabs_store.data.model.ReservationStatus
 import com.morrislabs.fabs_store.data.model.ReservationWithPaymentDTO
+import com.morrislabs.fabs_store.ui.viewmodel.ReviewViewModel
 import com.morrislabs.fabs_store.ui.viewmodel.StoreViewModel
 import java.time.LocalTime
 
@@ -62,6 +66,7 @@ import java.time.LocalTime
 fun DashboardScreen(
     store: FetchStoreResponse,
     reservationsState: StoreViewModel.LoadingState<List<ReservationWithPaymentDTO>>,
+    reviewsState: ReviewViewModel.ReviewsState,
     isRefreshing: Boolean,
     onRefresh: () -> Unit,
     onNavigateToSettings: () -> Unit,
@@ -69,6 +74,7 @@ fun DashboardScreen(
     onNavigateToServices: () -> Unit,
     onNavigateToDailySchedule: () -> Unit,
     onNavigateToReservations: () -> Unit,
+    onNavigateToReviews: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     val storeId = store.id ?: ""
@@ -109,7 +115,8 @@ fun DashboardScreen(
             onAddExpert = onNavigateToCreateExpert,
             onNewService = onNavigateToServices,
             onSchedule = onNavigateToReservations,
-            onDailySchedule = onNavigateToDailySchedule
+            onDailySchedule = onNavigateToDailySchedule,
+            onReviews = onNavigateToReviews
         )
 
         Spacer(modifier = Modifier.height(24.dp))
@@ -121,7 +128,10 @@ fun DashboardScreen(
 
         Spacer(modifier = Modifier.height(24.dp))
 
-        RecentFeedbackSection()
+        RecentFeedbackSection(
+            reviewsState = reviewsState,
+            onViewAll = onNavigateToReviews
+        )
 
         Spacer(modifier = Modifier.height(100.dp))
         }
@@ -293,7 +303,8 @@ private fun QuickActionsSection(
     onAddExpert: (String) -> Unit,
     onNewService: () -> Unit,
     onSchedule: () -> Unit,
-    onDailySchedule: () -> Unit
+    onDailySchedule: () -> Unit,
+    onReviews: () -> Unit
 ) {
     Column(modifier = Modifier.padding(horizontal = 16.dp)) {
         SectionHeader(title = "QUICK ACTIONS")
@@ -321,6 +332,11 @@ private fun QuickActionsSection(
                 icon = Icons.Default.Schedule,
                 label = "Daily Schedule",
                 onClick = onDailySchedule
+            )
+            QuickActionButton(
+                icon = Icons.Default.Star,
+                label = "Reviews",
+                onClick = onReviews
             )
         }
     }
@@ -378,36 +394,89 @@ private fun UpcomingSection(
 }
 
 @Composable
-private fun RecentFeedbackSection() {
+private fun RecentFeedbackSection(
+    reviewsState: ReviewViewModel.ReviewsState,
+    onViewAll: () -> Unit
+) {
     Column(modifier = Modifier.padding(horizontal = 16.dp)) {
-        SectionHeader(title = "RECENT FEEDBACK")
+        val reviews = when (reviewsState) {
+            is ReviewViewModel.ReviewsState.Success -> reviewsState.reviews
+            else -> emptyList()
+        }
+
+        SectionHeader(
+            title = "RECENT FEEDBACK",
+            trailing = if (reviews.size > 6) {
+                {
+                    TextButton(onClick = onViewAll) {
+                        Text("View All", style = MaterialTheme.typography.labelMedium)
+                        Icon(
+                            Icons.Default.ArrowForward,
+                            contentDescription = null,
+                            modifier = Modifier.size(16.dp)
+                        )
+                    }
+                }
+            } else null
+        )
         Spacer(modifier = Modifier.height(12.dp))
 
-        LazyRow(
-            horizontalArrangement = Arrangement.spacedBy(12.dp),
-            contentPadding = PaddingValues(end = 16.dp)
+        when (reviewsState) {
+            is ReviewViewModel.ReviewsState.Loading -> {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(100.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    CircularProgressIndicator(modifier = Modifier.size(24.dp))
+                }
+            }
+            is ReviewViewModel.ReviewsState.Success -> {
+                if (reviews.isEmpty()) {
+                    EmptyFeedbackCard()
+                } else {
+                    val displayReviews = reviews.take(6)
+                    LazyRow(
+                        horizontalArrangement = Arrangement.spacedBy(12.dp),
+                        contentPadding = PaddingValues(end = 16.dp)
+                    ) {
+                        items(displayReviews) { review ->
+                            ReviewCard(
+                                customerName = review.displayName
+                                    ?: review.userName,
+                                rating = review.rating.toInt(),
+                                review = review.comment
+                            )
+                        }
+                    }
+                }
+            }
+            else -> {
+                EmptyFeedbackCard()
+            }
+        }
+    }
+}
+
+@Composable
+private fun EmptyFeedbackCard() {
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(12.dp),
+        color = MaterialTheme.colorScheme.surfaceVariant
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(24.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            item {
-                ReviewCard(
-                    customerName = "Sarah K.",
-                    rating = 5,
-                    review = "Amazing service! The team was very professional and welcoming."
-                )
-            }
-            item {
-                ReviewCard(
-                    customerName = "James M.",
-                    rating = 4,
-                    review = "Great experience overall. Would definitely come back again."
-                )
-            }
-            item {
-                ReviewCard(
-                    customerName = "Linda O.",
-                    rating = 5,
-                    review = "Best salon in town! Love the atmosphere and quality."
-                )
-            }
+            Text(
+                text = "No store reviews yet",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
         }
     }
 }

@@ -32,6 +32,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.morrislabs.fabs_store.ui.viewmodel.ExpertViewModel
 import com.morrislabs.fabs_store.ui.viewmodel.PostViewModel
+import com.morrislabs.fabs_store.ui.viewmodel.ReviewViewModel
 import com.morrislabs.fabs_store.ui.viewmodel.StoreViewModel
 
 @Composable
@@ -47,10 +48,12 @@ fun HomeScreen(
     onNavigateToDailySchedule: () -> Unit = {},
     onNavigateToCreatePost: () -> Unit = {},
     onNavigateToPostDetail: (String) -> Unit = {},
+    onNavigateToReviews: () -> Unit = {},
     onLogout: () -> Unit = {},
     storeViewModel: StoreViewModel = viewModel(),
     expertViewModel: ExpertViewModel = viewModel(),
-    postViewModel: PostViewModel = viewModel()
+    postViewModel: PostViewModel = viewModel(),
+    reviewViewModel: ReviewViewModel = viewModel()
 ) {
     val storeState by storeViewModel.storeState.collectAsState()
 
@@ -74,6 +77,7 @@ fun HomeScreen(
                     storeViewModel = storeViewModel,
                     expertViewModel = expertViewModel,
                     postViewModel = postViewModel,
+                    reviewViewModel = reviewViewModel,
                     onNavigateToSettings = onNavigateToSettings,
                     onNavigateToCreateExpert = onNavigateToCreateExpert,
                     onNavigateToExpertDetails = onNavigateToExpertDetails,
@@ -82,6 +86,7 @@ fun HomeScreen(
                     onNavigateToStoreProfile = onNavigateToStoreProfile,
                     onNavigateToCreatePost = onNavigateToCreatePost,
                     onNavigateToPostDetail = onNavigateToPostDetail,
+                    onNavigateToReviews = onNavigateToReviews,
                     onLogout = onLogout
                 )
             }

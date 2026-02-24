@@ -18,6 +18,6 @@ object AppConfig {
         const val LOCAL_NETWORK_URL = "http://192.168.100.253:8080/fabs/app"
 
         // 💡 Pro-Tip: Switch this automatically based on BuildType
-        val BASE_URL = if (BuildConfig.DEBUG) ADB_REVERSE_LOCALHOST_URL else PROD_BASE_URL
+        val BASE_URL = if (BuildConfig.DEBUG) ADB_REVERSE_LOCALHOST_URL else ADB_REVERSE_LOCALHOST_URL
     }
 }
