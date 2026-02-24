@@ -25,6 +25,9 @@ class ReviewViewModel(application: Application) : AndroidViewModel(application) 
     private val _reviewsState = MutableStateFlow<ReviewsState>(ReviewsState.Idle)
     val reviewsState: StateFlow<ReviewsState> = _reviewsState.asStateFlow()
 
+    private val _replyState = MutableStateFlow<ReplyState>(ReplyState.Idle)
+    val replyState: StateFlow<ReplyState> = _replyState.asStateFlow()
+
     fun fetchStoreReviews(storeId: String) {
         if (storeId.isBlank()) return
 
@@ -68,10 +71,41 @@ class ReviewViewModel(application: Application) : AndroidViewModel(application) 
         return ReviewSummaryDTO(averageRating, totalReviews, distribution)
     }
 
+    fun replyToReview(reviewId: String, reply: String, storeId: String) {
+        _replyState.value = ReplyState.Loading
+
+        viewModelScope.launch {
+            Log.d(TAG, "Replying to review: $reviewId")
+
+            reviewApiService.replyToReview(reviewId, reply)
+                .onSuccess { updatedReview ->
+                    Log.d(TAG, "Reply sent successfully")
+                    _replyState.value = ReplyState.Success
+                    fetchStoreReviews(storeId)
+                }
+                .onFailure { error ->
+                    val errorMessage = error.message ?: "Failed to send reply"
+                    Log.e(TAG, "Reply failed: $errorMessage", error)
+                    _replyState.value = ReplyState.Error(errorMessage)
+                }
+        }
+    }
+
+    fun resetReplyState() {
+        _replyState.value = ReplyState.Idle
+    }
+
     sealed class ReviewsState {
         data object Idle : ReviewsState()
         data object Loading : ReviewsState()
         data class Success(val reviews: List<ReviewDTO>, val summary: ReviewSummaryDTO) : ReviewsState()
         data class Error(val message: String) : ReviewsState()
+    }
+
+    sealed class ReplyState {
+        data object Idle : ReplyState()
+        data object Loading : ReplyState()
+        data object Success : ReplyState()
+        data class Error(val message: String) : ReplyState()
     }
 }

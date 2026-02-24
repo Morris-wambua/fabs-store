@@ -12,7 +12,14 @@ data class ReviewDTO(
     val rating: Float,
     val comment: String,
     val date: Long = System.currentTimeMillis(),
-    val userImageUrl: String? = null
+    val userImageUrl: String? = null,
+    val storeReply: String? = null,
+    val storeReplyDate: Long? = null
+)
+
+@Serializable
+data class ReplyRequest(
+    val reply: String
 )
 
 @Serializable
