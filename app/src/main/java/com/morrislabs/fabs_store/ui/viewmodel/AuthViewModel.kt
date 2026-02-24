@@ -29,6 +29,9 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
     private val _googleAuthState = MutableStateFlow<GoogleAuthState>(GoogleAuthState.Idle)
     val googleAuthState: StateFlow<GoogleAuthState> = _googleAuthState.asStateFlow()
 
+    private val _resetPasswordState = MutableStateFlow<ResetPasswordState>(ResetPasswordState.Idle)
+    val resetPasswordState: StateFlow<ResetPasswordState> = _resetPasswordState.asStateFlow()
+
     fun login(email: String, password: String) {
         _loginState.value = LoginState.Loading
 
@@ -137,6 +140,38 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
         _googleAuthState.value = GoogleAuthState.Idle
     }
 
+    fun requestPasswordReset(email: String) {
+        _resetPasswordState.value = ResetPasswordState.RequestLoading
+
+        viewModelScope.launch {
+            repository.requestPasswordReset(email)
+                .onSuccess { response ->
+                    _resetPasswordState.value = ResetPasswordState.CodeSent(response.message)
+                }
+                .onFailure { error ->
+                    _resetPasswordState.value = ResetPasswordState.Error(
+                        error.message ?: "Failed to request password reset"
+                    )
+                }
+        }
+    }
+
+    fun confirmPasswordReset(email: String, code: String, newPassword: String) {
+        _resetPasswordState.value = ResetPasswordState.ConfirmLoading
+
+        viewModelScope.launch {
+            repository.confirmPasswordReset(email, code, newPassword)
+                .onSuccess { response ->
+                    _resetPasswordState.value = ResetPasswordState.Success(response.message)
+                }
+                .onFailure { error ->
+                    _resetPasswordState.value = ResetPasswordState.Error(
+                        error.message ?: "Failed to reset password"
+                    )
+                }
+        }
+    }
+
     fun isLoggedIn(): Boolean {
         return tokenManager.isLoggedIn()
     }
@@ -185,6 +220,7 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
         _loginState.value = LoginState.Idle
         _registerState.value = RegisterState.Idle
         _googleAuthState.value = GoogleAuthState.Idle
+        _resetPasswordState.value = ResetPasswordState.Idle
     }
 
     fun resetLoginState() {
@@ -193,6 +229,10 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
 
     fun resetRegisterState() {
         _registerState.value = RegisterState.Idle
+    }
+
+    fun resetResetPasswordState() {
+        _resetPasswordState.value = ResetPasswordState.Idle
     }
 
     sealed class LoginState {
@@ -221,4 +261,14 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
         data class Success(val data: LoginDTO) : GoogleAuthState()
         data class Error(val message: String) : GoogleAuthState()
     }
+
+    sealed class ResetPasswordState {
+        data object Idle : ResetPasswordState()
+        data object RequestLoading : ResetPasswordState()
+        data object ConfirmLoading : ResetPasswordState()
+        data class CodeSent(val message: String) : ResetPasswordState()
+        data class Success(val message: String) : ResetPasswordState()
+        data class Error(val message: String) : ResetPasswordState()
+    }
 }
+

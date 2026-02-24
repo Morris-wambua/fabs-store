@@ -2,6 +2,7 @@ package com.morrislabs.fabs_store.data.repository
 
 import com.morrislabs.fabs_store.data.api.AuthApiService
 import com.morrislabs.fabs_store.data.model.LoginDTO
+import com.morrislabs.fabs_store.data.model.PasswordResetResponseDTO
 import com.morrislabs.fabs_store.data.model.RefreshTokenDTO
 import com.morrislabs.fabs_store.data.model.UserRole
 
@@ -33,5 +34,17 @@ class AuthRepository(
 
     suspend fun googleAuth(idToken: String, role: UserRole = UserRole.STORE_OWNER): Result<LoginDTO> {
         return apiService.googleAuth(idToken, role)
+    }
+
+    suspend fun requestPasswordReset(email: String): Result<PasswordResetResponseDTO> {
+        return apiService.requestPasswordReset(email)
+    }
+
+    suspend fun confirmPasswordReset(
+        email: String,
+        code: String,
+        newPassword: String
+    ): Result<PasswordResetResponseDTO> {
+        return apiService.confirmPasswordReset(email, code, newPassword)
     }
 }

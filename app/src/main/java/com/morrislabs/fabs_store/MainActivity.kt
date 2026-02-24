@@ -25,6 +25,7 @@ import com.morrislabs.fabs_store.ui.screens.ExpertDetailsScreen
 import com.morrislabs.fabs_store.ui.screens.HomeScreen
 import com.morrislabs.fabs_store.ui.screens.LoginScreen
 import com.morrislabs.fabs_store.ui.screens.RegisterScreen
+import com.morrislabs.fabs_store.ui.screens.ResetPasswordScreen
 import com.morrislabs.fabs_store.ui.screens.ReservationsScreen
 import com.morrislabs.fabs_store.ui.screens.services.AddServiceScreen
 import com.morrislabs.fabs_store.ui.screens.services.ServiceDetailsScreen
@@ -126,7 +127,9 @@ fun StoreApp(
         }
 
         composable("forgot_password") {
-            // TODO: ForgotPasswordScreen will be implemented next
+            ResetPasswordScreen(
+                onNavigateBack = { navController.popBackStack() }
+            )
         }
 
         composable("home") {

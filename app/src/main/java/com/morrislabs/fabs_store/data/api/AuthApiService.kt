@@ -5,6 +5,9 @@ import com.morrislabs.fabs_store.data.model.CredentialsDTO
 import com.morrislabs.fabs_store.data.model.ErrorResponse
 import com.morrislabs.fabs_store.data.model.GoogleAuthRequest
 import com.morrislabs.fabs_store.data.model.LoginDTO
+import com.morrislabs.fabs_store.data.model.PasswordResetConfirmDTO
+import com.morrislabs.fabs_store.data.model.PasswordResetRequestDTO
+import com.morrislabs.fabs_store.data.model.PasswordResetResponseDTO
 import com.morrislabs.fabs_store.data.model.RefreshTokenDTO
 import com.morrislabs.fabs_store.data.model.RegisterDTO
 import com.morrislabs.fabs_store.data.model.UserRole
@@ -80,6 +83,7 @@ class AuthApiService {
                 // Fallback for HTTP 401/400 specifically
                 when (e.response.status.value) {
                     400, 401, 403 -> "Invalid email or password"
+                    429 -> "Too many login attempts. Please wait and try again."
                     else -> "An error occurred. Please try again."
                 }
             }
@@ -236,6 +240,46 @@ class AuthApiService {
         } catch (e: Exception) {
             Log.e(TAG, "Google auth failed with exception", e)
             Result.failure(Exception(e.message ?: "Google authentication failed"))
+        }
+    }
+
+    suspend fun requestPasswordReset(email: String): Result<PasswordResetResponseDTO> {
+        return try {
+            val response = client.post("$baseUrl/api/password-reset/request") {
+                contentType(ContentType.Application.Json)
+                setBody(PasswordResetRequestDTO(email = email))
+            }
+            Result.success(response.body())
+        } catch (e: ClientRequestException) {
+            val errorBody = e.response.bodyAsText()
+            Result.failure(Exception(parseErrorResponse(errorBody)))
+        } catch (e: Exception) {
+            Result.failure(Exception(e.message ?: "Failed to request password reset"))
+        }
+    }
+
+    suspend fun confirmPasswordReset(
+        email: String,
+        code: String,
+        newPassword: String
+    ): Result<PasswordResetResponseDTO> {
+        return try {
+            val response = client.post("$baseUrl/api/password-reset/confirm") {
+                contentType(ContentType.Application.Json)
+                setBody(
+                    PasswordResetConfirmDTO(
+                        email = email,
+                        code = code,
+                        newPassword = newPassword
+                    )
+                )
+            }
+            Result.success(response.body())
+        } catch (e: ClientRequestException) {
+            val errorBody = e.response.bodyAsText()
+            Result.failure(Exception(parseErrorResponse(errorBody)))
+        } catch (e: Exception) {
+            Result.failure(Exception(e.message ?: "Failed to reset password"))
         }
     }
 

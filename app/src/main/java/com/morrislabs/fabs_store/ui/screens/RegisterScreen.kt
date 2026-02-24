@@ -158,11 +158,17 @@ fun RegisterScreen(
             emailError = null
         }
 
+        val hasMinLength = password.length >= 8
+        val hasUpper = password.any { it.isUpperCase() }
+        val hasLower = password.any { it.isLowerCase() }
+        val hasDigit = password.any { it.isDigit() }
+        val hasSpecial = password.any { !it.isLetterOrDigit() }
+
         if (password.isEmpty()) {
             passwordError = "Password is required"
             isValid = false
-        } else if (password.length < 8) {
-            passwordError = "Password must be at least 8 characters"
+        } else if (!(hasMinLength && hasUpper && hasLower && hasDigit && hasSpecial)) {
+            passwordError = "Use 8+ chars with upper, lower, number, and symbol"
             isValid = false
         } else {
             passwordError = null
@@ -519,8 +525,9 @@ fun RegisterScreen(
                     .fillMaxWidth()
                     .height(50.dp)
                     .padding(vertical = 8.dp),
-                enabled = firstName.isNotEmpty() && lastName.isNotEmpty() && 
+                enabled = firstName.isNotEmpty() && lastName.isNotEmpty() &&
                         email.isNotEmpty() && password.isNotEmpty() &&
+                        confirmPassword.isNotEmpty() && acceptTerms &&
                         registerState !is AuthViewModel.RegisterState.Loading,
                 shape = RoundedCornerShape(8.dp)
             ) {
