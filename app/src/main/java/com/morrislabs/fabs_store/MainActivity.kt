@@ -39,6 +39,7 @@ import com.morrislabs.fabs_store.ui.screens.posts.CreatePostScreen
 import com.morrislabs.fabs_store.ui.screens.posts.LiveStreamScreen
 import com.morrislabs.fabs_store.ui.screens.posts.LiveStreamSummaryScreen
 import com.morrislabs.fabs_store.ui.screens.posts.PostDetailScreen
+import com.morrislabs.fabs_store.ui.screens.reviews.StoreReviewsScreen
 import com.morrislabs.fabs_store.ui.screens.storeonboarding.BusinessHoursStepScreen
 import com.morrislabs.fabs_store.ui.screens.storeonboarding.StoreInfoStepScreen
 import com.morrislabs.fabs_store.ui.screens.storeonboarding.StoreLocationStepScreen
@@ -46,6 +47,7 @@ import com.morrislabs.fabs_store.ui.theme.FabsstoreTheme
 import com.morrislabs.fabs_store.ui.viewmodel.AuthViewModel
 import com.morrislabs.fabs_store.ui.viewmodel.CreateStoreWizardViewModel
 import com.morrislabs.fabs_store.ui.viewmodel.PostViewModel
+import com.morrislabs.fabs_store.ui.viewmodel.ReviewViewModel
 import com.morrislabs.fabs_store.util.AuthenticationStateListener
 import com.morrislabs.fabs_store.util.ClientConfig
 import kotlinx.coroutines.Dispatchers
@@ -71,6 +73,7 @@ fun StoreApp(
     val storeViewModel: com.morrislabs.fabs_store.ui.viewmodel.StoreViewModel = viewModel()
     val servicesViewModel: com.morrislabs.fabs_store.ui.viewmodel.ServicesViewModel = viewModel()
     val postViewModel: PostViewModel = viewModel()
+    val reviewViewModel: ReviewViewModel = viewModel()
     var isLoggedIn by remember { mutableStateOf(authViewModel.isLoggedIn()) }
 
     LaunchedEffect(Unit) {
@@ -145,6 +148,7 @@ fun StoreApp(
                 onNavigateToPostDetail = { postId ->
                     navController.navigate("post_detail/$postId")
                 },
+                onNavigateToReviews = { navController.navigate("store_reviews") },
                 onLogout = {
                     authViewModel.logout()
                     storeViewModel.resetAllStates()
@@ -154,7 +158,8 @@ fun StoreApp(
                     }
                 },
                 storeViewModel = storeViewModel,
-                postViewModel = postViewModel
+                postViewModel = postViewModel,
+                reviewViewModel = reviewViewModel
             )
         }
 
@@ -347,6 +352,16 @@ fun StoreApp(
         composable("daily_schedule") {
             DailyScheduleScreen(
                 onNavigateBack = { navController.popBackStack() }
+            )
+        }
+
+        composable("store_reviews") {
+            val storeState by storeViewModel.storeState.collectAsState()
+            val storeId = (storeState as? com.morrislabs.fabs_store.ui.viewmodel.StoreViewModel.StoreState.Success)?.data?.id.orEmpty()
+            StoreReviewsScreen(
+                storeId = storeId,
+                onNavigateBack = { navController.popBackStack() },
+                reviewViewModel = reviewViewModel
             )
         }
 
