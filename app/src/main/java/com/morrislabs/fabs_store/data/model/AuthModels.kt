@@ -75,3 +75,20 @@ data class GoogleAuthRequest(
     val idToken: String,
     val role: UserRole = UserRole.STORE_OWNER
 )
+
+@Serializable
+data class PasswordResetRequestDTO(
+    val email: String
+)
+
+@Serializable
+data class PasswordResetConfirmDTO(
+    val email: String,
+    val code: String,
+    val newPassword: String
+)
+
+@Serializable
+data class PasswordResetResponseDTO(
+    val message: String
+)
