@@ -60,6 +60,9 @@ import com.morrislabs.fabs_store.data.model.ReservationWithPaymentDTO
 import com.morrislabs.fabs_store.ui.viewmodel.ReviewViewModel
 import com.morrislabs.fabs_store.ui.viewmodel.StoreViewModel
 import java.time.LocalTime
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 
 @OptIn(ExperimentalMaterialApi::class)
 @Composable
@@ -67,6 +70,8 @@ fun DashboardScreen(
     store: FetchStoreResponse,
     reservationsState: StoreViewModel.LoadingState<List<ReservationWithPaymentDTO>>,
     reviewsState: ReviewViewModel.ReviewsState,
+    checklistSteps: List<ChecklistStep>,
+    showChecklist: Boolean,
     isRefreshing: Boolean,
     onRefresh: () -> Unit,
     onNavigateToSettings: () -> Unit,
@@ -75,14 +80,19 @@ fun DashboardScreen(
     onNavigateToDailySchedule: () -> Unit,
     onNavigateToReservations: () -> Unit,
     onNavigateToReviews: () -> Unit,
+    onNavigateToChecklist: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     val storeId = store.id ?: ""
     val greeting = getGreeting()
+    var bannerDismissed by remember { mutableStateOf(false) }
 
     val pullRefreshState = rememberPullRefreshState(
         refreshing = isRefreshing,
-        onRefresh = onRefresh
+        onRefresh = {
+            bannerDismissed = false
+            onRefresh()
+        }
     )
 
     Box(
@@ -102,6 +112,13 @@ fun DashboardScreen(
                 logoUrl = store.logoUrl,
                 onSettings = onNavigateToSettings,
                 onNotifications = {}
+            )
+
+            SetupChecklistBanner(
+                steps = checklistSteps,
+                visible = showChecklist && !bannerDismissed,
+                onDismiss = { bannerDismissed = true },
+                onNavigateToChecklist = onNavigateToChecklist
             )
 
         Spacer(modifier = Modifier.height(20.dp))

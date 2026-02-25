@@ -55,6 +55,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.morrislabs.fabs_store.data.model.FetchStoreResponse
+import com.morrislabs.fabs_store.data.model.PostDTO
+import com.morrislabs.fabs_store.ui.viewmodel.PostViewModel
 import com.morrislabs.fabs_store.ui.viewmodel.StoreViewModel
 
 data class ChecklistItem(
@@ -70,9 +72,11 @@ fun SetupChecklistScreen(
     onNavigateToServices: () -> Unit,
     onNavigateToCreateExpert: (String) -> Unit,
     onNavigateToCreatePost: () -> Unit,
-    storeViewModel: StoreViewModel = viewModel()
+    storeViewModel: StoreViewModel = viewModel(),
+    postViewModel: PostViewModel = viewModel()
 ) {
     val storeState by storeViewModel.storeState.collectAsState()
+    val postsState by postViewModel.postsState.collectAsState()
 
     LaunchedEffect(Unit) {
         if (storeState !is StoreViewModel.StoreState.Success) {
@@ -82,8 +86,22 @@ fun SetupChecklistScreen(
 
     val store = (storeState as? StoreViewModel.StoreState.Success)?.data
 
+    LaunchedEffect(store?.id) {
+        val storeId = store?.id
+        if (!storeId.isNullOrEmpty()) {
+            postViewModel.fetchStorePosts(storeId)
+        }
+    }
+
+    val hasPosts = when (postsState) {
+        is StoreViewModel.LoadingState.Success ->
+            (postsState as StoreViewModel.LoadingState.Success<List<PostDTO>>).data.isNotEmpty()
+        else -> false
+    }
+
     val items = buildChecklistItems(
         store = store,
+        hasPosts = hasPosts,
         onAddService = onNavigateToServices,
         onOnboardExpert = { store?.id?.let { onNavigateToCreateExpert(it) } },
         onCreatePost = onNavigateToCreatePost
@@ -142,6 +160,7 @@ fun SetupChecklistScreen(
 
 private fun buildChecklistItems(
     store: FetchStoreResponse?,
+    hasPosts: Boolean,
     onAddService: () -> Unit,
     onOnboardExpert: () -> Unit,
     onCreatePost: () -> Unit
@@ -149,7 +168,7 @@ private fun buildChecklistItems(
     val profileComplete = store != null
     val hasServices = !store?.servicesOffered.isNullOrEmpty()
     val hasExperts = (store?.noOfExperts ?: 0) > 0
-    val hasPost = false
+    val hasPost = hasPosts
 
     return listOf(
         ChecklistItem(

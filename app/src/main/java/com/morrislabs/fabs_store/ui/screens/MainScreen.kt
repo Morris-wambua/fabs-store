@@ -37,8 +37,10 @@ import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.dp
 import com.morrislabs.fabs_store.data.model.FetchStoreResponse
+import com.morrislabs.fabs_store.data.model.PostDTO
 import com.morrislabs.fabs_store.data.model.ReservationFilter
 import com.morrislabs.fabs_store.ui.screens.dashboard.DashboardScreen
+import com.morrislabs.fabs_store.ui.screens.dashboard.buildChecklistSteps
 import com.morrislabs.fabs_store.ui.screens.posts.StorePostsScreen
 import com.morrislabs.fabs_store.ui.viewmodel.ExpertViewModel
 import com.morrislabs.fabs_store.ui.viewmodel.PostViewModel
@@ -73,6 +75,7 @@ fun MainScreen(
     onNavigateToCreatePost: () -> Unit,
     onNavigateToPostDetail: (String) -> Unit,
     onNavigateToReviews: () -> Unit,
+    onNavigateToChecklist: () -> Unit,
     onLogout: () -> Unit
 ) {
     val storeId = store.id ?: ""
@@ -84,6 +87,15 @@ fun MainScreen(
     val isPostsRefreshing by postViewModel.isRefreshing.collectAsState()
     val reviewsState by reviewViewModel.reviewsState.collectAsState()
     var selectedReservationFilter by rememberSaveable { mutableStateOf(ReservationFilter.PENDING_APPROVAL) }
+
+    val postsResolved = postsState is StoreViewModel.LoadingState.Success || postsState is StoreViewModel.LoadingState.Error
+    val hasPosts = when (postsState) {
+        is StoreViewModel.LoadingState.Success ->
+            (postsState as StoreViewModel.LoadingState.Success<List<PostDTO>>).data.isNotEmpty()
+        else -> false
+    }
+    val checklistSteps = buildChecklistSteps(store = store, hasPosts = hasPosts)
+    val showChecklist = postsResolved && checklistSteps.any { !it.isCompleted }
 
     LaunchedEffect(storeId) {
         if (storeId.isNotEmpty()) {
@@ -139,6 +151,8 @@ fun MainScreen(
                         store = store,
                         reservationsState = reservationsState,
                         reviewsState = reviewsState,
+                        checklistSteps = checklistSteps,
+                        showChecklist = showChecklist,
                         isRefreshing = isRefreshing,
                         onRefresh = {
                             storeViewModel.fetchUserStore()
@@ -153,7 +167,8 @@ fun MainScreen(
                         onNavigateToServices = onNavigateToServices,
                         onNavigateToDailySchedule = onNavigateToDailySchedule,
                         onNavigateToReservations = { selectedTab = 1 },
-                        onNavigateToReviews = onNavigateToReviews
+                        onNavigateToReviews = onNavigateToReviews,
+                        onNavigateToChecklist = onNavigateToChecklist
                     )
                 }
                 1 -> {

@@ -152,6 +152,7 @@ fun StoreApp(
                     navController.navigate("post_detail/$postId")
                 },
                 onNavigateToReviews = { navController.navigate("store_reviews") },
+                onNavigateToChecklist = { navController.navigate("setup_checklist") },
                 onLogout = {
                     authViewModel.logout()
                     storeViewModel.resetAllStates()
