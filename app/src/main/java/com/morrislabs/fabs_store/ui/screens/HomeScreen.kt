@@ -49,6 +49,7 @@ fun HomeScreen(
     onNavigateToCreatePost: () -> Unit = {},
     onNavigateToPostDetail: (String) -> Unit = {},
     onNavigateToReviews: () -> Unit = {},
+    onNavigateToChecklist: () -> Unit = {},
     onLogout: () -> Unit = {},
     storeViewModel: StoreViewModel = viewModel(),
     expertViewModel: ExpertViewModel = viewModel(),
@@ -87,6 +88,7 @@ fun HomeScreen(
                     onNavigateToCreatePost = onNavigateToCreatePost,
                     onNavigateToPostDetail = onNavigateToPostDetail,
                     onNavigateToReviews = onNavigateToReviews,
+                    onNavigateToChecklist = onNavigateToChecklist,
                     onLogout = onLogout
                 )
             }
