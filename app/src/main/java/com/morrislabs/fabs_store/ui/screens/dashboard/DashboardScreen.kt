@@ -71,6 +71,7 @@ fun DashboardScreen(
     reservationsState: StoreViewModel.LoadingState<List<ReservationWithPaymentDTO>>,
     reviewsState: ReviewViewModel.ReviewsState,
     checklistSteps: List<ChecklistStep>,
+    showChecklist: Boolean,
     isRefreshing: Boolean,
     onRefresh: () -> Unit,
     onNavigateToSettings: () -> Unit,
@@ -84,11 +85,14 @@ fun DashboardScreen(
 ) {
     val storeId = store.id ?: ""
     val greeting = getGreeting()
-    var bannerVisible by remember { mutableStateOf(true) }
+    var bannerDismissed by remember { mutableStateOf(false) }
 
     val pullRefreshState = rememberPullRefreshState(
         refreshing = isRefreshing,
-        onRefresh = onRefresh
+        onRefresh = {
+            bannerDismissed = false
+            onRefresh()
+        }
     )
 
     Box(
@@ -112,8 +116,8 @@ fun DashboardScreen(
 
             SetupChecklistBanner(
                 steps = checklistSteps,
-                visible = bannerVisible,
-                onDismiss = { bannerVisible = false },
+                visible = showChecklist && !bannerDismissed,
+                onDismiss = { bannerDismissed = true },
                 onNavigateToChecklist = onNavigateToChecklist
             )
 

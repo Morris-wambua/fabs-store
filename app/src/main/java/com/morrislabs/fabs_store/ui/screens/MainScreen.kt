@@ -88,12 +88,14 @@ fun MainScreen(
     val reviewsState by reviewViewModel.reviewsState.collectAsState()
     var selectedReservationFilter by rememberSaveable { mutableStateOf(ReservationFilter.PENDING_APPROVAL) }
 
+    val postsResolved = postsState is StoreViewModel.LoadingState.Success || postsState is StoreViewModel.LoadingState.Error
     val hasPosts = when (postsState) {
         is StoreViewModel.LoadingState.Success ->
             (postsState as StoreViewModel.LoadingState.Success<List<PostDTO>>).data.isNotEmpty()
         else -> false
     }
     val checklistSteps = buildChecklistSteps(store = store, hasPosts = hasPosts)
+    val showChecklist = postsResolved && checklistSteps.any { !it.isCompleted }
 
     LaunchedEffect(storeId) {
         if (storeId.isNotEmpty()) {
@@ -150,6 +152,7 @@ fun MainScreen(
                         reservationsState = reservationsState,
                         reviewsState = reviewsState,
                         checklistSteps = checklistSteps,
+                        showChecklist = showChecklist,
                         isRefreshing = isRefreshing,
                         onRefresh = {
                             storeViewModel.fetchUserStore()
