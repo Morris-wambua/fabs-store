@@ -24,6 +24,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AddAPhoto
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.PlayCircleFilled
 import androidx.compose.material.icons.filled.RocketLaunch
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -55,6 +56,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.geometry.CornerRadius
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.layout.ContentScale
@@ -62,7 +64,10 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import coil.ImageLoader
 import coil.compose.AsyncImage
+import coil.decode.VideoFrameDecoder
+import coil.request.ImageRequest
 import com.morrislabs.fabs_store.data.model.PostType
 import com.morrislabs.fabs_store.ui.viewmodel.PostViewModel
 
@@ -171,6 +176,7 @@ fun CreatePostScreen(
                 if (selectedTab == 0) {
                     MediaUploadArea(
                         selectedUri = selectedUri,
+                        postType = postType,
                         isUploading = isUploading,
                         onSelectMedia = { mediaLauncher.launch("*/*") },
                         onRemoveMedia = {
@@ -242,12 +248,20 @@ private fun ToggleTabs(
 @Composable
 private fun MediaUploadArea(
     selectedUri: Uri?,
+    postType: PostType,
     isUploading: Boolean,
     onSelectMedia: () -> Unit,
     onRemoveMedia: () -> Unit
 ) {
     val borderColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.5f)
     val cornerRadius = 16.dp
+    val context = LocalContext.current
+
+    val videoImageLoader = remember {
+        ImageLoader.Builder(context)
+            .components { add(VideoFrameDecoder.Factory()) }
+            .build()
+    }
 
     Box(
         modifier = Modifier
@@ -270,14 +284,38 @@ private fun MediaUploadArea(
         contentAlignment = Alignment.Center
     ) {
         if (selectedUri != null) {
-            AsyncImage(
-                model = selectedUri,
-                contentDescription = "Selected media",
-                modifier = Modifier
-                    .fillMaxSize()
-                    .clip(RoundedCornerShape(cornerRadius)),
-                contentScale = ContentScale.Crop
-            )
+            if (postType == PostType.VIDEO) {
+                val videoModel = remember(selectedUri) {
+                    ImageRequest.Builder(context)
+                        .data(selectedUri)
+                        .decoderFactory(VideoFrameDecoder.Factory())
+                        .build()
+                }
+                AsyncImage(
+                    model = videoModel,
+                    imageLoader = videoImageLoader,
+                    contentDescription = "Selected video thumbnail",
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .clip(RoundedCornerShape(cornerRadius)),
+                    contentScale = ContentScale.Crop
+                )
+                Icon(
+                    imageVector = Icons.Default.PlayCircleFilled,
+                    contentDescription = null,
+                    modifier = Modifier.size(48.dp),
+                    tint = Color.White.copy(alpha = 0.85f)
+                )
+            } else {
+                AsyncImage(
+                    model = selectedUri,
+                    contentDescription = "Selected image",
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .clip(RoundedCornerShape(cornerRadius)),
+                    contentScale = ContentScale.Crop
+                )
+            }
             IconButton(
                 onClick = onRemoveMedia,
                 modifier = Modifier
