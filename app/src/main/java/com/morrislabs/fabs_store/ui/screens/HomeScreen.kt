@@ -30,6 +30,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.morrislabs.fabs_store.ui.viewmodel.ChatViewModel
 import com.morrislabs.fabs_store.ui.viewmodel.ExpertViewModel
 import com.morrislabs.fabs_store.ui.viewmodel.PostViewModel
 import com.morrislabs.fabs_store.ui.viewmodel.ReviewViewModel
@@ -50,11 +51,13 @@ fun HomeScreen(
     onNavigateToPostDetail: (String) -> Unit = {},
     onNavigateToReviews: () -> Unit = {},
     onNavigateToChecklist: () -> Unit = {},
+    onNavigateToChat: (conversationId: String, customerName: String) -> Unit = { _, _ -> },
     onLogout: () -> Unit = {},
     storeViewModel: StoreViewModel = viewModel(),
     expertViewModel: ExpertViewModel = viewModel(),
     postViewModel: PostViewModel = viewModel(),
-    reviewViewModel: ReviewViewModel = viewModel()
+    reviewViewModel: ReviewViewModel = viewModel(),
+    chatViewModel: ChatViewModel = viewModel()
 ) {
     val storeState by storeViewModel.storeState.collectAsState()
 
@@ -79,6 +82,7 @@ fun HomeScreen(
                     expertViewModel = expertViewModel,
                     postViewModel = postViewModel,
                     reviewViewModel = reviewViewModel,
+                    chatViewModel = chatViewModel,
                     onNavigateToSettings = onNavigateToSettings,
                     onNavigateToCreateExpert = onNavigateToCreateExpert,
                     onNavigateToExpertDetails = onNavigateToExpertDetails,
@@ -89,6 +93,7 @@ fun HomeScreen(
                     onNavigateToPostDetail = onNavigateToPostDetail,
                     onNavigateToReviews = onNavigateToReviews,
                     onNavigateToChecklist = onNavigateToChecklist,
+                    onNavigateToChat = onNavigateToChat,
                     onLogout = onLogout
                 )
             }

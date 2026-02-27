@@ -62,14 +62,14 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    fun sendMessage(conversationId: String, text: String) {
-        val storeId = tokenManager.getUserId() ?: return
+    fun sendMessage(conversationId: String, text: String, storeId: String? = null) {
+        val senderId = storeId ?: tokenManager.getUserId() ?: return
         if (text.isBlank()) return
 
         _sendState.value = SendState.Sending
         viewModelScope.launch {
             try {
-                chatRepository.sendMessage(conversationId, storeId, text)
+                chatRepository.sendMessage(conversationId, senderId, text)
                 _sendState.value = SendState.Sent
             } catch (e: Exception) {
                 Log.e(TAG, "Failed to send message", e)

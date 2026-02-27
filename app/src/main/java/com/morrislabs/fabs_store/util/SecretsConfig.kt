@@ -1,14 +1,12 @@
 package com.morrislabs.fabs_store.util
 
+import com.morrislabs.fabs_store.BuildConfig
+
 object SecretsConfig {
 
     object Firebase {
-        const val PROJECT_ID = "fabs-ecosystem-2026"
-
-        // TODO: INSERT_FCM_SERVER_KEY_HERE (legacy, prefer service account)
+        val PROJECT_ID: String = BuildConfig.FIREBASE_PROJECT_ID
         const val FCM_SERVER_KEY = ""
-
-        // TODO: INSERT_SERVICE_ACCOUNT_JSON_PATH_HERE
         const val SERVICE_ACCOUNT_JSON_PATH = ""
     }
 

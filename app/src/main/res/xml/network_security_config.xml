@@ -7,6 +7,23 @@
         <domain includeSubdomains="true">192.168.100.253</domain>
     </domain-config>
     <domain-config cleartextTrafficPermitted="false">
-        <domain includeSubdomains="true">example.com</domain>
+        <domain includeSubdomains="true">https://fabs-production.up.railway.app</domain>
+        <trust-anchors>
+            <certificates src="system" />
+        </trust-anchors>
     </domain-config>
+
+    <base-config cleartextTrafficPermitted="false">
+        <trust-anchors>
+            <certificates src="system" />
+        </trust-anchors>
+    </base-config>
 </network-security-config>
+
+<!--<network-security-config>-->
+<!--<base-config cleartextTrafficPermitted="false">-->
+<!--    <trust-anchors>-->
+<!--        <certificates src="system" />-->
+<!--    </trust-anchors>-->
+<!--</base-config>-->
+<!--</network-security-config>-->
