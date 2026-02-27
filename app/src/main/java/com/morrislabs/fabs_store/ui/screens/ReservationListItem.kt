@@ -58,7 +58,8 @@ internal fun ReservationRow(
     reservation: ReservationWithPaymentDTO,
     selectedFilter: ReservationFilter,
     onDetailsClick: () -> Unit,
-    onTransitionClick: (String, ReservationTransitionAction) -> Unit
+    onTransitionClick: (String, ReservationTransitionAction) -> Unit,
+    onMessageCustomer: (userId: String, customerName: String) -> Unit = { _, _ -> }
 ) {
     val customerName = normalizeCustomerName(reservation.name)
     var expanded by remember { mutableStateOf(false) }
@@ -192,9 +193,15 @@ internal fun ReservationRow(
                             }
                             selectedFilter == ReservationFilter.LAPSED_NOT_ACCEPTED -> {
                                 OutlinedButton(
-                                    onClick = {},
+                                    onClick = {
+                                        val userId = reservation.userId
+                                        if (userId != null) {
+                                            onMessageCustomer(userId, normalizeCustomerName(reservation.name))
+                                        }
+                                    },
                                     modifier = Modifier.weight(1f),
-                                    contentPadding = PaddingValues(vertical = 10.dp)
+                                    contentPadding = PaddingValues(vertical = 10.dp),
+                                    enabled = reservation.userId != null
                                 ) {
                                     Icon(
                                         Icons.Default.ChatBubble,

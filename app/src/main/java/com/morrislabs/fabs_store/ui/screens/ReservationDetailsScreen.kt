@@ -61,7 +61,8 @@ fun ReservationDetailsScreen(
     selectedFilter: ReservationFilter,
     onApproveReservation: (String) -> Unit,
     onRejectReservation: (String) -> Unit,
-    onNavigateBack: () -> Unit
+    onNavigateBack: () -> Unit,
+    onMessageCustomer: (userId: String, customerName: String) -> Unit = { _, _ -> }
 ) {
     val context = LocalContext.current
     val customerPhone = reservation.customerPhone.orEmpty().trim()
@@ -166,7 +167,16 @@ fun ReservationDetailsScreen(
                             Spacer(modifier = Modifier.size(6.dp))
                             Text("Call")
                         }
-                        OutlinedButton(onClick = {}, modifier = Modifier.weight(1f)) {
+                        OutlinedButton(
+                            onClick = {
+                                val userId = reservation.userId
+                                if (userId != null) {
+                                    onMessageCustomer(userId, reservation.name)
+                                }
+                            },
+                            modifier = Modifier.weight(1f),
+                            enabled = reservation.userId != null
+                        ) {
                             Icon(Icons.Default.ChatBubble, contentDescription = null, modifier = Modifier.size(16.dp))
                             Spacer(modifier = Modifier.size(6.dp))
                             Text("Message")

@@ -39,6 +39,9 @@ import com.morrislabs.fabs_store.ui.screens.StoreProfileBusinessHoursScreen
 import com.morrislabs.fabs_store.ui.screens.StoreProfileEditorScreen
 import com.morrislabs.fabs_store.ui.screens.StoreProfileLocationEditorScreen
 import com.morrislabs.fabs_store.ui.screens.SetupChecklistScreen
+import com.morrislabs.fabs_store.ui.screens.chat.ChatScreen
+import java.net.URLDecoder
+import java.net.URLEncoder
 import com.morrislabs.fabs_store.ui.screens.posts.CreatePostScreen
 import com.morrislabs.fabs_store.ui.screens.posts.LiveStreamScreen
 import com.morrislabs.fabs_store.ui.screens.posts.LiveStreamSummaryScreen
@@ -49,6 +52,7 @@ import com.morrislabs.fabs_store.ui.screens.storeonboarding.StoreInfoStepScreen
 import com.morrislabs.fabs_store.ui.screens.storeonboarding.StoreLocationStepScreen
 import com.morrislabs.fabs_store.ui.theme.FabsstoreTheme
 import com.morrislabs.fabs_store.ui.viewmodel.AuthViewModel
+import com.morrislabs.fabs_store.ui.viewmodel.ChatViewModel
 import com.morrislabs.fabs_store.ui.viewmodel.CreateStoreWizardViewModel
 import com.morrislabs.fabs_store.ui.viewmodel.PostViewModel
 import com.morrislabs.fabs_store.ui.viewmodel.ReviewViewModel
@@ -81,6 +85,7 @@ fun StoreApp(
     val servicesViewModel: com.morrislabs.fabs_store.ui.viewmodel.ServicesViewModel = viewModel()
     val postViewModel: PostViewModel = viewModel()
     val reviewViewModel: ReviewViewModel = viewModel()
+    val chatViewModel: ChatViewModel = viewModel()
     var isLoggedIn by remember { mutableStateOf(authViewModel.isLoggedIn()) }
 
     // Request POST_NOTIFICATIONS permission on Android 13+
@@ -171,6 +176,10 @@ fun StoreApp(
                 },
                 onNavigateToReviews = { navController.navigate("store_reviews") },
                 onNavigateToChecklist = { navController.navigate("setup_checklist") },
+                onNavigateToChat = { conversationId, customerName ->
+                    val encodedName = URLEncoder.encode(customerName, "UTF-8")
+                    navController.navigate("chat/$conversationId/$encodedName")
+                },
                 onLogout = {
                     authViewModel.logout()
                     storeViewModel.resetAllStates()
@@ -181,7 +190,8 @@ fun StoreApp(
                 },
                 storeViewModel = storeViewModel,
                 postViewModel = postViewModel,
-                reviewViewModel = reviewViewModel
+                reviewViewModel = reviewViewModel,
+                chatViewModel = chatViewModel
             )
         }
 
@@ -427,6 +437,22 @@ fun StoreApp(
                         popUpTo("live_stream_summary") { inclusive = true }
                     }
                 }
+            )
+        }
+
+        composable("chat/{conversationId}/{customerName}") { backStackEntry ->
+            val conversationId = backStackEntry.arguments?.getString("conversationId") ?: ""
+            val customerName = URLDecoder.decode(
+                backStackEntry.arguments?.getString("customerName") ?: "Customer", "UTF-8"
+            )
+            val storeState by storeViewModel.storeState.collectAsState()
+            val storeId = (storeState as? com.morrislabs.fabs_store.ui.viewmodel.StoreViewModel.StoreState.Success)?.data?.id.orEmpty()
+            ChatScreen(
+                conversationId = conversationId,
+                customerName = customerName,
+                storeId = storeId,
+                chatViewModel = chatViewModel,
+                onNavigateBack = { navController.popBackStack() }
             )
         }
     }

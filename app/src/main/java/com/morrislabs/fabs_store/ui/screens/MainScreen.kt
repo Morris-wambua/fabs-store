@@ -9,10 +9,12 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.ExperimentalMaterialApi
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CalendarMonth
+import androidx.compose.material.icons.filled.ChatBubble
 import androidx.compose.material.icons.filled.GridView
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.People
 import androidx.compose.material.icons.outlined.CalendarMonth
+import androidx.compose.material.icons.outlined.ChatBubbleOutline
 import androidx.compose.material.icons.outlined.GridView
 import androidx.compose.material.icons.outlined.Home
 import androidx.compose.material.icons.outlined.People
@@ -39,9 +41,11 @@ import androidx.compose.ui.unit.dp
 import com.morrislabs.fabs_store.data.model.FetchStoreResponse
 import com.morrislabs.fabs_store.data.model.PostDTO
 import com.morrislabs.fabs_store.data.model.ReservationFilter
+import com.morrislabs.fabs_store.ui.screens.chat.ConversationListScreen
 import com.morrislabs.fabs_store.ui.screens.dashboard.DashboardScreen
 import com.morrislabs.fabs_store.ui.screens.dashboard.buildChecklistSteps
 import com.morrislabs.fabs_store.ui.screens.posts.StorePostsScreen
+import com.morrislabs.fabs_store.ui.viewmodel.ChatViewModel
 import com.morrislabs.fabs_store.ui.viewmodel.ExpertViewModel
 import com.morrislabs.fabs_store.ui.viewmodel.PostViewModel
 import com.morrislabs.fabs_store.ui.viewmodel.ReviewViewModel
@@ -54,6 +58,7 @@ private enum class BottomNavItem(
 ) {
     HOME("Home", Icons.Filled.Home, Icons.Outlined.Home),
     RESERVATIONS("Reservations", Icons.Filled.CalendarMonth, Icons.Outlined.CalendarMonth),
+    MESSAGES("Messages", Icons.Filled.ChatBubble, Icons.Outlined.ChatBubbleOutline),
     POSTS("Posts", Icons.Filled.GridView, Icons.Outlined.GridView),
     EXPERTS("Experts", Icons.Filled.People, Icons.Outlined.People)
 }
@@ -66,6 +71,7 @@ fun MainScreen(
     expertViewModel: ExpertViewModel,
     postViewModel: PostViewModel,
     reviewViewModel: ReviewViewModel,
+    chatViewModel: ChatViewModel,
     onNavigateToSettings: () -> Unit,
     onNavigateToCreateExpert: (String) -> Unit,
     onNavigateToExpertDetails: (String) -> Unit,
@@ -76,6 +82,7 @@ fun MainScreen(
     onNavigateToPostDetail: (String) -> Unit,
     onNavigateToReviews: () -> Unit,
     onNavigateToChecklist: () -> Unit,
+    onNavigateToChat: (conversationId: String, customerName: String) -> Unit,
     onLogout: () -> Unit
 ) {
     val storeId = store.id ?: ""
@@ -191,10 +198,20 @@ fun MainScreen(
                                 ReservationFilter.LAPSED_NOT_ACCEPTED -> "LAPSED_NOT_ACCEPTED"
                             }
                             storeViewModel.fetchReservations(storeId, filterStatus)
-                        }
+                        },
+                        onNavigateToChat = onNavigateToChat,
+                        storeName = store.name
                     )
                 }
                 2 -> {
+                    ConversationListScreen(
+                        storeId = storeId,
+                        chatViewModel = chatViewModel,
+                        onConversationClick = onNavigateToChat,
+                        onNavigateBack = { selectedTab = 0 }
+                    )
+                }
+                3 -> {
                     StorePostsScreen(
                         posts = postsState,
                         isRefreshing = isPostsRefreshing,
@@ -203,7 +220,7 @@ fun MainScreen(
                         onPostClick = onNavigateToPostDetail
                     )
                 }
-                3 -> {
+                4 -> {
                     ExpertsTabContent(
                         expertsState = expertsState,
                         storeId = storeId,

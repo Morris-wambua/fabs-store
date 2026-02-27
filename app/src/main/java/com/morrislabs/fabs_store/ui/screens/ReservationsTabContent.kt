@@ -41,6 +41,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -49,8 +50,10 @@ import androidx.compose.ui.unit.dp
 import com.morrislabs.fabs_store.data.model.ReservationFilter
 import com.morrislabs.fabs_store.data.model.ReservationTransitionAction
 import com.morrislabs.fabs_store.data.model.ReservationWithPaymentDTO
+import com.morrislabs.fabs_store.data.repository.ChatRepository
 import com.morrislabs.fabs_store.ui.viewmodel.StoreViewModel
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterialApi::class)
 @Composable
@@ -61,11 +64,15 @@ internal fun ReservationsTabContent(
     isRefreshing: Boolean,
     selectedFilter: ReservationFilter,
     onFilterChange: (ReservationFilter) -> Unit,
+    onNavigateToChat: (conversationId: String, customerName: String) -> Unit = { _, _ -> },
+    storeName: String = "",
     modifier: Modifier = Modifier
 ) {
     var searchQuery by remember { mutableStateOf("") }
     var selectedReservation by remember { mutableStateOf<ReservationWithPaymentDTO?>(null) }
     var showWalkInBooking by remember { mutableStateOf(false) }
+    val chatRepository = remember { ChatRepository() }
+    val scope = rememberCoroutineScope()
     val currentFilterStatus = selectedFilter.toBackendStatus()
     val pullRefreshState = rememberPullRefreshState(
         refreshing = isRefreshing,
@@ -85,6 +92,20 @@ internal fun ReservationsTabContent(
         delay(300)
         val query = searchQuery.trim().ifBlank { null }
         storeViewModel.fetchReservations(storeId, currentFilterStatus, query)
+    }
+
+    val handleMessageCustomer: (String, String) -> Unit = { userId, customerName ->
+        scope.launch {
+            try {
+                val conversationId = chatRepository.getOrCreateConversation(
+                    storeId = storeId,
+                    storeName = storeName,
+                    userId = userId,
+                    userName = customerName
+                )
+                onNavigateToChat(conversationId, customerName)
+            } catch (_: Exception) { }
+        }
     }
 
     if (selectedReservation != null) {
@@ -109,7 +130,8 @@ internal fun ReservationsTabContent(
                     query = searchQuery.trim().ifBlank { null }
                 )
             },
-            onNavigateBack = { selectedReservation = null }
+            onNavigateBack = { selectedReservation = null },
+            onMessageCustomer = handleMessageCustomer
         )
         return
     }
@@ -171,7 +193,8 @@ internal fun ReservationsTabContent(
                                     filterStatus = currentFilterStatus,
                                     query = searchQuery.trim().ifBlank { null }
                                 )
-                            }
+                            },
+                            onMessageCustomer = handleMessageCustomer
                         )
                     }
                     is StoreViewModel.LoadingState.Error -> {
@@ -333,7 +356,8 @@ private fun ReservationsListContent(
     reservations: List<ReservationWithPaymentDTO>,
     selectedFilter: ReservationFilter,
     onDetailsClick: (ReservationWithPaymentDTO) -> Unit,
-    onTransition: (String, ReservationTransitionAction) -> Unit
+    onTransition: (String, ReservationTransitionAction) -> Unit,
+    onMessageCustomer: (userId: String, customerName: String) -> Unit = { _, _ -> }
 ) {
     if (reservations.isEmpty()) {
         Column(
@@ -358,7 +382,8 @@ private fun ReservationsListContent(
                     reservation = reservation,
                     selectedFilter = selectedFilter,
                     onDetailsClick = { onDetailsClick(reservation) },
-                    onTransitionClick = onTransition
+                    onTransitionClick = onTransition,
+                    onMessageCustomer = onMessageCustomer
                 )
             }
         }
