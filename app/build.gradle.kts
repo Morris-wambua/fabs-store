@@ -2,6 +2,7 @@ plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.compose)
     alias(libs.plugins.kotlin.serialization)
+    alias(libs.plugins.google.services)
 }
 
 android {
@@ -85,6 +86,11 @@ dependencies {
 
     // Security Crypto (for encryption)
     implementation(libs.androidx.security.crypto)
+
+    // Firebase
+    implementation(platform(libs.firebase.bom))
+    implementation(libs.firebase.firestore)
+    implementation(libs.firebase.messaging)
 
     // Google Maps & Location
     implementation(libs.playServicesMaps)

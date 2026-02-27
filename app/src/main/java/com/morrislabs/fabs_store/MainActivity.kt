@@ -1,5 +1,6 @@
 package com.morrislabs.fabs_store
 
+import android.os.Build
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -18,6 +19,8 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.navigation
 import androidx.navigation.compose.rememberNavController
+import com.google.accompanist.permissions.ExperimentalPermissionsApi
+import com.google.accompanist.permissions.isGranted
 import com.morrislabs.fabs_store.ui.screens.EmployeesScreen
 import com.morrislabs.fabs_store.ui.screens.CreateExpertScreen
 import com.morrislabs.fabs_store.ui.screens.EditExpertProfileScreen
@@ -51,6 +54,7 @@ import com.morrislabs.fabs_store.ui.viewmodel.PostViewModel
 import com.morrislabs.fabs_store.ui.viewmodel.ReviewViewModel
 import com.morrislabs.fabs_store.util.AuthenticationStateListener
 import com.morrislabs.fabs_store.util.ClientConfig
+import com.morrislabs.fabs_store.util.NotificationHelper
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.runBlocking
 
@@ -58,6 +62,7 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
+        NotificationHelper.createNotificationChannels(this)
         setContent {
             FabsstoreTheme {
                 StoreApp()
@@ -66,6 +71,7 @@ class MainActivity : ComponentActivity() {
     }
 }
 
+@OptIn(ExperimentalPermissionsApi::class)
 @Composable
 fun StoreApp(
     authViewModel: AuthViewModel = viewModel()
@@ -76,6 +82,18 @@ fun StoreApp(
     val postViewModel: PostViewModel = viewModel()
     val reviewViewModel: ReviewViewModel = viewModel()
     var isLoggedIn by remember { mutableStateOf(authViewModel.isLoggedIn()) }
+
+    // Request POST_NOTIFICATIONS permission on Android 13+
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+        val notificationPermissionState = com.google.accompanist.permissions.rememberPermissionState(
+            android.Manifest.permission.POST_NOTIFICATIONS
+        )
+        LaunchedEffect(Unit) {
+            if (!notificationPermissionState.status.isGranted) {
+                notificationPermissionState.launchPermissionRequest()
+            }
+        }
+    }
 
     LaunchedEffect(Unit) {
         isLoggedIn = authViewModel.isLoggedIn()

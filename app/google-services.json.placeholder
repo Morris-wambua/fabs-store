@@ -1,0 +1,23 @@
+{
+  "project_info": {
+    "project_number": "TODO: INSERT_PROJECT_NUMBER_HERE",
+    "project_id": "TODO: INSERT_FIREBASE_PROJECT_ID_HERE",
+    "storage_bucket": "TODO: INSERT_STORAGE_BUCKET_HERE"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "TODO: INSERT_APP_ID_HERE",
+        "android_client_info": {
+          "package_name": "com.morrislabs.fabs_store"
+        }
+      },
+      "api_key": [
+        {
+          "current_key": "TODO: INSERT_API_KEY_HERE"
+        }
+      ]
+    }
+  ],
+  "configuration_version": "1"
+}
