@@ -67,6 +67,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.google.android.gms.auth.api.signin.GoogleSignIn
 import com.google.android.gms.auth.api.signin.GoogleSignInOptions
 import com.google.android.gms.common.api.ApiException
+import com.morrislabs.fabs_store.BuildConfig
 import com.morrislabs.fabs_store.R
 import com.morrislabs.fabs_store.ui.components.ErrorDialog
 import com.morrislabs.fabs_store.ui.viewmodel.AuthViewModel
@@ -92,7 +93,7 @@ fun LoginScreen(
 
     val gso = remember {
         GoogleSignInOptions.Builder(GoogleSignInOptions.DEFAULT_SIGN_IN)
-            .requestIdToken("531035990883-6noorqsn6p61ilak4b7j3muhcspp3ifj.apps.googleusercontent.com")
+            .requestIdToken(BuildConfig.GOOGLE_WEB_CLIENT_ID)
             .requestEmail()
             .build()
     }
