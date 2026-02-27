@@ -1,0 +1,48 @@
+{
+  "project_info": {
+    "project_number": "687520348088",
+    "project_id": "fabs-ecosystem-2026",
+    "storage_bucket": "fabs-ecosystem-2026.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:687520348088:android:06d0b256a8690d9a53814d",
+        "android_client_info": {
+          "package_name": "com.example.fabs_app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDNWvocbCoJ_N9j8vUVn8Wp8WcAUcafatc"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:687520348088:android:f929d5471e3ba71853814d",
+        "android_client_info": {
+          "package_name": "com.morrislabs.fabs_store"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDNWvocbCoJ_N9j8vUVn8Wp8WcAUcafatc"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
