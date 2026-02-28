@@ -64,17 +64,11 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.media3.common.MediaItem
-import androidx.media3.common.Player
 import androidx.media3.common.util.UnstableApi
-import androidx.media3.exoplayer.ExoPlayer
-import androidx.media3.ui.AspectRatioFrameLayout
-import androidx.media3.ui.PlayerView
 import coil.compose.AsyncImage
 import coil.request.ImageRequest
 import com.morrislabs.fabs_store.data.model.PostDTO
 import com.morrislabs.fabs_store.data.model.PostType
-import kotlinx.coroutines.delay
 
 @Composable
 fun PostGridItem(
@@ -85,6 +79,7 @@ fun PostGridItem(
 ) {
     val viewCount = post.viewCount
     val isTrending = viewCount >= 100
+    val videoPreviewUrl = post.previewAnimationUrl ?: post.thumbnailUrl ?: post.mediaUrl
     var isMediaLoaded by remember(post.id, post.mediaUrl, post.type) {
         mutableStateOf(post.mediaUrl.isNullOrEmpty())
     }
@@ -106,9 +101,9 @@ fun PostGridItem(
                     .clip(RoundedCornerShape(12.dp))
                     .background(MaterialTheme.colorScheme.surfaceVariant)
             ) {
-                if (post.type == PostType.VIDEO && !post.mediaUrl.isNullOrEmpty()) {
+                if (post.type == PostType.VIDEO && !videoPreviewUrl.isNullOrEmpty()) {
                     VideoThumbnailPreview(
-                        mediaUrl = post.mediaUrl,
+                        mediaUrl = videoPreviewUrl,
                         onFirstFrameRendered = { isMediaLoaded = true },
                         modifier = Modifier.fillMaxSize()
                     )
@@ -250,56 +245,16 @@ private fun VideoThumbnailPreview(
     onFirstFrameRendered: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    val context = LocalContext.current
-    val exoPlayer = remember(mediaUrl) {
-        ExoPlayer.Builder(context).build().apply {
-            setMediaItem(MediaItem.fromUri(mediaUrl))
-            volume = 0f
-            playWhenReady = true
-            repeatMode = ExoPlayer.REPEAT_MODE_OFF
-            prepare()
-        }
-    }
-
-    LaunchedEffect(exoPlayer) {
-        while (true) {
-            if (exoPlayer.isPlaying && exoPlayer.currentPosition >= 4_000L) {
-                exoPlayer.seekTo(0L)
-            }
-            delay(200L)
-        }
-    }
-
-    DisposableEffect(exoPlayer) {
-        val listener = object : Player.Listener {
-            override fun onRenderedFirstFrame() {
-                onFirstFrameRendered()
-            }
-        }
-        exoPlayer.addListener(listener)
-        onDispose {
-            exoPlayer.removeListener(listener)
-        }
-    }
-
-    DisposableEffect(exoPlayer) {
-        onDispose {
-            exoPlayer.release()
-        }
-    }
-
-    AndroidView(
-        factory = { ctx ->
-            PlayerView(ctx).apply {
-                useController = false
-                resizeMode = AspectRatioFrameLayout.RESIZE_MODE_ZOOM
-                player = exoPlayer
-            }
-        },
+    AsyncImage(
+        model = ImageRequest.Builder(LocalContext.current)
+            .data(mediaUrl)
+            .crossfade(true)
+            .build(),
+        contentDescription = "Video preview",
         modifier = modifier,
-        update = { view ->
-            view.player = exoPlayer
-        }
+        contentScale = ContentScale.Crop,
+        onSuccess = { onFirstFrameRendered() },
+        onError = { onFirstFrameRendered() }
     )
 }
 

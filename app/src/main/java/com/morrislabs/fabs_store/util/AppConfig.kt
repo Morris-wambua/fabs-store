@@ -11,6 +11,10 @@ object AppConfig {
         const val ADB_REVERSE_LOCALHOST_URL = "http://127.0.0.1:8080/fabs/app"
         const val LOCAL_NETWORK_URL = "http://192.168.100.253:8080/fabs/app"
 
-        val BASE_URL = if (BuildConfig.DEBUG) ADB_REVERSE_LOCALHOST_URL else ADB_REVERSE_LOCALHOST_URL
+        val BASE_URL = if (BuildConfig.DEBUG) ADB_REVERSE_LOCALHOST_URL else PROD_BASE_URL
+    }
+
+    object Media {
+        val BUNNY_REFERER: String = BuildConfig.BUNNY_MEDIA_REFERER
     }
 }

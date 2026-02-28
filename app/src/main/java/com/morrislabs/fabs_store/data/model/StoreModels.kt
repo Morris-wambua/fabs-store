@@ -307,7 +307,33 @@ data class BusinessHourDTO(
 data class UploadMediaResponse(
     val fileName: String,
     val url: String,
+    val signedUrl: String? = null,
     val expiryIn: String? = null
+)
+
+@Serializable
+data class UploadIntentRequest(
+    val fileName: String,
+    val sizeBytes: Long,
+    val contentType: String,
+    val userId: String
+)
+
+@Serializable
+data class UploadIntentResponse(
+    val uploadId: String,
+    val objectKey: String,
+    val uploadUrl: String,
+    val expiresAt: String
+)
+
+@Serializable
+data class UploadCompleteRequest(
+    val uploadId: String,
+    val objectKey: String,
+    val fileName: String,
+    val contentType: String,
+    val userId: String
 )
 
 @Serializable
@@ -364,6 +390,9 @@ data class PostDTO(
     val caption: String? = null,
     val type: PostType = PostType.IMAGE,
     val mediaUrl: String? = null,
+    val presignedMediaUrl: String? = null,
+    val thumbnailUrl: String? = null,
+    val previewAnimationUrl: String? = null,
     val comments: List<CommentDTO> = emptyList(),
     val likeCount: Int = 0,
     val shareCount: Int = 0,

@@ -70,6 +70,7 @@ androidMapsUtils = { module = "com.google.maps.android:android-maps-utils", vers
 accompanistPermissions = { module = "com.google.accompanist:accompanist-permissions", version.ref = "accompanistPermissions" }
 playServicesAuth = { module = "com.google.android.gms:play-services-auth", version.ref = "playServicesAuth" }
 androidx-media3-exoplayer = { module = "androidx.media3:media3-exoplayer", version.ref = "media3" }
+androidx-media3-exoplayer-hls = { module = "androidx.media3:media3-exoplayer-hls", version.ref = "media3" }
 androidx-media3-ui = { module = "androidx.media3:media3-ui", version.ref = "media3" }
 media3-exoplayer = { group = "androidx.media3", name = "media3-exoplayer", version.ref = "media3Exoplayer" }
 

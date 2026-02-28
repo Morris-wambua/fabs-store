@@ -6,29 +6,17 @@ import android.util.Log
 import com.morrislabs.fabs_store.data.model.CreateStorePayload
 import com.morrislabs.fabs_store.data.model.FetchStoreResponse
 import com.morrislabs.fabs_store.data.model.UpdateStorePayload
-import com.morrislabs.fabs_store.data.model.UploadMediaResponse
 import com.morrislabs.fabs_store.util.AppConfig
 import com.morrislabs.fabs_store.util.ClientConfig
 import com.morrislabs.fabs_store.util.TokenManager
-import io.ktor.client.HttpClient
-import io.ktor.client.call.body
-import io.ktor.client.engine.cio.CIO
 import io.ktor.client.plugins.ClientRequestException
-import io.ktor.client.plugins.HttpTimeout
-import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
-import io.ktor.client.request.bearerAuth
-import io.ktor.client.request.forms.formData
-import io.ktor.client.request.forms.submitFormWithBinaryData
 import io.ktor.client.request.get
 import io.ktor.client.request.post
 import io.ktor.client.request.put
 import io.ktor.client.request.setBody
 import io.ktor.client.statement.bodyAsText
 import io.ktor.http.ContentType
-import io.ktor.http.Headers
-import io.ktor.http.HttpHeaders
 import io.ktor.http.contentType
-import io.ktor.serialization.kotlinx.json.json
 import kotlinx.serialization.json.Json
 
 private const val TAG = "StoreApiService"
@@ -37,6 +25,7 @@ class StoreApiService(private val context: Context, private val tokenManager: To
 
     private val baseUrl = AppConfig.Api.BASE_URL
     private val clientConfig = ClientConfig()
+    private val directUploadApi = DirectMediaUploadApiService(context, tokenManager)
 
     suspend fun fetchUserStore(userId: String): Result<FetchStoreResponse> {
         return try {
@@ -117,52 +106,13 @@ class StoreApiService(private val context: Context, private val tokenManager: To
     }
 
     suspend fun uploadStoreImage(uri: Uri, userId: String): Result<Pair<String, String>> {
-        return try {
-            val inputStream = context.contentResolver.openInputStream(uri)
-                ?: return Result.failure(Exception("Cannot read image file"))
-            val bytes = inputStream.readBytes()
-            inputStream.close()
-
-            val token = tokenManager.getToken()
-            val uploadClient = HttpClient(CIO) {
-                install(ContentNegotiation) {
-                    json(Json {
-                        ignoreUnknownKeys = true
-                        isLenient = true
-                    })
-                }
-                install(HttpTimeout) {
-                    requestTimeoutMillis = 60000
-                    connectTimeoutMillis = 30000
-                    socketTimeoutMillis = 60000
-                }
-            }
-
-            try {
-                val response = uploadClient.submitFormWithBinaryData(
-                    url = "$baseUrl/api/media/upload",
-                    formData = formData {
-                        append("file", bytes, Headers.build {
-                            append(HttpHeaders.ContentType, "image/jpeg")
-                            append(HttpHeaders.ContentDisposition, "filename=\"store_logo.jpg\"")
-                        })
-                        append("userId", userId)
-                    }
-                ) {
-                    token?.let { bearerAuth(it) }
-                }
-
-                val responseText = response.bodyAsText()
-                Log.d(TAG, "Upload logo response: $responseText")
-                val json = Json { ignoreUnknownKeys = true }
-                val uploadResponse = json.decodeFromString<UploadMediaResponse>(responseText)
-                Result.success(Pair(uploadResponse.url, uploadResponse.fileName))
-            } finally {
-                uploadClient.close()
-            }
-        } catch (e: Exception) {
-            Log.e(TAG, "Upload store logo failed", e)
-            Result.failure(Exception("Failed to upload logo: ${e.message}"))
+        return directUploadApi.upload(
+            uri = uri,
+            userId = userId,
+            fallbackContentType = "image/jpeg",
+            fallbackName = "store_logo.jpg"
+        ).onFailure { error ->
+            Log.e(TAG, "Upload store logo failed", error)
         }
     }
 

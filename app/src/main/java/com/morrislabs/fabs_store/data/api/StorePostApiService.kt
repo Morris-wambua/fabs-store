@@ -9,30 +9,19 @@ import com.morrislabs.fabs_store.data.model.PagedCommentResponse
 import com.morrislabs.fabs_store.data.model.PagedPostResponse
 import com.morrislabs.fabs_store.data.model.PostDTO
 import com.morrislabs.fabs_store.data.model.PostPayload
-import com.morrislabs.fabs_store.data.model.UploadMediaResponse
 import com.morrislabs.fabs_store.util.AppConfig
 import com.morrislabs.fabs_store.util.ClientConfig
 import com.morrislabs.fabs_store.util.TokenManager
-import io.ktor.client.HttpClient
-import io.ktor.client.engine.cio.CIO
 import io.ktor.client.plugins.ClientRequestException
-import io.ktor.client.plugins.HttpTimeout
-import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
-import io.ktor.client.request.bearerAuth
 import io.ktor.client.request.delete
 import io.ktor.client.request.get
 import io.ktor.client.request.parameter
 import io.ktor.client.request.post
 import io.ktor.client.request.put
 import io.ktor.client.request.setBody
-import io.ktor.client.request.forms.formData
-import io.ktor.client.request.forms.submitFormWithBinaryData
 import io.ktor.client.statement.bodyAsText
 import io.ktor.http.ContentType
-import io.ktor.http.Headers
-import io.ktor.http.HttpHeaders
 import io.ktor.http.contentType
-import io.ktor.serialization.kotlinx.json.json
 import kotlinx.serialization.json.Json
 
 private const val TAG = "StorePostApiService"
@@ -42,6 +31,7 @@ class StorePostApiService(private val context: Context, private val tokenManager
     private val baseUrl = AppConfig.Api.BASE_URL
     private val clientConfig = ClientConfig()
     private val json = Json { ignoreUnknownKeys = true }
+    private val directUploadApi = DirectMediaUploadApiService(context, tokenManager)
 
     suspend fun createStorePost(storeId: String, payload: PostPayload): Result<PostDTO> {
         return try {
@@ -326,50 +316,15 @@ class StorePostApiService(private val context: Context, private val tokenManager
     }
 
     suspend fun uploadPostMedia(uri: Uri, userId: String): Result<Pair<String, String>> {
-        return try {
-            val inputStream = context.contentResolver.openInputStream(uri)
-                ?: return Result.failure(Exception("Cannot read media file"))
-            val bytes = inputStream.readBytes()
-            inputStream.close()
-
-            val mimeType = context.contentResolver.getType(uri) ?: "image/jpeg"
-            val extension = if (mimeType.startsWith("video")) "mp4" else "jpg"
-
-            val token = tokenManager.getToken()
-            val uploadClient = HttpClient(CIO) {
-                install(ContentNegotiation) {
-                    json(Json { ignoreUnknownKeys = true; isLenient = true })
-                }
-                install(HttpTimeout) {
-                    requestTimeoutMillis = 120000
-                    connectTimeoutMillis = 30000
-                    socketTimeoutMillis = 120000
-                }
-            }
-
-            try {
-                val response = uploadClient.submitFormWithBinaryData(
-                    url = "$baseUrl/api/media/upload",
-                    formData = formData {
-                        append("file", bytes, Headers.build {
-                            append(HttpHeaders.ContentType, mimeType)
-                            append(HttpHeaders.ContentDisposition, "filename=\"post_media.$extension\"")
-                        })
-                        append("userId", userId)
-                    }
-                ) {
-                    token?.let { bearerAuth(it) }
-                }
-                val responseText = response.bodyAsText()
-                Log.d(TAG, "Upload media response: $responseText")
-                val uploadResponse = json.decodeFromString<UploadMediaResponse>(responseText)
-                Result.success(Pair(uploadResponse.url, uploadResponse.fileName))
-            } finally {
-                uploadClient.close()
-            }
-        } catch (e: Exception) {
-            Log.e(TAG, "Upload media failed", e)
-            Result.failure(Exception("Failed to upload media: ${e.message}"))
+        val mimeType = context.contentResolver.getType(uri) ?: "image/jpeg"
+        val extension = if (mimeType.startsWith("video")) "mp4" else "jpg"
+        return directUploadApi.upload(
+            uri = uri,
+            userId = userId,
+            fallbackContentType = mimeType,
+            fallbackName = "post_media.$extension"
+        ).onFailure { error ->
+            Log.e(TAG, "Upload media failed", error)
         }
     }
 }
