@@ -42,6 +42,7 @@ class StorePostApiService(private val context: Context, private val tokenManager
     private val baseUrl = AppConfig.Api.BASE_URL
     private val clientConfig = ClientConfig()
     private val json = Json { ignoreUnknownKeys = true }
+    private val directUploadApi = DirectMediaUploadApiService(context, tokenManager)
 
     suspend fun createStorePost(storeId: String, payload: PostPayload): Result<PostDTO> {
         return try {
@@ -326,50 +327,15 @@ class StorePostApiService(private val context: Context, private val tokenManager
     }
 
     suspend fun uploadPostMedia(uri: Uri, userId: String): Result<Pair<String, String>> {
-        return try {
-            val inputStream = context.contentResolver.openInputStream(uri)
-                ?: return Result.failure(Exception("Cannot read media file"))
-            val bytes = inputStream.readBytes()
-            inputStream.close()
-
-            val mimeType = context.contentResolver.getType(uri) ?: "image/jpeg"
-            val extension = if (mimeType.startsWith("video")) "mp4" else "jpg"
-
-            val token = tokenManager.getToken()
-            val uploadClient = HttpClient(CIO) {
-                install(ContentNegotiation) {
-                    json(Json { ignoreUnknownKeys = true; isLenient = true })
-                }
-                install(HttpTimeout) {
-                    requestTimeoutMillis = 120000
-                    connectTimeoutMillis = 30000
-                    socketTimeoutMillis = 120000
-                }
-            }
-
-            try {
-                val response = uploadClient.submitFormWithBinaryData(
-                    url = "$baseUrl/api/media/upload",
-                    formData = formData {
-                        append("file", bytes, Headers.build {
-                            append(HttpHeaders.ContentType, mimeType)
-                            append(HttpHeaders.ContentDisposition, "filename=\"post_media.$extension\"")
-                        })
-                        append("userId", userId)
-                    }
-                ) {
-                    token?.let { bearerAuth(it) }
-                }
-                val responseText = response.bodyAsText()
-                Log.d(TAG, "Upload media response: $responseText")
-                val uploadResponse = json.decodeFromString<UploadMediaResponse>(responseText)
-                Result.success(Pair(uploadResponse.url, uploadResponse.fileName))
-            } finally {
-                uploadClient.close()
-            }
-        } catch (e: Exception) {
-            Log.e(TAG, "Upload media failed", e)
-            Result.failure(Exception("Failed to upload media: ${e.message}"))
+        val mimeType = context.contentResolver.getType(uri) ?: "image/jpeg"
+        val extension = if (mimeType.startsWith("video")) "mp4" else "jpg"
+        return directUploadApi.upload(
+            uri = uri,
+            userId = userId,
+            fallbackContentType = mimeType,
+            fallbackName = "post_media.$extension"
+        ).onFailure { error ->
+            Log.e(TAG, "Upload media failed", error)
         }
     }
 }

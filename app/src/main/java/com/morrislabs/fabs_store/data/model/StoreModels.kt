@@ -311,6 +311,31 @@ data class UploadMediaResponse(
 )
 
 @Serializable
+data class UploadIntentRequest(
+    val fileName: String,
+    val sizeBytes: Long,
+    val contentType: String,
+    val userId: String
+)
+
+@Serializable
+data class UploadIntentResponse(
+    val uploadId: String,
+    val objectKey: String,
+    val uploadUrl: String,
+    val expiresAt: String
+)
+
+@Serializable
+data class UploadCompleteRequest(
+    val uploadId: String,
+    val objectKey: String,
+    val fileName: String,
+    val contentType: String,
+    val userId: String
+)
+
+@Serializable
 enum class PostType {
     IMAGE, VIDEO
 }

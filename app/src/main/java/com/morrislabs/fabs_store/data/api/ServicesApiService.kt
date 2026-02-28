@@ -38,6 +38,7 @@ class ServicesApiService(private val context: Context, private val tokenManager:
     private val baseUrl = AppConfig.Api.BASE_URL
     private val clientConfig = ClientConfig()
     private val json = Json { ignoreUnknownKeys = true }
+    private val directUploadApi = DirectMediaUploadApiService(context, tokenManager)
 
     suspend fun fetchServicesByStore(
         storeId: String,
@@ -129,47 +130,13 @@ class ServicesApiService(private val context: Context, private val tokenManager:
     }
 
     suspend fun uploadServiceImage(uri: Uri, userId: String): Result<Pair<String, String>> {
-        return try {
-            val inputStream = context.contentResolver.openInputStream(uri)
-                ?: return Result.failure(Exception("Cannot read image file"))
-            val bytes = inputStream.readBytes()
-            inputStream.close()
-
-            val token = tokenManager.getToken()
-            val uploadClient = HttpClient(CIO) {
-                install(ContentNegotiation) {
-                    json(Json { ignoreUnknownKeys = true; isLenient = true })
-                }
-                install(HttpTimeout) {
-                    requestTimeoutMillis = 60000
-                    connectTimeoutMillis = 30000
-                    socketTimeoutMillis = 60000
-                }
-            }
-
-            try {
-                val response = uploadClient.submitFormWithBinaryData(
-                    url = "$baseUrl/api/media/upload",
-                    formData = formData {
-                        append("file", bytes, Headers.build {
-                            append(HttpHeaders.ContentType, "image/jpeg")
-                            append(HttpHeaders.ContentDisposition, "filename=\"service_image.jpg\"")
-                        })
-                        append("userId", userId)
-                    }
-                ) {
-                    token?.let { bearerAuth(it) }
-                }
-                val responseText = response.bodyAsText()
-                Log.d(TAG, "Upload service image response: $responseText")
-                val uploadResponse = json.decodeFromString<UploadMediaResponse>(responseText)
-                Result.success(Pair(uploadResponse.url, uploadResponse.fileName))
-            } finally {
-                uploadClient.close()
-            }
-        } catch (e: Exception) {
-            Log.e(TAG, "Upload service image failed", e)
-            Result.failure(Exception("Failed to upload image: ${e.message}"))
+        return directUploadApi.upload(
+            uri = uri,
+            userId = userId,
+            fallbackContentType = "image/jpeg",
+            fallbackName = "service_image.jpg"
+        ).onFailure { error ->
+            Log.e(TAG, "Upload service image failed", error)
         }
     }
 }
