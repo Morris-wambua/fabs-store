@@ -391,6 +391,8 @@ data class PostDTO(
     val type: PostType = PostType.IMAGE,
     val mediaUrl: String? = null,
     val presignedMediaUrl: String? = null,
+    val thumbnailUrl: String? = null,
+    val previewAnimationUrl: String? = null,
     val comments: List<CommentDTO> = emptyList(),
     val likeCount: Int = 0,
     val shareCount: Int = 0,

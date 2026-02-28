@@ -61,6 +61,15 @@ class PostViewModel(application: Application) : AndroidViewModel(application) {
     private val viewedPostIds = mutableSetOf<String>()
     private var hashtagSearchJob: Job? = null
 
+    private fun logPostMediaDiagnostics(source: String, posts: List<PostDTO>) {
+        posts.forEachIndexed { index, post ->
+            Log.d(
+                TAG,
+                "[$source][$index] postId=${post.id}, type=${post.type}, mediaUrl=${post.mediaUrl}, presignedMediaUrl=${post.presignedMediaUrl}, thumbnailUrl=${post.thumbnailUrl}, previewAnimationUrl=${post.previewAnimationUrl}"
+            )
+        }
+    }
+
     fun fetchStorePosts(storeId: String, page: Int = 0, size: Int = 20) {
         if (page == 0) _postsState.value = StoreViewModel.LoadingState.Loading
 
@@ -69,6 +78,7 @@ class PostViewModel(application: Application) : AndroidViewModel(application) {
             postApiService.getStorePosts(storeId, userId, page, size)
                 .onSuccess { pagedResponse ->
                     Log.d(TAG, "Posts fetched: ${pagedResponse.content.size} items")
+                    logPostMediaDiagnostics("store_posts_page_${pagedResponse.page}", pagedResponse.content)
                     _postsState.value = StoreViewModel.LoadingState.Success(pagedResponse.content)
                     _isRefreshing.value = false
                 }
@@ -93,6 +103,7 @@ class PostViewModel(application: Application) : AndroidViewModel(application) {
             val userId = tokenManager.getUserId()
             postApiService.getPostById(postId, userId)
                 .onSuccess { post ->
+                    logPostMediaDiagnostics("post_detail", listOf(post))
                     updatePostInState(post)
                     maybeTrackView(postId)
                 }

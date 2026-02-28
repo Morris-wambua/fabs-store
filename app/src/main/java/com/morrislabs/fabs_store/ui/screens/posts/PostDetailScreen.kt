@@ -274,7 +274,8 @@ private fun PostQueuePage(
                 .pointerInput(post.id, post.likedByCurrentUser) {
                     detectTapGestures(
                         onTap = {
-                            if (post.type == PostType.VIDEO && !post.mediaUrl.isNullOrBlank()) {
+                            val videoPlaybackUrl = post.presignedMediaUrl ?: post.mediaUrl
+                            if (post.type == PostType.VIDEO && !videoPlaybackUrl.isNullOrBlank()) {
                                 isPausedByUser = !isPausedByUser
                             }
                         },
