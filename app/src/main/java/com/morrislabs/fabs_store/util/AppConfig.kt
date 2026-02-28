@@ -13,4 +13,8 @@ object AppConfig {
 
         val BASE_URL = if (BuildConfig.DEBUG) ADB_REVERSE_LOCALHOST_URL else ADB_REVERSE_LOCALHOST_URL
     }
+
+    object Media {
+        val BUNNY_REFERER: String = BuildConfig.BUNNY_MEDIA_REFERER
+    }
 }

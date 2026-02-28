@@ -67,13 +67,16 @@ import androidx.compose.ui.unit.sp
 import androidx.media3.common.MediaItem
 import androidx.media3.common.Player
 import androidx.media3.common.util.UnstableApi
+import androidx.media3.datasource.DefaultHttpDataSource
 import androidx.media3.exoplayer.ExoPlayer
+import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
 import androidx.media3.ui.AspectRatioFrameLayout
 import androidx.media3.ui.PlayerView
 import coil.compose.AsyncImage
 import coil.request.ImageRequest
 import com.morrislabs.fabs_store.data.model.PostDTO
 import com.morrislabs.fabs_store.data.model.PostType
+import com.morrislabs.fabs_store.util.AppConfig
 import kotlinx.coroutines.delay
 
 @Composable
@@ -85,6 +88,7 @@ fun PostGridItem(
 ) {
     val viewCount = post.viewCount
     val isTrending = viewCount >= 100
+    val videoPlaybackUrl = post.presignedMediaUrl ?: post.mediaUrl
     var isMediaLoaded by remember(post.id, post.mediaUrl, post.type) {
         mutableStateOf(post.mediaUrl.isNullOrEmpty())
     }
@@ -106,9 +110,9 @@ fun PostGridItem(
                     .clip(RoundedCornerShape(12.dp))
                     .background(MaterialTheme.colorScheme.surfaceVariant)
             ) {
-                if (post.type == PostType.VIDEO && !post.mediaUrl.isNullOrEmpty()) {
+                if (post.type == PostType.VIDEO && !videoPlaybackUrl.isNullOrEmpty()) {
                     VideoThumbnailPreview(
-                        mediaUrl = post.mediaUrl,
+                        mediaUrl = videoPlaybackUrl,
                         onFirstFrameRendered = { isMediaLoaded = true },
                         modifier = Modifier.fillMaxSize()
                     )
@@ -252,7 +256,14 @@ private fun VideoThumbnailPreview(
 ) {
     val context = LocalContext.current
     val exoPlayer = remember(mediaUrl) {
-        ExoPlayer.Builder(context).build().apply {
+        val mediaSourceFactory = DefaultMediaSourceFactory(
+            DefaultHttpDataSource.Factory()
+                .setUserAgent("fabs-store-media3")
+                .setDefaultRequestProperties(mapOf("Referer" to AppConfig.Media.BUNNY_REFERER))
+        )
+        ExoPlayer.Builder(context)
+            .setMediaSourceFactory(mediaSourceFactory)
+            .build().apply {
             setMediaItem(MediaItem.fromUri(mediaUrl))
             volume = 0f
             playWhenReady = true

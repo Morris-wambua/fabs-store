@@ -66,8 +66,10 @@ import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.media3.common.MediaItem
 import androidx.media3.common.PlaybackException
 import androidx.media3.common.Player
+import androidx.media3.datasource.DefaultHttpDataSource
 import androidx.media3.datasource.HttpDataSource
 import androidx.media3.exoplayer.ExoPlayer
+import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
 import androidx.media3.ui.AspectRatioFrameLayout
 import androidx.media3.ui.PlayerView
 import coil.compose.AsyncImage
@@ -76,6 +78,7 @@ import com.morrislabs.fabs_store.data.model.PostDTO
 import com.morrislabs.fabs_store.data.model.PostType
 import com.morrislabs.fabs_store.ui.viewmodel.PostViewModel
 import com.morrislabs.fabs_store.ui.viewmodel.StoreViewModel
+import com.morrislabs.fabs_store.util.AppConfig
 import com.morrislabs.fabs_store.util.formatTimeAgo
 import kotlinx.coroutines.delay
 
@@ -379,6 +382,7 @@ private fun PostMediaSection(
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
+    val videoPlaybackUrl = post.presignedMediaUrl ?: post.mediaUrl
 
     Box(
         modifier = modifier
@@ -386,9 +390,9 @@ private fun PostMediaSection(
             .fillMaxSize()
             .clip(RoundedCornerShape(0.dp))
     ) {
-        if (post.type == PostType.VIDEO && !post.mediaUrl.isNullOrBlank()) {
+        if (post.type == PostType.VIDEO && !videoPlaybackUrl.isNullOrBlank()) {
             AutoPlayVideoSurface(
-                mediaUrl = post.mediaUrl,
+                mediaUrl = videoPlaybackUrl,
                 shouldAutoPlay = shouldAutoPlay,
                 onMediaForbidden = onMediaForbidden,
                 modifier = Modifier.fillMaxSize()
@@ -428,7 +432,14 @@ private fun AutoPlayVideoSurface(
     var hasRequestedRefresh by remember(mediaUrl) { mutableStateOf(false) }
     var hasFirstFrame by remember(mediaUrl) { mutableStateOf(false) }
     val player = remember(mediaUrl) {
-        ExoPlayer.Builder(context).build().apply {
+        val mediaSourceFactory = DefaultMediaSourceFactory(
+            DefaultHttpDataSource.Factory()
+                .setUserAgent("fabs-store-media3")
+                .setDefaultRequestProperties(mapOf("Referer" to AppConfig.Media.BUNNY_REFERER))
+        )
+        ExoPlayer.Builder(context)
+            .setMediaSourceFactory(mediaSourceFactory)
+            .build().apply {
             setMediaItem(MediaItem.fromUri(mediaUrl))
             repeatMode = Player.REPEAT_MODE_ONE
             prepare()

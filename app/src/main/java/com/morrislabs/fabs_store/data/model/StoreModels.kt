@@ -307,6 +307,7 @@ data class BusinessHourDTO(
 data class UploadMediaResponse(
     val fileName: String,
     val url: String,
+    val signedUrl: String? = null,
     val expiryIn: String? = null
 )
 
@@ -389,6 +390,7 @@ data class PostDTO(
     val caption: String? = null,
     val type: PostType = PostType.IMAGE,
     val mediaUrl: String? = null,
+    val presignedMediaUrl: String? = null,
     val comments: List<CommentDTO> = emptyList(),
     val likeCount: Int = 0,
     val shareCount: Int = 0,
