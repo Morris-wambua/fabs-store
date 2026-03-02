@@ -82,6 +82,7 @@ fun MainScreen(
     onNavigateToPostDetail: (String) -> Unit,
     onNavigateToReviews: () -> Unit,
     onNavigateToChecklist: () -> Unit,
+    onNavigateToWallet: () -> Unit,
     onNavigateToChat: (conversationId: String, customerName: String) -> Unit,
     onLogout: () -> Unit
 ) {
@@ -175,7 +176,8 @@ fun MainScreen(
                         onNavigateToDailySchedule = onNavigateToDailySchedule,
                         onNavigateToReservations = { selectedTab = 1 },
                         onNavigateToReviews = onNavigateToReviews,
-                        onNavigateToChecklist = onNavigateToChecklist
+                        onNavigateToChecklist = onNavigateToChecklist,
+                        onNavigateToWallet = onNavigateToWallet
                     )
                 }
                 1 -> {

@@ -51,6 +51,7 @@ fun HomeScreen(
     onNavigateToPostDetail: (String) -> Unit = {},
     onNavigateToReviews: () -> Unit = {},
     onNavigateToChecklist: () -> Unit = {},
+    onNavigateToWallet: () -> Unit = {},
     onNavigateToChat: (conversationId: String, customerName: String) -> Unit = { _, _ -> },
     onLogout: () -> Unit = {},
     storeViewModel: StoreViewModel = viewModel(),
@@ -93,6 +94,7 @@ fun HomeScreen(
                     onNavigateToPostDetail = onNavigateToPostDetail,
                     onNavigateToReviews = onNavigateToReviews,
                     onNavigateToChecklist = onNavigateToChecklist,
+                    onNavigateToWallet = onNavigateToWallet,
                     onNavigateToChat = onNavigateToChat,
                     onLogout = onLogout
                 )

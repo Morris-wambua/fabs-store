@@ -33,6 +33,7 @@ import androidx.compose.material.icons.filled.PersonAdd
 import androidx.compose.material.icons.filled.Schedule
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Spa
+import androidx.compose.material.icons.filled.AccountBalanceWallet
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
@@ -81,6 +82,7 @@ fun DashboardScreen(
     onNavigateToReservations: () -> Unit,
     onNavigateToReviews: () -> Unit,
     onNavigateToChecklist: () -> Unit,
+    onNavigateToWallet: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     val storeId = store.id ?: ""
@@ -133,7 +135,8 @@ fun DashboardScreen(
             onNewService = onNavigateToServices,
             onSchedule = onNavigateToReservations,
             onDailySchedule = onNavigateToDailySchedule,
-            onReviews = onNavigateToReviews
+            onReviews = onNavigateToReviews,
+            onWallet = onNavigateToWallet
         )
 
         Spacer(modifier = Modifier.height(24.dp))
@@ -321,7 +324,8 @@ private fun QuickActionsSection(
     onNewService: () -> Unit,
     onSchedule: () -> Unit,
     onDailySchedule: () -> Unit,
-    onReviews: () -> Unit
+    onReviews: () -> Unit,
+    onWallet: () -> Unit
 ) {
     Column(modifier = Modifier.padding(horizontal = 16.dp)) {
         SectionHeader(title = "QUICK ACTIONS")
@@ -354,6 +358,11 @@ private fun QuickActionsSection(
                 icon = Icons.Default.Star,
                 label = "Reviews",
                 onClick = onReviews
+            )
+            QuickActionButton(
+                icon = Icons.Default.AccountBalanceWallet,
+                label = "Wallet",
+                onClick = onWallet
             )
         }
     }
