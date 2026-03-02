@@ -56,6 +56,8 @@ import com.morrislabs.fabs_store.ui.viewmodel.ChatViewModel
 import com.morrislabs.fabs_store.ui.viewmodel.CreateStoreWizardViewModel
 import com.morrislabs.fabs_store.ui.viewmodel.PostViewModel
 import com.morrislabs.fabs_store.ui.viewmodel.ReviewViewModel
+import com.morrislabs.fabs_store.ui.viewmodel.WalletViewModel
+import com.morrislabs.fabs_store.ui.screens.wallet.WalletScreen
 import com.morrislabs.fabs_store.util.AuthenticationStateListener
 import com.morrislabs.fabs_store.util.ClientConfig
 import com.morrislabs.fabs_store.util.NotificationHelper
@@ -86,6 +88,7 @@ fun StoreApp(
     val postViewModel: PostViewModel = viewModel()
     val reviewViewModel: ReviewViewModel = viewModel()
     val chatViewModel: ChatViewModel = viewModel()
+    val walletViewModel: WalletViewModel = viewModel()
     var isLoggedIn by remember { mutableStateOf(authViewModel.isLoggedIn()) }
 
     // Request POST_NOTIFICATIONS permission on Android 13+
@@ -176,6 +179,7 @@ fun StoreApp(
                 },
                 onNavigateToReviews = { navController.navigate("store_reviews") },
                 onNavigateToChecklist = { navController.navigate("setup_checklist") },
+                onNavigateToWallet = { navController.navigate("wallet") },
                 onNavigateToChat = { conversationId, customerName ->
                     val encodedName = URLEncoder.encode(customerName, "UTF-8")
                     navController.navigate("chat/$conversationId/$encodedName")
@@ -394,6 +398,16 @@ fun StoreApp(
                 storeId = storeId,
                 onNavigateBack = { navController.popBackStack() },
                 reviewViewModel = reviewViewModel
+            )
+        }
+
+        composable("wallet") {
+            val storeState by storeViewModel.storeState.collectAsState()
+            val storeId = (storeState as? com.morrislabs.fabs_store.ui.viewmodel.StoreViewModel.StoreState.Success)?.data?.id.orEmpty()
+            WalletScreen(
+                storeId = storeId,
+                walletViewModel = walletViewModel,
+                onNavigateBack = { navController.popBackStack() }
             )
         }
 
