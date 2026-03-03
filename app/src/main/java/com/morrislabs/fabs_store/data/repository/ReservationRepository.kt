@@ -24,6 +24,22 @@ class ReservationRepository(context: Context, tokenManager: TokenManager) {
         return reservationApiService.createReservation(reservation)
     }
 
+    suspend fun checkExpertAvailability(
+        expertId: String,
+        date: String,
+        startTime: String,
+        endTime: String,
+        excludeReservationId: String? = null
+    ): Result<Boolean> {
+        return reservationApiService.checkExpertAvailability(
+            expertId = expertId,
+            date = date,
+            startTime = startTime,
+            endTime = endTime,
+            excludeReservationId = excludeReservationId
+        )
+    }
+
     suspend fun transitionReservation(reservationId: String, action: ReservationTransitionAction): Result<String> {
         return reservationApiService.transitionReservation(reservationId, action)
     }

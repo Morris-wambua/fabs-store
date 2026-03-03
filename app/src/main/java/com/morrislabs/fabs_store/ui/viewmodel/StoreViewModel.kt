@@ -91,6 +91,7 @@ class StoreViewModel(application: Application) : AndroidViewModel(application) {
 
     private val _reservationTransitionState = MutableStateFlow<ReservationTransitionState>(ReservationTransitionState.Idle)
     val reservationTransitionState: StateFlow<ReservationTransitionState> = _reservationTransitionState.asStateFlow()
+    private val walkInSlotsQueryByExpert = mutableMapOf<String, WalkInSlotsQuery>()
 
     fun fetchUserStore() {
         _storeState.value = StoreState.Loading
@@ -294,6 +295,7 @@ class StoreViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun fetchWalkInAvailableSlots(expertId: String, date: String, durationMinutes: Int) {
+        walkInSlotsQueryByExpert[expertId] = WalkInSlotsQuery(date = date, durationMinutes = durationMinutes)
         _walkInAvailableSlotsByExpertState.value =
             _walkInAvailableSlotsByExpertState.value + (expertId to LoadingState.Loading)
 
@@ -311,6 +313,7 @@ class StoreViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun clearWalkInAvailableSlots() {
+        walkInSlotsQueryByExpert.clear()
         _walkInAvailableSlotsByExpertState.value = emptyMap()
     }
 
@@ -324,6 +327,25 @@ class StoreViewModel(application: Application) : AndroidViewModel(application) {
         viewModelScope.launch {
             var createdCount = 0
             reservations.forEach { reservation ->
+                val availabilityResult = reservationRepository.checkExpertAvailability(
+                    expertId = reservation.reservationExpert,
+                    date = reservation.reservationDate,
+                    startTime = reservation.startTime,
+                    endTime = reservation.endTime
+                )
+                val isAvailable = availabilityResult.getOrElse { error ->
+                    _walkInBookingActionState.value = WalkInBookingActionState.Error(
+                        error.message ?: "Failed to verify slot availability"
+                    )
+                    return@launch
+                }
+                if (!isAvailable) {
+                    _walkInBookingActionState.value = WalkInBookingActionState.Error(
+                        "Slot ${reservation.startTime}-${reservation.endTime} for ${reservation.expert} is no longer available"
+                    )
+                    return@launch
+                }
+
                 val result = reservationRepository.createReservation(reservation)
                 if (result.isFailure) {
                     _walkInBookingActionState.value = WalkInBookingActionState.Error(
@@ -360,6 +382,9 @@ class StoreViewModel(application: Application) : AndroidViewModel(application) {
                     _reservationTransitionState.value = ReservationTransitionState.Success(reservationId, status)
                     clearReservationsCache()
                     fetchReservations(storeId, filterStatus, query, forceRefresh = true)
+                    if (action == ReservationTransitionAction.CANCEL) {
+                        refreshWalkInAvailableSlotsAfterCancellation()
+                    }
                 }
                 .onFailure { error ->
                     _reservationTransitionState.value = ReservationTransitionState.Error(
@@ -371,6 +396,16 @@ class StoreViewModel(application: Application) : AndroidViewModel(application) {
 
     fun resetReservationTransitionState() {
         _reservationTransitionState.value = ReservationTransitionState.Idle
+    }
+
+    private fun refreshWalkInAvailableSlotsAfterCancellation() {
+        walkInSlotsQueryByExpert.forEach { (expertId, query) ->
+            fetchWalkInAvailableSlots(
+                expertId = expertId,
+                date = query.date,
+                durationMinutes = query.durationMinutes
+            )
+        }
     }
 
     fun createStore(payload: CreateStorePayload) {
@@ -517,4 +552,9 @@ class StoreViewModel(application: Application) : AndroidViewModel(application) {
         data class Success(val reservationId: String, val status: String) : ReservationTransitionState()
         data class Error(val message: String) : ReservationTransitionState()
     }
+
+    private data class WalkInSlotsQuery(
+        val date: String,
+        val durationMinutes: Int
+    )
 }
