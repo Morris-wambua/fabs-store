@@ -5,8 +5,6 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.ExperimentalLayoutApi
-import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -30,10 +28,10 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DatePicker
 import androidx.compose.material3.DatePickerDialog
-import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -45,6 +43,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -54,8 +53,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import com.morrislabs.fabs_store.data.model.ExpertDTO
-import com.morrislabs.fabs_store.data.model.ReservationDTO
 import com.morrislabs.fabs_store.data.model.ReservationCreatedBy
+import com.morrislabs.fabs_store.data.model.ReservationDTO
 import com.morrislabs.fabs_store.data.model.ReservationStatus
 import com.morrislabs.fabs_store.data.model.TimeSlot
 import com.morrislabs.fabs_store.data.model.TypeOfServiceDTO
@@ -68,7 +67,7 @@ import java.time.ZoneId
 import java.util.Date
 import java.util.Locale
 
-@OptIn(ExperimentalLayoutApi::class, androidx.compose.material3.ExperimentalMaterial3Api::class)
+@OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
 @Composable
 internal fun WalkInBookingScreen(
     storeId: String,
@@ -78,20 +77,20 @@ internal fun WalkInBookingScreen(
 ) {
     val walkInServicesState by storeViewModel.walkInServicesState.collectAsState()
     val walkInExpertsState by storeViewModel.walkInExpertsState.collectAsState()
-    val walkInAvailableSlotsByExpertState by storeViewModel.walkInAvailableSlotsByExpertState.collectAsState()
+    val walkInAvailableSlotsByPairState by storeViewModel.walkInAvailableSlotsByPairState.collectAsState()
     val bookingActionState by storeViewModel.walkInBookingActionState.collectAsState()
     val customerLookupState by storeViewModel.walkInCustomerLookupState.collectAsState()
 
+    var currentStep by remember { mutableIntStateOf(0) }
     var customerEmail by remember { mutableStateOf("") }
     var serviceSearch by remember { mutableStateOf("") }
     var selectedServiceIds by remember { mutableStateOf(setOf<String>()) }
     var selectedExpertsByService by remember { mutableStateOf(mapOf<String, Set<String>>()) }
-    var selectedDurationMinutes by remember { mutableStateOf<Int?>(null) }
     var selectedDateMillis by remember { mutableStateOf<Long?>(null) }
     var selectedTimeSlotsByPair by remember { mutableStateOf(mapOf<String, TimeSlot>()) }
-    var showDatePicker by remember { mutableStateOf(false) }
-    var showOtherDurationDialog by remember { mutableStateOf(false) }
     var localValidationError by remember { mutableStateOf<String?>(null) }
+    var showDatePicker by remember { mutableStateOf(false) }
+    var showUnregisteredWarning by remember { mutableStateOf(false) }
 
     val dateFormat = remember { SimpleDateFormat("MMMM dd, yyyy", Locale.getDefault()) }
     val displayDate = selectedDateMillis?.let { dateFormat.format(Date(it)) } ?: "Select a date"
@@ -99,10 +98,13 @@ internal fun WalkInBookingScreen(
     val experts = (walkInExpertsState as? StoreViewModel.LoadingState.Success<List<ExpertDTO>>)?.data.orEmpty()
     val expertsById = remember(experts) { experts.associateBy { it.id } }
     val selectedServices = remember(services, selectedServiceIds) { services.filter { selectedServiceIds.contains(it.id) } }
-    val totalPrice = selectedServices.sumOf { service -> service.price * selectedExpertsByService[service.id].orEmpty().size }
-    val selectedPairs = selectedServices.flatMap { service ->
-        selectedExpertsByService[service.id].orEmpty().map { expertId -> pairKey(service.id, expertId) }
+    val selectedPairs = remember(selectedServices, selectedExpertsByService) {
+        selectedServices.flatMap { service ->
+            selectedExpertsByService[service.id].orEmpty().map { expertId -> Triple(service.id, expertId, service.duration ?: 60) }
+        }
     }
+    val totalPrice = selectedServices.sumOf { service -> service.price * selectedExpertsByService[service.id].orEmpty().size }
+
     val isEmailValid = customerEmail.isNotBlank() && Patterns.EMAIL_ADDRESS.matcher(customerEmail.trim()).matches()
     val resolvedReservationUserId = when (val state = customerLookupState) {
         is StoreViewModel.WalkInCustomerLookupState.Found -> state.user.id
@@ -110,12 +112,10 @@ internal fun WalkInBookingScreen(
         else -> null
     }
 
-    val isFormValid = isEmailValid &&
-        selectedDateMillis != null &&
-        selectedDurationMinutes != null &&
+    val scheduleStepValid = selectedDateMillis != null &&
         selectedServices.isNotEmpty() &&
         selectedServices.all { selectedExpertsByService[it.id].orEmpty().isNotEmpty() } &&
-        selectedPairs.all { selectedTimeSlotsByPair[it] != null } &&
+        selectedPairs.all { selectedTimeSlotsByPair[pairKey(it.first, it.second)] != null } &&
         resolvedReservationUserId != null
 
     LaunchedEffect(storeId) {
@@ -143,10 +143,15 @@ internal fun WalkInBookingScreen(
         storeViewModel.lookupWalkInCustomerByEmail(normalizedEmail)
     }
 
-    LaunchedEffect(selectedDateMillis, selectedDurationMinutes, selectedExpertsByService) {
+    LaunchedEffect(selectedDateMillis, selectedPairs) {
         val dateMillis = selectedDateMillis
-        val duration = selectedDurationMinutes
-        if (dateMillis == null || duration == null) {
+        if (dateMillis == null) {
+            storeViewModel.clearWalkInAvailableSlots()
+            selectedTimeSlotsByPair = emptyMap()
+            return@LaunchedEffect
+        }
+
+        if (selectedPairs.isEmpty()) {
             storeViewModel.clearWalkInAvailableSlots()
             selectedTimeSlotsByPair = emptyMap()
             return@LaunchedEffect
@@ -157,19 +162,18 @@ internal fun WalkInBookingScreen(
             .toLocalDate()
             .toString()
 
-        val selectedExpertIds = selectedExpertsByService.values.flatten().toSet()
-        if (selectedExpertIds.isEmpty()) {
-            storeViewModel.clearWalkInAvailableSlots()
-            selectedTimeSlotsByPair = emptyMap()
-            return@LaunchedEffect
-        }
-
         storeViewModel.clearWalkInAvailableSlots()
         selectedTimeSlotsByPair = selectedTimeSlotsByPair.filterKeys { key ->
-            selectedPairs.contains(key)
+            selectedPairs.any { pairKey(it.first, it.second) == key }
         }
-        selectedExpertIds.forEach { expertId ->
-            storeViewModel.fetchWalkInAvailableSlots(expertId, bookingDate, duration)
+
+        selectedPairs.forEach { (serviceId, expertId, durationMinutes) ->
+            storeViewModel.fetchWalkInAvailableSlots(
+                serviceId = serviceId,
+                expertId = expertId,
+                date = bookingDate,
+                durationMinutes = durationMinutes
+            )
         }
     }
 
@@ -180,14 +184,68 @@ internal fun WalkInBookingScreen(
         }
     }
 
+    if (showDatePicker) {
+        val datePickerState = rememberDatePickerState(initialSelectedDateMillis = selectedDateMillis)
+        DatePickerDialog(
+            onDismissRequest = { showDatePicker = false },
+            confirmButton = {
+                TextButton(onClick = {
+                    selectedDateMillis = datePickerState.selectedDateMillis
+                    showDatePicker = false
+                }) { Text("OK") }
+            },
+            dismissButton = { TextButton(onClick = { showDatePicker = false }) { Text("Cancel") } }
+        ) {
+            DatePicker(state = datePickerState)
+        }
+    }
+
+    if (showUnregisteredWarning) {
+        AlertDialog(
+            onDismissRequest = { showUnregisteredWarning = false },
+            title = { Text("Unregistered Customer") },
+            text = {
+                Text(
+                    "No customer account was found for this email. Proceeding will create a walk-in booking tracked under store-side records, and customer app-linked payment tracking will not be available."
+                )
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        showUnregisteredWarning = false
+                        currentStep = 1
+                        localValidationError = null
+                    }
+                ) { Text("Proceed") }
+            },
+            dismissButton = {
+                TextButton(onClick = { showUnregisteredWarning = false }) { Text("Back") }
+            }
+        )
+    }
+
     Scaffold(
         modifier = Modifier.fillMaxSize(),
         containerColor = MaterialTheme.colorScheme.background,
         topBar = {
             TopAppBar(
-                title = { Text("Create Walk-in Booking", style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold)) },
+                title = {
+                    val title = when (currentStep) {
+                        0 -> "Walk-in Booking: Customer"
+                        1 -> "Walk-in Booking: Services"
+                        else -> "Walk-in Booking: Schedule"
+                    }
+                    Text(title, style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold))
+                },
                 navigationIcon = {
-                    IconButton(onClick = onNavigateBack) {
+                    IconButton(onClick = {
+                        if (currentStep > 0) {
+                            currentStep -= 1
+                            localValidationError = null
+                        } else {
+                            onNavigateBack()
+                        }
+                    }) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
                     }
                 },
@@ -208,47 +266,84 @@ internal fun WalkInBookingScreen(
                 Button(
                     onClick = {
                         localValidationError = null
-                        if (!isFormValid) {
-                            localValidationError = "Fill all required booking details"
-                            return@Button
-                        }
-                        val userId = resolvedReservationUserId
-                        if (userId.isNullOrBlank()) {
-                            localValidationError = "Customer email lookup is still in progress"
-                            return@Button
-                        }
-                        val bookingDate = Instant.ofEpochMilli(selectedDateMillis!!)
-                            .atZone(ZoneId.systemDefault())
-                            .toLocalDate()
-                        val payloads = selectedServices.flatMap { service ->
-                            selectedExpertsByService[service.id].orEmpty().map { expertId ->
-                                val expertName = expertsById[expertId]?.name.orEmpty()
-                                val selectedSlot = selectedTimeSlotsByPair[pairKey(service.id, expertId)]
-                                if (selectedSlot == null) {
-                                    localValidationError = "Select a time slot for each service-expert pair"
-                                    return@map null
+                        when (currentStep) {
+                            0 -> {
+                                if (!isEmailValid) {
+                                    localValidationError = "Enter a valid customer email"
+                                    return@Button
                                 }
-                                ReservationDTO(
-                                    userId = userId,
-                                    name = "Appointment for ${service.subCategory.toDisplayName()}",
-                                    price = service.price.toDouble(),
-                                    reservationDate = bookingDate.toString(),
-                                    startTime = selectedSlot.startTime,
-                                    endTime = selectedSlot.endTime,
-                                    expert = expertName.ifBlank { "Expert" },
-                                    status = ReservationStatus.BOOKED_ACCEPTED,
-                                    createdBy = ReservationCreatedBy.STORE,
-                                    store = storeId,
-                                    typeOfService = service.id,
-                                    reservationExpert = expertId
-                                )
-                            }.filterNotNull()
+                                when (customerLookupState) {
+                                    StoreViewModel.WalkInCustomerLookupState.Loading -> {
+                                        localValidationError = "Customer lookup in progress"
+                                    }
+                                    is StoreViewModel.WalkInCustomerLookupState.Found -> {
+                                        currentStep = 1
+                                    }
+                                    StoreViewModel.WalkInCustomerLookupState.NotFound -> {
+                                        showUnregisteredWarning = true
+                                    }
+                                    is StoreViewModel.WalkInCustomerLookupState.Error -> {
+                                        localValidationError = (customerLookupState as StoreViewModel.WalkInCustomerLookupState.Error).message
+                                    }
+                                    else -> {
+                                        localValidationError = "Wait for customer lookup to complete"
+                                    }
+                                }
+                            }
+
+                            1 -> {
+                                if (selectedServices.isEmpty()) {
+                                    localValidationError = "Select at least one service"
+                                    return@Button
+                                }
+                                currentStep = 2
+                            }
+
+                            else -> {
+                                if (!scheduleStepValid) {
+                                    localValidationError = "Select date, experts, and slots for all services"
+                                    return@Button
+                                }
+                                val userId = resolvedReservationUserId
+                                if (userId.isNullOrBlank()) {
+                                    localValidationError = "Customer lookup is still in progress"
+                                    return@Button
+                                }
+                                val bookingDate = Instant.ofEpochMilli(selectedDateMillis!!)
+                                    .atZone(ZoneId.systemDefault())
+                                    .toLocalDate()
+
+                                val payloads = selectedServices.flatMap { service ->
+                                    selectedExpertsByService[service.id].orEmpty().map { expertId ->
+                                        val slot = selectedTimeSlotsByPair[pairKey(service.id, expertId)]
+                                        if (slot == null) {
+                                            localValidationError = "Select a slot for each service and expert"
+                                            return@map null
+                                        }
+                                        ReservationDTO(
+                                            userId = userId,
+                                            name = "Appointment for ${service.subCategory.toDisplayName()}",
+                                            price = service.price.toDouble(),
+                                            reservationDate = bookingDate.toString(),
+                                            startTime = slot.startTime,
+                                            endTime = slot.endTime,
+                                            expert = expertsById[expertId]?.name.orEmpty().ifBlank { "Expert" },
+                                            status = ReservationStatus.BOOKED_ACCEPTED,
+                                            createdBy = ReservationCreatedBy.STORE,
+                                            store = storeId,
+                                            typeOfService = service.id,
+                                            reservationExpert = expertId
+                                        )
+                                    }.filterNotNull()
+                                }
+
+                                if (payloads.isEmpty()) {
+                                    localValidationError = "No valid reservations to submit"
+                                    return@Button
+                                }
+                                storeViewModel.createWalkInReservations(payloads)
+                            }
                         }
-                        if (payloads.isEmpty()) {
-                            localValidationError = "No valid reservation payload generated"
-                            return@Button
-                        }
-                        storeViewModel.createWalkInReservations(payloads)
                     },
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(12.dp),
@@ -262,134 +357,53 @@ internal fun WalkInBookingScreen(
                             color = MaterialTheme.colorScheme.onPrimary
                         )
                     } else {
-                        Icon(Icons.Default.CheckCircle, contentDescription = null, modifier = Modifier.size(18.dp))
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text("Confirm Booking")
+                        if (currentStep == 2) {
+                            Icon(Icons.Default.CheckCircle, contentDescription = null, modifier = Modifier.size(18.dp))
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text("Confirm Booking")
+                        } else {
+                            Text("Continue")
+                        }
                     }
                 }
             }
         }
     ) { innerPadding ->
-        if (showDatePicker) {
-            val datePickerState = rememberDatePickerState(initialSelectedDateMillis = selectedDateMillis)
-            DatePickerDialog(
-                onDismissRequest = { showDatePicker = false },
-                confirmButton = {
-                    TextButton(onClick = {
-                        selectedDateMillis = datePickerState.selectedDateMillis
-                        showDatePicker = false
-                    }) { Text("OK") }
-                },
-                dismissButton = { TextButton(onClick = { showDatePicker = false }) { Text("Cancel") } }
-            ) {
-                DatePicker(state = datePickerState)
-            }
-        }
-
-        if (showOtherDurationDialog) {
-            AlertDialog(
-                onDismissRequest = { showOtherDurationDialog = false },
-                title = { Text("Select Duration") },
-                text = {
-                    FlowRow(
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                        verticalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        extendedDurations.forEach { minutes ->
-                            FilterChip(
-                                selected = selectedDurationMinutes == minutes,
-                                onClick = {
-                                    selectedDurationMinutes = minutes
-                                    showOtherDurationDialog = false
-                                },
-                                label = { Text(formatDuration(minutes)) }
-                            )
-                        }
-                    }
-                },
-                confirmButton = { TextButton(onClick = { showOtherDurationDialog = false }) { Text("Close") } }
-            )
-        }
-
         Column(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(innerPadding)
                 .verticalScroll(rememberScrollState())
-                .padding(horizontal = 16.dp, vertical = 8.dp)
+                .padding(horizontal = 16.dp, vertical = 12.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            Text(
-                text = "CUSTOMER DETAILS",
-                style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-            Spacer(modifier = Modifier.height(8.dp))
-            androidx.compose.material3.OutlinedTextField(
-                value = customerEmail,
-                onValueChange = { customerEmail = it },
-                label = { Text("Customer Email Address") },
-                modifier = Modifier.fillMaxWidth(),
-                singleLine = true,
-                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email),
-                shape = RoundedCornerShape(12.dp)
-            )
-            Spacer(modifier = Modifier.height(6.dp))
-            when (customerLookupState) {
-                StoreViewModel.WalkInCustomerLookupState.Loading -> {
-                    Text("Checking customer account...")
-                }
-                is StoreViewModel.WalkInCustomerLookupState.Found -> {
-                    val customer = (customerLookupState as StoreViewModel.WalkInCustomerLookupState.Found).user
-                    Text(
-                        text = "Customer found: ${customer.firstName} ${customer.lastName}".trim(),
-                        color = MaterialTheme.colorScheme.primary
-                    )
-                    Text("Payment mode: Customer app")
-                }
-                StoreViewModel.WalkInCustomerLookupState.NotFound -> {
-                    Text(
-                        text = "Email not found. Customer may be new or email may be incorrect.",
-                        color = MaterialTheme.colorScheme.error
-                    )
-                    Text("Payment mode: Cash (new customer)")
-                }
-                is StoreViewModel.WalkInCustomerLookupState.Error -> {
-                    Text(
-                        text = (customerLookupState as StoreViewModel.WalkInCustomerLookupState.Error).message,
-                        color = MaterialTheme.colorScheme.error
-                    )
-                }
-                else -> {
-                    if (customerEmail.isNotBlank() && !isEmailValid) {
-                        Text("Enter a valid email address", color = MaterialTheme.colorScheme.error)
-                    }
-                }
-            }
+            WalkInStepProgress(currentStep = currentStep)
 
-            Spacer(modifier = Modifier.height(18.dp))
-            ServiceSelectionSection(
+            WalkInBookingStepContent(
+                currentStep = currentStep,
+                customerEmail = customerEmail,
+                onCustomerEmailChange = { customerEmail = it },
+                customerLookupState = customerLookupState,
+                isEmailValid = isEmailValid,
                 serviceSearch = serviceSearch,
                 onServiceSearchChange = { serviceSearch = it },
-                servicesState = walkInServicesState,
+                walkInServicesState = walkInServicesState,
                 services = services,
                 selectedServiceIds = selectedServiceIds,
                 onServiceToggled = { service ->
                     if (selectedServiceIds.contains(service.id)) {
                         selectedServiceIds = selectedServiceIds - service.id
                         selectedExpertsByService = selectedExpertsByService - service.id
-                        selectedTimeSlotsByPair = selectedTimeSlotsByPair.filterKeys { key ->
-                            !key.startsWith("${service.id}|")
-                        }
+                        selectedTimeSlotsByPair = selectedTimeSlotsByPair.filterKeys { !it.startsWith("${service.id}|") }
                     } else {
                         selectedServiceIds = selectedServiceIds + service.id
                         selectedExpertsByService = selectedExpertsByService + (service.id to emptySet())
                     }
-                }
-            )
-
-            Spacer(modifier = Modifier.height(18.dp))
-            ExpertAssignmentSection(
-                expertsState = walkInExpertsState,
+                },
+                displayDate = displayDate,
+                selectedDateMillis = selectedDateMillis,
+                onDateClick = { showDatePicker = true },
+                walkInExpertsState = walkInExpertsState,
                 selectedServices = selectedServices,
                 experts = experts,
                 selectedExpertsByService = selectedExpertsByService,
@@ -400,67 +414,19 @@ internal fun WalkInBookingScreen(
                     if (!updated.contains(expertId)) {
                         selectedTimeSlotsByPair = selectedTimeSlotsByPair - pairKey(serviceId, expertId)
                     }
-                }
-            )
-
-            Spacer(modifier = Modifier.height(18.dp))
-            TimeSlotAssignmentSection(
-                selectedServices = selectedServices,
+                },
                 expertsById = expertsById,
-                selectedExpertsByService = selectedExpertsByService,
-                availableSlotsByExpertState = walkInAvailableSlotsByExpertState,
+                walkInAvailableSlotsByPairState = walkInAvailableSlotsByPairState,
                 selectedTimeSlotsByPair = selectedTimeSlotsByPair,
                 onTimeSlotSelected = { serviceId, expertId, slot ->
                     selectedTimeSlotsByPair = selectedTimeSlotsByPair + (pairKey(serviceId, expertId) to slot)
-                }
+                },
+                totalPrice = totalPrice
             )
-
-            Spacer(modifier = Modifier.height(8.dp))
-            Text(
-                text = "DATE",
-                style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-            Spacer(modifier = Modifier.height(8.dp))
-            Surface(
-                onClick = { showDatePicker = true },
-                modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(12.dp),
-                color = MaterialTheme.colorScheme.surface,
-                border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.4f))
-            ) {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 14.dp, vertical = 14.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Icon(Icons.Default.CalendarMonth, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text(
-                        text = displayDate,
-                        style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold),
-                        color = if (selectedDateMillis != null) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.weight(1f)
-                    )
-                    Icon(Icons.Default.KeyboardArrowDown, contentDescription = "Select date", tint = MaterialTheme.colorScheme.onSurfaceVariant)
-                }
-            }
-
-            Spacer(modifier = Modifier.height(18.dp))
-            DurationSection(
-                selectedDurationMinutes = selectedDurationMinutes,
-                onQuickDurationSelected = { selectedDurationMinutes = it },
-                onOtherClick = { showOtherDurationDialog = true }
-            )
-
-            Spacer(modifier = Modifier.height(18.dp))
-            ReadOnlyPriceSection(totalPrice = totalPrice)
 
             val actionError = (bookingActionState as? StoreViewModel.WalkInBookingActionState.Error)?.message
             val errorText = actionError ?: localValidationError
             if (!errorText.isNullOrBlank()) {
-                Spacer(modifier = Modifier.height(10.dp))
                 Text(errorText, color = MaterialTheme.colorScheme.error)
             }
         }

@@ -38,12 +38,34 @@ import com.morrislabs.fabs_store.ui.viewmodel.StoreViewModel
 import java.time.LocalTime
 import java.time.format.DateTimeFormatter
 
-internal val quickDurations = listOf(30, 45, 60)
-internal val extendedDurations = listOf(90, 120, 180, 240, 300, 360, 420, 480, 540)
+@Composable
+internal fun WalkInStepProgress(currentStep: Int, modifier: Modifier = Modifier) {
+    val steps = listOf("Customer", "Services", "Schedule")
+    Row(
+        modifier = modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        steps.forEachIndexed { index, label ->
+            val reached = index <= currentStep
+            Surface(
+                modifier = Modifier.weight(1f),
+                shape = RoundedCornerShape(12.dp),
+                color = if (reached) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceVariant
+            ) {
+                Text(
+                    text = "${index + 1}. $label",
+                    modifier = Modifier.padding(vertical = 10.dp, horizontal = 10.dp),
+                    style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.SemiBold),
+                    color = if (reached) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+        }
+    }
+}
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
-internal fun ServiceSelectionSection(
+internal fun ServiceSelectionStep(
     serviceSearch: String,
     onServiceSearchChange: (String) -> Unit,
     servicesState: StoreViewModel.LoadingState<List<TypeOfServiceDTO>>,
@@ -51,20 +73,14 @@ internal fun ServiceSelectionSection(
     selectedServiceIds: Set<String>,
     onServiceToggled: (TypeOfServiceDTO) -> Unit
 ) {
-    Text(
-        text = "SELECT SERVICES",
-        style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
-        color = MaterialTheme.colorScheme.onSurfaceVariant
-    )
-    Spacer(modifier = Modifier.height(8.dp))
     OutlinedTextField(
         value = serviceSearch,
         onValueChange = onServiceSearchChange,
-        placeholder = { Text("Search services and sub-categories...") },
+        placeholder = { Text("Search by service name or category") },
         leadingIcon = { Icon(Icons.Default.Search, contentDescription = null) },
         modifier = Modifier.fillMaxWidth(),
         singleLine = true,
-        shape = RoundedCornerShape(12.dp),
+        shape = RoundedCornerShape(14.dp),
         colors = OutlinedTextFieldDefaults.colors(
             focusedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
             unfocusedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
@@ -72,87 +88,64 @@ internal fun ServiceSelectionSection(
             unfocusedBorderColor = MaterialTheme.colorScheme.surfaceVariant
         )
     )
-    Spacer(modifier = Modifier.height(10.dp))
-    when (servicesState) {
-        is StoreViewModel.LoadingState.Loading -> CircularProgressIndicator(modifier = Modifier.size(20.dp))
-        is StoreViewModel.LoadingState.Error -> Text(text = servicesState.message, color = MaterialTheme.colorScheme.error)
-        else -> Unit
-    }
-    FlowRow(
-        horizontalArrangement = Arrangement.spacedBy(8.dp),
-        verticalArrangement = Arrangement.spacedBy(8.dp)
-    ) {
-        services.forEach { service ->
-            val selected = selectedServiceIds.contains(service.id)
-            val label = "${service.subCategory.toDisplayName()} â€¢ KES ${service.price}"
-            FilterChip(
-                selected = selected,
-                onClick = { onServiceToggled(service) },
-                label = { Text(label) },
-                leadingIcon = if (selected) {
-                    { Icon(Icons.Default.Check, contentDescription = null, modifier = Modifier.size(16.dp)) }
-                } else null,
-                colors = FilterChipDefaults.filterChipColors(
-                    selectedContainerColor = MaterialTheme.colorScheme.primary,
-                    selectedLabelColor = MaterialTheme.colorScheme.onPrimary
-                )
-            )
-        }
-    }
-}
 
-@OptIn(ExperimentalLayoutApi::class)
-@Composable
-internal fun ExpertAssignmentSection(
-    expertsState: StoreViewModel.LoadingState<List<ExpertDTO>>,
-    selectedServices: List<TypeOfServiceDTO>,
-    experts: List<ExpertDTO>,
-    selectedExpertsByService: Map<String, Set<String>>,
-    onExpertToggled: (String, String) -> Unit
-) {
-    Text(
-        text = "ASSIGN EXPERTS PER SERVICE",
-        style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
-        color = MaterialTheme.colorScheme.onSurfaceVariant
-    )
-    Spacer(modifier = Modifier.height(8.dp))
-    when (expertsState) {
-        is StoreViewModel.LoadingState.Loading -> CircularProgressIndicator(modifier = Modifier.size(20.dp))
-        is StoreViewModel.LoadingState.Error -> Text(text = expertsState.message, color = MaterialTheme.colorScheme.error)
+    Spacer(modifier = Modifier.height(12.dp))
+
+    when (servicesState) {
+        is StoreViewModel.LoadingState.Loading -> CircularProgressIndicator(modifier = Modifier.size(22.dp))
+        is StoreViewModel.LoadingState.Error -> Text(servicesState.message, color = MaterialTheme.colorScheme.error)
         else -> Unit
     }
-    if (selectedServices.isEmpty()) {
-        Text("Select at least one service first")
+
+    if (services.isEmpty()) {
+        Text("No services found", color = MaterialTheme.colorScheme.onSurfaceVariant)
         return
     }
-    selectedServices.forEach { service ->
-        Surface(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(bottom = 10.dp),
-            shape = RoundedCornerShape(12.dp),
-            tonalElevation = 1.dp
-        ) {
-            androidx.compose.foundation.layout.Column(modifier = Modifier.padding(12.dp)) {
-                Text(
-                    text = "${service.subCategory.toDisplayName()} â€¢ KES ${service.price}",
-                    style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold)
-                )
-                Spacer(modifier = Modifier.height(8.dp))
-                FlowRow(
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
+
+    androidx.compose.foundation.layout.Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+        services.forEach { service ->
+            val selected = selectedServiceIds.contains(service.id)
+            Surface(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(14.dp),
+                tonalElevation = if (selected) 2.dp else 0.dp,
+                border = BorderStroke(
+                    width = if (selected) 2.dp else 1.dp,
+                    color = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline.copy(alpha = 0.35f)
+                ),
+                onClick = { onServiceToggled(service) }
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 14.dp, vertical = 14.dp),
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
-                    experts.forEach { expert ->
-                        val selectedForService = selectedExpertsByService[service.id].orEmpty()
-                        val selected = selectedForService.contains(expert.id)
-                        FilterChip(
-                            selected = selected,
-                            onClick = { onExpertToggled(service.id, expert.id) },
-                            label = { Text(expert.name) },
-                            leadingIcon = if (selected) {
-                                { Icon(Icons.Default.Check, contentDescription = null, modifier = Modifier.size(16.dp)) }
-                            } else null
+                    androidx.compose.foundation.layout.Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = service.subCategory.toDisplayName(),
+                            style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold)
+                        )
+                        Spacer(modifier = Modifier.height(2.dp))
+                        Text(
+                            text = service.name,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        Spacer(modifier = Modifier.height(6.dp))
+                        Text(
+                            text = "KES ${service.price} • ${formatDuration(service.duration ?: 60)}",
+                            style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.SemiBold),
+                            color = MaterialTheme.colorScheme.primary
+                        )
+                    }
+
+                    if (selected) {
+                        Icon(
+                            imageVector = Icons.Default.Check,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.size(22.dp)
                         )
                     }
                 }
@@ -161,92 +154,27 @@ internal fun ExpertAssignmentSection(
     }
 }
 
-@Composable
-internal fun DurationSection(
-    selectedDurationMinutes: Int?,
-    onQuickDurationSelected: (Int) -> Unit,
-    onOtherClick: () -> Unit
-) {
-    Text(
-        text = "DURATION",
-        style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
-        color = MaterialTheme.colorScheme.onSurfaceVariant
-    )
-    Spacer(modifier = Modifier.height(8.dp))
-    FlowRow(
-        horizontalArrangement = Arrangement.spacedBy(8.dp),
-        verticalArrangement = Arrangement.spacedBy(8.dp),
-        modifier = Modifier.fillMaxWidth()
-    ) {
-        quickDurations.forEach { duration ->
-            Surface(
-                onClick = { onQuickDurationSelected(duration) },
-                modifier = Modifier.width(84.dp),
-                shape = RoundedCornerShape(12.dp),
-                border = BorderStroke(
-                    width = if (selectedDurationMinutes == duration) 2.dp else 1.dp,
-                    color = if (selectedDurationMinutes == duration) MaterialTheme.colorScheme.primary
-                    else MaterialTheme.colorScheme.outline.copy(alpha = 0.4f)
-                )
-            ) {
-                Box(modifier = Modifier.padding(vertical = 12.dp), contentAlignment = Alignment.Center) {
-                    Text(formatDuration(duration), fontWeight = FontWeight.Bold)
-                }
-            }
-        }
-        Surface(
-            onClick = onOtherClick,
-            modifier = Modifier.width(84.dp),
-            shape = RoundedCornerShape(12.dp),
-            border = BorderStroke(
-                width = if (selectedDurationMinutes in extendedDurations) 2.dp else 1.dp,
-                color = if (selectedDurationMinutes in extendedDurations) MaterialTheme.colorScheme.primary
-                else MaterialTheme.colorScheme.outline.copy(alpha = 0.4f)
-            )
-        ) {
-            Box(modifier = Modifier.padding(vertical = 12.dp), contentAlignment = Alignment.Center) {
-                Text("Other", fontWeight = FontWeight.Bold)
-            }
-        }
-    }
-    if (selectedDurationMinutes in extendedDurations) {
-        Spacer(modifier = Modifier.height(6.dp))
-        Text("Selected: ${formatDuration(selectedDurationMinutes ?: 0)}")
-    }
-}
-
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
-internal fun TimeSlotAssignmentSection(
+internal fun ExpertAssignmentStep(
+    expertsState: StoreViewModel.LoadingState<List<ExpertDTO>>,
     selectedServices: List<TypeOfServiceDTO>,
-    expertsById: Map<String, ExpertDTO>,
+    experts: List<ExpertDTO>,
     selectedExpertsByService: Map<String, Set<String>>,
-    availableSlotsByExpertState: Map<String, StoreViewModel.LoadingState<List<TimeSlot>>>,
-    selectedTimeSlotsByPair: Map<String, TimeSlot>,
-    onTimeSlotSelected: (serviceId: String, expertId: String, slot: TimeSlot) -> Unit
+    onExpertToggled: (String, String) -> Unit
 ) {
-    Text(
-        text = "SELECT TIME SLOTS",
-        style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
-        color = MaterialTheme.colorScheme.onSurfaceVariant
-    )
-    Spacer(modifier = Modifier.height(8.dp))
-
-    if (selectedServices.isEmpty()) {
-        Text("Select services and experts first")
-        return
+    when (expertsState) {
+        is StoreViewModel.LoadingState.Loading -> CircularProgressIndicator(modifier = Modifier.size(20.dp))
+        is StoreViewModel.LoadingState.Error -> Text(expertsState.message, color = MaterialTheme.colorScheme.error)
+        else -> Unit
     }
 
     selectedServices.forEach { service ->
-        val selectedExpertIds = selectedExpertsByService[service.id].orEmpty()
-        if (selectedExpertIds.isEmpty()) {
-            return@forEach
-        }
         Surface(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(bottom = 10.dp),
-            shape = RoundedCornerShape(12.dp),
+            shape = RoundedCornerShape(14.dp),
             tonalElevation = 1.dp
         ) {
             androidx.compose.foundation.layout.Column(modifier = Modifier.padding(12.dp)) {
@@ -254,45 +182,109 @@ internal fun TimeSlotAssignmentSection(
                     text = service.subCategory.toDisplayName(),
                     style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold)
                 )
+                Text(
+                    text = "${formatDuration(service.duration ?: 60)} • KES ${service.price}",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
                 Spacer(modifier = Modifier.height(8.dp))
-                selectedExpertIds.forEach { expertId ->
+                FlowRow(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    experts.forEach { expert ->
+                        val selected = selectedExpertsByService[service.id].orEmpty().contains(expert.id)
+                        FilterChip(
+                            selected = selected,
+                            onClick = { onExpertToggled(service.id, expert.id) },
+                            label = { Text(expert.name) },
+                            leadingIcon = if (selected) {
+                                {
+                                    Icon(Icons.Default.Check, contentDescription = null, modifier = Modifier.size(16.dp))
+                                }
+                            } else null,
+                            colors = FilterChipDefaults.filterChipColors(
+                                selectedContainerColor = MaterialTheme.colorScheme.primary,
+                                selectedLabelColor = MaterialTheme.colorScheme.onPrimary
+                            )
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+internal fun TimeSlotAssignmentStep(
+    selectedServices: List<TypeOfServiceDTO>,
+    expertsById: Map<String, ExpertDTO>,
+    selectedExpertsByService: Map<String, Set<String>>,
+    availableSlotsByPairState: Map<String, StoreViewModel.LoadingState<List<TimeSlot>>>,
+    selectedTimeSlotsByPair: Map<String, TimeSlot>,
+    onTimeSlotSelected: (serviceId: String, expertId: String, slot: TimeSlot) -> Unit
+) {
+    selectedServices.forEach { service ->
+        val expertIds = selectedExpertsByService[service.id].orEmpty()
+        if (expertIds.isEmpty()) {
+            return@forEach
+        }
+
+        Surface(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(bottom = 10.dp),
+            shape = RoundedCornerShape(14.dp),
+            tonalElevation = 1.dp
+        ) {
+            androidx.compose.foundation.layout.Column(modifier = Modifier.padding(12.dp)) {
+                Text(
+                    text = service.subCategory.toDisplayName(),
+                    style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold)
+                )
+                Text(
+                    text = "Fixed duration: ${formatDuration(service.duration ?: 60)}",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+
+                expertIds.forEach { expertId ->
                     val expertName = expertsById[expertId]?.name ?: "Expert"
+                    val pairKey = pairKey(service.id, expertId)
                     Text(
                         text = expertName,
-                        style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.SemiBold)
+                        style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.SemiBold)
                     )
                     Spacer(modifier = Modifier.height(6.dp))
-                    when (val state = availableSlotsByExpertState[expertId]) {
+
+                    when (val state = availableSlotsByPairState[pairKey]) {
                         is StoreViewModel.LoadingState.Loading -> {
                             CircularProgressIndicator(modifier = Modifier.size(18.dp), strokeWidth = 2.dp)
                         }
+
                         is StoreViewModel.LoadingState.Error -> {
                             Text(state.message, color = MaterialTheme.colorScheme.error)
                         }
+
                         is StoreViewModel.LoadingState.Success -> {
-                            val slots = state.data
-                            if (slots.isEmpty()) {
-                                Text("No available slots")
+                            if (state.data.isEmpty()) {
+                                Text("No available slots", color = MaterialTheme.colorScheme.onSurfaceVariant)
                             } else {
                                 FlowRow(
                                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                                     verticalArrangement = Arrangement.spacedBy(8.dp)
                                 ) {
-                                    slots.forEach { slot ->
-                                        val key = pairKey(service.id, expertId)
-                                        val selectedSlot = selectedTimeSlotsByPair[key]
-                                        val selected = selectedSlot == slot
+                                    state.data.forEach { slot ->
+                                        val selected = selectedTimeSlotsByPair[pairKey] == slot
                                         FilterChip(
                                             selected = selected,
                                             onClick = { onTimeSlotSelected(service.id, expertId, slot) },
                                             label = { Text(formatTimeLabel(slot.startTime)) },
                                             leadingIcon = if (selected) {
                                                 {
-                                                    Icon(
-                                                        imageVector = Icons.Default.Check,
-                                                        contentDescription = null,
-                                                        modifier = Modifier.size(16.dp)
-                                                    )
+                                                    Icon(Icons.Default.Check, contentDescription = null, modifier = Modifier.size(16.dp))
                                                 }
                                             } else null
                                         )
@@ -300,10 +292,10 @@ internal fun TimeSlotAssignmentSection(
                                 }
                             }
                         }
-                        else -> {
-                            Text("Select date, duration, and experts to load slots")
-                        }
+
+                        else -> Text("Select date and experts to load slots")
                     }
+
                     Spacer(modifier = Modifier.height(10.dp))
                 }
             }
@@ -312,23 +304,31 @@ internal fun TimeSlotAssignmentSection(
 }
 
 @Composable
-internal fun ReadOnlyPriceSection(totalPrice: Int) {
-    Text(
-        text = "BOOKING PRICE (KES)",
-        style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
-        color = MaterialTheme.colorScheme.onSurfaceVariant
-    )
-    Spacer(modifier = Modifier.height(8.dp))
-    OutlinedTextField(
-        value = if (totalPrice > 0) totalPrice.toString() else "",
-        onValueChange = {},
+internal fun WalkInBookingTotals(totalPrice: Int) {
+    Surface(
         modifier = Modifier.fillMaxWidth(),
-        singleLine = true,
-        readOnly = true,
-        textStyle = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.ExtraBold),
-        placeholder = { Text("0") },
-        shape = RoundedCornerShape(12.dp)
-    )
+        shape = RoundedCornerShape(14.dp),
+        tonalElevation = 1.dp,
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.25f))
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 14.dp, vertical = 14.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                text = "Total Booking Price",
+                style = MaterialTheme.typography.titleSmall,
+                modifier = Modifier.weight(1f)
+            )
+            Text(
+                text = "KES $totalPrice",
+                style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+                color = MaterialTheme.colorScheme.primary
+            )
+        }
+    }
 }
 
 internal fun formatDuration(minutes: Int): String {
