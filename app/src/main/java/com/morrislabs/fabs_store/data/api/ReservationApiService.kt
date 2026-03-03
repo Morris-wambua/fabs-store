@@ -103,6 +103,35 @@ class ReservationApiService(private val context: Context, private val tokenManag
         }
     }
 
+    suspend fun checkExpertAvailability(
+        expertId: String,
+        date: String,
+        startTime: String,
+        endTime: String,
+        excludeReservationId: String? = null
+    ): Result<Boolean> {
+        return try {
+            val client = clientConfig.createAuthenticatedClient(context, tokenManager)
+            val response = client.get("$baseUrl/api/reservations/check-availability") {
+                parameter("expertId", expertId)
+                parameter("date", date)
+                parameter("startTime", startTime)
+                parameter("endTime", endTime)
+                if (!excludeReservationId.isNullOrBlank()) {
+                    parameter("excludeReservationId", excludeReservationId)
+                }
+            }
+            Result.success(response.bodyAsText().toBoolean())
+        } catch (e: ClientRequestException) {
+            val errorBody = try { e.response.bodyAsText() } catch (_: Exception) { "Unable to parse error body" }
+            Log.e(TAG, "Failed to check expert availability - Status: ${e.response.status.value}, Body: $errorBody")
+            Result.failure(Exception("Failed to check expert availability: ${e.response.status.value}"))
+        } catch (e: Exception) {
+            Log.e(TAG, "Check expert availability failed with exception: ${e.message}", e)
+            Result.failure(Exception("Failed to check expert availability: ${e.message}"))
+        }
+    }
+
     suspend fun transitionReservation(reservationId: String, action: ReservationTransitionAction): Result<String> {
         return try {
             val client = clientConfig.createAuthenticatedClient(context, tokenManager)

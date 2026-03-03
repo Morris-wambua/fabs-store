@@ -70,13 +70,24 @@ class WalletViewModel(application: Application) : AndroidViewModel(application) 
         }
     }
 
-    fun initiateWithdrawal(storeId: String, phoneNumber: String, amount: Double) {
+    fun initiateWithdrawal(
+        storeId: String,
+        amount: Double,
+        disbursementMethod: String,
+        phoneNumber: String? = null,
+        stripeConnectedAccountId: String? = null
+    ) {
         _withdrawState.value = WithdrawState.Loading
 
         viewModelScope.launch {
-            Log.d(TAG, "Initiating withdrawal for store: $storeId, amount: $amount")
+            Log.d(TAG, "Initiating withdrawal for store: $storeId, amount: $amount, method: $disbursementMethod")
 
-            val request = WithdrawRequest(phoneNumber = phoneNumber, amount = amount)
+            val request = WithdrawRequest(
+                phoneNumber = phoneNumber,
+                amount = amount,
+                disbursementMethod = disbursementMethod,
+                stripeConnectedAccountId = stripeConnectedAccountId
+            )
             walletRepository.initiateWithdrawal(storeId, request)
                 .onSuccess { wallet ->
                     Log.d(TAG, "Withdrawal successful, new balance: ${wallet.balance}")

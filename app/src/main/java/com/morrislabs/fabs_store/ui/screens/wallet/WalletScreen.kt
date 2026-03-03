@@ -197,8 +197,14 @@ fun WalletScreen(
                 currency = wallet.currency,
                 isLoading = withdrawState is WalletViewModel.WithdrawState.Loading,
                 onDismiss = { showWithdrawSheet = false },
-                onWithdraw = { phoneNumber, amount ->
-                    walletViewModel.initiateWithdrawal(storeId, phoneNumber, amount)
+                onWithdraw = { amount, method, phoneNumber, stripeConnectedAccountId ->
+                    walletViewModel.initiateWithdrawal(
+                        storeId = storeId,
+                        amount = amount,
+                        disbursementMethod = method,
+                        phoneNumber = phoneNumber,
+                        stripeConnectedAccountId = stripeConnectedAccountId
+                    )
                 }
             )
         }
