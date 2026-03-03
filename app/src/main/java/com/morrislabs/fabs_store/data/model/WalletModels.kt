@@ -45,6 +45,8 @@ data class PagedWalletTransactionResponse(
 
 @Serializable
 data class WithdrawRequest(
-    val phoneNumber: String,
-    val amount: Double
+    val phoneNumber: String? = null,
+    val amount: Double,
+    val disbursementMethod: String = "MPESA",
+    val stripeConnectedAccountId: String? = null
 )

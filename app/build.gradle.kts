@@ -35,6 +35,7 @@ android {
         buildConfigField("String", "STAGING_BASE_URL", "\"${secrets.getProperty("STAGING_BASE_URL", "")}\"")
         buildConfigField("String", "FIREBASE_PROJECT_ID", "\"${secrets.getProperty("FIREBASE_PROJECT_ID", "")}\"")
         buildConfigField("String", "BUNNY_MEDIA_REFERER", "\"${secrets.getProperty("BUNNY_MEDIA_REFERER", "https://app.fabs.local")}\"")
+        buildConfigField("String", "STRIPE_PUBLISHABLE_KEY", "\"${secrets.getProperty("STRIPE_PUBLISHABLE_KEY", "")}\"")
 
         manifestPlaceholders["GOOGLE_MAPS_API_KEY"] = secrets.getProperty("GOOGLE_MAPS_API_KEY", "")
     }
