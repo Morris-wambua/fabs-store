@@ -31,6 +31,7 @@ import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.LocationOn
+import androidx.compose.material.icons.filled.Phone
 import androidx.compose.material.icons.filled.Schedule
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -58,6 +59,7 @@ import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -500,8 +502,14 @@ private fun PhoneFieldBlock(
     var expanded by remember { mutableStateOf(false) }
     val selectedEntry = countryCodes.find { it.code == countryCode } ?: countryCodes.first()
 
-    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-        Text(label, style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.SemiBold))
+    Column {
+        Text(
+            text = label,
+            color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.8f),
+            fontWeight = FontWeight.SemiBold,
+            fontSize = 14.sp,
+            modifier = Modifier.padding(bottom = 8.dp)
+        )
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.spacedBy(8.dp)
@@ -512,16 +520,19 @@ private fun PhoneFieldBlock(
                     onValueChange = {},
                     readOnly = true,
                     modifier = Modifier
-                        .width(130.dp)
+                        .width(120.dp)
                         .clickable { expanded = true },
-                    shape = RoundedCornerShape(14.dp),
+                    shape = RoundedCornerShape(16.dp),
                     colors = OutlinedTextFieldDefaults.colors(
-                        focusedContainerColor = MaterialTheme.colorScheme.background,
-                        unfocusedContainerColor = MaterialTheme.colorScheme.background,
-                        focusedBorderColor = MaterialTheme.colorScheme.outline,
-                        unfocusedBorderColor = MaterialTheme.colorScheme.outline,
+                        focusedContainerColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.05f),
+                        unfocusedContainerColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.05f),
+                        focusedBorderColor = MaterialTheme.colorScheme.primary,
+                        unfocusedBorderColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.2f),
                         focusedTextColor = MaterialTheme.colorScheme.onBackground,
-                        unfocusedTextColor = MaterialTheme.colorScheme.onBackground
+                        unfocusedTextColor = MaterialTheme.colorScheme.onBackground,
+                        disabledTextColor = MaterialTheme.colorScheme.onBackground,
+                        disabledBorderColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.2f),
+                        disabledContainerColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.05f)
                     ),
                     trailingIcon = {
                         Icon(
@@ -537,12 +548,18 @@ private fun PhoneFieldBlock(
                 )
                 DropdownMenu(
                     expanded = expanded,
-                    onDismissRequest = { expanded = false }
+                    onDismissRequest = { expanded = false },
+                    modifier = Modifier
+                        .width(260.dp)
+                        .background(MaterialTheme.colorScheme.surface)
                 ) {
                     countryCodes.forEach { entry ->
                         DropdownMenuItem(
                             text = {
-                                Text("${entry.flag}  ${entry.name} (${entry.code})")
+                                Text(
+                                    "${entry.flag}  ${entry.name} (${entry.code})",
+                                    fontSize = 14.sp
+                                )
                             },
                             onClick = {
                                 onCountryCodeChange(entry.code)
@@ -557,15 +574,31 @@ private fun PhoneFieldBlock(
                 value = localPhone,
                 onValueChange = onLocalPhoneChange,
                 modifier = Modifier.weight(1f),
-                shape = RoundedCornerShape(14.dp),
-                placeholder = { Text("712 345 678") },
+                shape = RoundedCornerShape(16.dp),
+                placeholder = {
+                    Text(
+                        "712 345 678",
+                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.3f)
+                    )
+                },
+                trailingIcon = {
+                    Icon(
+                        imageVector = Icons.Default.Phone,
+                        contentDescription = "Phone",
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                },
                 colors = OutlinedTextFieldDefaults.colors(
-                    focusedContainerColor = MaterialTheme.colorScheme.background,
-                    unfocusedContainerColor = MaterialTheme.colorScheme.background,
-                    focusedBorderColor = MaterialTheme.colorScheme.outline,
-                    unfocusedBorderColor = MaterialTheme.colorScheme.outline,
+                    focusedContainerColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.05f),
+                    unfocusedContainerColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.05f),
+                    focusedBorderColor = MaterialTheme.colorScheme.primary,
+                    unfocusedBorderColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.2f),
                     focusedTextColor = MaterialTheme.colorScheme.onBackground,
-                    unfocusedTextColor = MaterialTheme.colorScheme.onBackground
+                    unfocusedTextColor = MaterialTheme.colorScheme.onBackground,
+                    disabledTextColor = MaterialTheme.colorScheme.onBackground,
+                    disabledBorderColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.2f),
+                    disabledContainerColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.05f),
+                    cursorColor = MaterialTheme.colorScheme.primary
                 ),
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone),
                 singleLine = true

@@ -8,20 +8,25 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CalendarMonth
+import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
@@ -59,6 +64,9 @@ internal fun WalkInBookingStepContent(
 ) {
     when (currentStep) {
         0 -> {
+            val isCustomerFound = customerLookupState is StoreViewModel.WalkInCustomerLookupState.Found
+            val greenColor = Color(0xFF13EC5B)
+
             Text(
                 text = "Customer Details",
                 style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold)
@@ -70,18 +78,52 @@ internal fun WalkInBookingStepContent(
                 modifier = Modifier.fillMaxWidth(),
                 singleLine = true,
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email),
-                shape = RoundedCornerShape(12.dp)
+                shape = RoundedCornerShape(12.dp),
+                colors = OutlinedTextFieldDefaults.colors(
+                    focusedBorderColor = if (isCustomerFound) greenColor else MaterialTheme.colorScheme.primary,
+                    unfocusedBorderColor = if (isCustomerFound) greenColor else MaterialTheme.colorScheme.outline
+                )
             )
 
             when (customerLookupState) {
                 StoreViewModel.WalkInCustomerLookupState.Loading -> Text("Checking customer account...")
                 is StoreViewModel.WalkInCustomerLookupState.Found -> {
                     val customer = customerLookupState.user
-                    Text(
-                        text = "Customer found: ${customer.firstName} ${customer.lastName}".trim(),
-                        color = MaterialTheme.colorScheme.primary
-                    )
-                    Text("Payments and history will be linked to this customer account.")
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(
+                            imageVector = Icons.Default.CheckCircle,
+                            contentDescription = null,
+                            modifier = Modifier.size(20.dp),
+                            tint = greenColor
+                        )
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text(
+                            text = "Customer found: ${customer.firstName} ${customer.lastName}".trim(),
+                            color = greenColor
+                        )
+                    }
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Surface(
+                        shape = RoundedCornerShape(12.dp),
+                        color = MaterialTheme.colorScheme.surfaceVariant
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(12.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Info,
+                                contentDescription = null,
+                                modifier = Modifier.size(20.dp),
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(
+                                text = "Payments and history will be linked to this customer account for seamless tracking across store and app.",
+                                style = MaterialTheme.typography.bodySmall
+                            )
+                        }
+                    }
                 }
 
                 StoreViewModel.WalkInCustomerLookupState.NotFound -> {
@@ -89,7 +131,28 @@ internal fun WalkInBookingStepContent(
                         text = "No account found for this email.",
                         color = MaterialTheme.colorScheme.error
                     )
-                    Text("You can still proceed as unregistered walk-in customer.")
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Surface(
+                        shape = RoundedCornerShape(12.dp),
+                        color = MaterialTheme.colorScheme.surfaceVariant
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(12.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Info,
+                                contentDescription = null,
+                                modifier = Modifier.size(20.dp),
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(
+                                text = "You can still proceed as unregistered walk-in customer.",
+                                style = MaterialTheme.typography.bodySmall
+                            )
+                        }
+                    }
                 }
 
                 is StoreViewModel.WalkInCustomerLookupState.Error -> {
@@ -140,7 +203,7 @@ internal fun WalkInBookingStepContent(
                         .padding(horizontal = 14.dp, vertical = 14.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Icon(Icons.Default.CalendarMonth, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+                    Icon(Icons.Default.CalendarMonth, contentDescription = null, tint = Color(0xFF13EC5B))
                     Spacer(modifier = Modifier.width(8.dp))
                     Text(
                         text = displayDate,

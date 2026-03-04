@@ -1,5 +1,9 @@
 package com.morrislabs.fabs_store.ui.screens.wallet
 
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -10,18 +14,26 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.KeyboardArrowDown
+import androidx.compose.material.icons.filled.Phone
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -29,6 +41,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -46,6 +59,8 @@ fun WithdrawBottomSheet(
 ) {
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     var selectedMethod by rememberSaveable { mutableStateOf("MPESA") }
+    var countryCode by rememberSaveable { mutableStateOf("+254") }
+    var expanded by remember { mutableStateOf(false) }
     var phoneNumber by rememberSaveable { mutableStateOf("") }
     var stripeConnectedAccountId by rememberSaveable { mutableStateOf("") }
     var amountText by rememberSaveable { mutableStateOf("") }
@@ -111,22 +126,115 @@ fun WithdrawBottomSheet(
             Spacer(modifier = Modifier.height(12.dp))
 
             if (selectedMethod == "MPESA") {
-                OutlinedTextField(
-                    value = phoneNumber,
-                    onValueChange = {
-                        phoneNumber = it
-                        phoneError = null
-                    },
-                    label = { Text("M-Pesa Phone Number") },
-                    placeholder = { Text("e.g. 2547XXXXXXXX") },
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(8.dp),
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone),
-                    isError = phoneError != null,
-                    supportingText = phoneError?.let { { Text(it) } },
-                    singleLine = true,
-                    enabled = !isLoading
+                Text(
+                    text = "M-Pesa Phone Number",
+                    color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.8f),
+                    fontWeight = FontWeight.SemiBold,
+                    fontSize = 14.sp,
+                    modifier = Modifier.padding(bottom = 8.dp)
                 )
+
+                val selectedEntry = countryCodes.find { it.code == countryCode } ?: countryCodes.first()
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Box {
+                        OutlinedTextField(
+                            value = "${selectedEntry.flag} ${selectedEntry.code}",
+                            onValueChange = {},
+                            readOnly = true,
+                            modifier = Modifier
+                                .width(120.dp)
+                                .clickable { expanded = true },
+                            shape = RoundedCornerShape(16.dp),
+                            colors = OutlinedTextFieldDefaults.colors(
+                                focusedBorderColor = MaterialTheme.colorScheme.primary,
+                                unfocusedBorderColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.2f),
+                                focusedContainerColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.05f),
+                                unfocusedContainerColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.05f),
+                                focusedTextColor = MaterialTheme.colorScheme.onBackground,
+                                unfocusedTextColor = MaterialTheme.colorScheme.onBackground,
+                                disabledTextColor = MaterialTheme.colorScheme.onBackground,
+                                disabledBorderColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.2f),
+                                disabledContainerColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.05f)
+                            ),
+                            trailingIcon = {
+                                Icon(
+                                    imageVector = Icons.Default.KeyboardArrowDown,
+                                    contentDescription = "Select country",
+                                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    modifier = Modifier
+                                        .size(20.dp)
+                                        .clickable { expanded = true }
+                                )
+                            },
+                            singleLine = true,
+                            enabled = !isLoading
+                        )
+
+                        DropdownMenu(
+                            expanded = expanded,
+                            onDismissRequest = { expanded = false },
+                            modifier = Modifier
+                                .width(260.dp)
+                                .background(MaterialTheme.colorScheme.surface)
+                        ) {
+                            countryCodes.forEach { entry ->
+                                DropdownMenuItem(
+                                    text = {
+                                        Text(
+                                            text = "${entry.flag}  ${entry.name} (${entry.code})",
+                                            fontSize = 14.sp
+                                        )
+                                    },
+                                    onClick = {
+                                        countryCode = entry.code
+                                        expanded = false
+                                    }
+                                )
+                            }
+                        }
+                    }
+
+                    OutlinedTextField(
+                        value = phoneNumber,
+                        onValueChange = {
+                            phoneNumber = it
+                            phoneError = null
+                        },
+                        placeholder = {
+                            Text(
+                                text = "712 345 678",
+                                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.3f)
+                            )
+                        },
+                        trailingIcon = {
+                            Icon(
+                                imageVector = Icons.Default.Phone,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        },
+                        modifier = Modifier.weight(1f),
+                        shape = RoundedCornerShape(16.dp),
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedBorderColor = MaterialTheme.colorScheme.primary,
+                            unfocusedBorderColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.2f),
+                            focusedContainerColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.05f),
+                            unfocusedContainerColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.05f),
+                            focusedTextColor = MaterialTheme.colorScheme.onBackground,
+                            unfocusedTextColor = MaterialTheme.colorScheme.onBackground,
+                            cursorColor = MaterialTheme.colorScheme.primary
+                        ),
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone),
+                        isError = phoneError != null,
+                        supportingText = phoneError?.let { { Text(it) } },
+                        singleLine = true,
+                        enabled = !isLoading
+                    )
+                }
 
                 Spacer(modifier = Modifier.height(12.dp))
             } else {
@@ -197,7 +305,7 @@ fun WithdrawBottomSheet(
                         onWithdraw(
                             amount,
                             selectedMethod,
-                            if (selectedMethod == "MPESA") phoneNumber else null,
+                            if (selectedMethod == "MPESA") "$countryCode$phoneNumber" else null,
                             if (selectedMethod == "STRIPE") stripeConnectedAccountId else null
                         )
                     }
@@ -224,3 +332,28 @@ fun WithdrawBottomSheet(
         }
     }
 }
+
+private data class CountryCodeEntry(val flag: String, val code: String, val name: String)
+
+private val countryCodes = listOf(
+    CountryCodeEntry("🇰🇪", "+254", "Kenya"),
+    CountryCodeEntry("🇺🇸", "+1", "United States"),
+    CountryCodeEntry("🇬🇧", "+44", "United Kingdom"),
+    CountryCodeEntry("🇳🇬", "+234", "Nigeria"),
+    CountryCodeEntry("🇿🇦", "+27", "South Africa"),
+    CountryCodeEntry("🇹🇿", "+255", "Tanzania"),
+    CountryCodeEntry("🇺🇬", "+256", "Uganda"),
+    CountryCodeEntry("🇪🇹", "+251", "Ethiopia"),
+    CountryCodeEntry("🇬🇭", "+233", "Ghana"),
+    CountryCodeEntry("🇷🇼", "+250", "Rwanda"),
+    CountryCodeEntry("🇮🇳", "+91", "India"),
+    CountryCodeEntry("🇦🇪", "+971", "UAE"),
+    CountryCodeEntry("🇨🇦", "+1", "Canada"),
+    CountryCodeEntry("🇦🇺", "+61", "Australia"),
+    CountryCodeEntry("🇩🇪", "+49", "Germany"),
+    CountryCodeEntry("🇫🇷", "+33", "France"),
+    CountryCodeEntry("🇧🇷", "+55", "Brazil"),
+    CountryCodeEntry("🇨🇳", "+86", "China"),
+    CountryCodeEntry("🇯🇵", "+81", "Japan"),
+    CountryCodeEntry("🇪🇬", "+20", "Egypt")
+)
