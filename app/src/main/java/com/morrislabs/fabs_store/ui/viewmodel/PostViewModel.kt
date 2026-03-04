@@ -5,6 +5,7 @@ import android.net.Uri
 import android.util.Log
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
+import com.morrislabs.fabs_store.data.api.SoundApiService
 import com.morrislabs.fabs_store.data.api.StorePostApiService
 import com.morrislabs.fabs_store.data.model.CommentDTO
 import com.morrislabs.fabs_store.data.model.HashtagSuggestionDTO
@@ -12,6 +13,7 @@ import com.morrislabs.fabs_store.data.model.MediaS3Data
 import com.morrislabs.fabs_store.data.model.PostDTO
 import com.morrislabs.fabs_store.data.model.PostPayload
 import com.morrislabs.fabs_store.data.model.PostType
+import com.morrislabs.fabs_store.data.model.SoundDTO
 import com.morrislabs.fabs_store.util.TokenManager
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -28,6 +30,7 @@ class PostViewModel(application: Application) : AndroidViewModel(application) {
     private val context = application.applicationContext
     private val tokenManager = TokenManager.getInstance(context)
     private val postApiService = StorePostApiService(context, tokenManager)
+    private val soundApiService = SoundApiService(context, tokenManager)
 
     private val _postsState = MutableStateFlow<StoreViewModel.LoadingState<List<PostDTO>>>(StoreViewModel.LoadingState.Idle)
     val postsState: StateFlow<StoreViewModel.LoadingState<List<PostDTO>>> = _postsState.asStateFlow()
@@ -56,10 +59,26 @@ class PostViewModel(application: Application) : AndroidViewModel(application) {
     private val _showHashtagSuggestions = MutableStateFlow(false)
     val showHashtagSuggestions: StateFlow<Boolean> = _showHashtagSuggestions.asStateFlow()
 
+    private val _selectedSound = MutableStateFlow<SoundDTO?>(null)
+    val selectedSound: StateFlow<SoundDTO?> = _selectedSound.asStateFlow()
+
+    private val _soundTrimStart = MutableStateFlow(0L)
+    val soundTrimStart: StateFlow<Long> = _soundTrimStart.asStateFlow()
+
+    private val _soundTrimEnd = MutableStateFlow(0L)
+    val soundTrimEnd: StateFlow<Long> = _soundTrimEnd.asStateFlow()
+
+    private val _soundsState = MutableStateFlow<StoreViewModel.LoadingState<List<SoundDTO>>>(StoreViewModel.LoadingState.Idle)
+    val soundsState: StateFlow<StoreViewModel.LoadingState<List<SoundDTO>>> = _soundsState.asStateFlow()
+
+    private val _soundSearchQuery = MutableStateFlow("")
+    val soundSearchQuery: StateFlow<String> = _soundSearchQuery.asStateFlow()
+
     private var hasMoreCommentsInternal = false
     private var currentCommentsPage = 0
     private val viewedPostIds = mutableSetOf<String>()
     private var hashtagSearchJob: Job? = null
+    private var soundSearchJob: Job? = null
 
     private fun logPostMediaDiagnostics(source: String, posts: List<PostDTO>) {
         posts.forEachIndexed { index, post ->
@@ -276,6 +295,7 @@ class PostViewModel(application: Application) : AndroidViewModel(application) {
         _createPostState.value = CreatePostState.Loading
 
         viewModelScope.launch {
+            val sound = _selectedSound.value
             val payload = PostPayload(
                 caption = caption,
                 type = type,
@@ -283,7 +303,10 @@ class PostViewModel(application: Application) : AndroidViewModel(application) {
                     mediaUrl = mediaUrl,
                     filename = filename
                 ),
-                autoPlay = type == PostType.VIDEO
+                autoPlay = type == PostType.VIDEO,
+                soundId = sound?.id,
+                soundStartMs = if (sound != null) _soundTrimStart.value else null,
+                soundEndMs = if (sound != null) _soundTrimEnd.value else null
             )
 
             postApiService.createStorePost(storeId, payload)
@@ -291,6 +314,7 @@ class PostViewModel(application: Application) : AndroidViewModel(application) {
                     Log.d(TAG, "Post created successfully: ${post.id}")
                     _createPostState.value = CreatePostState.Success(post)
                     fetchStorePosts(storeId)
+                    clearSelectedSound()
                 }
                 .onFailure { error ->
                     Log.e(TAG, "Create post failed: ${error.message}", error)
@@ -303,6 +327,52 @@ class PostViewModel(application: Application) : AndroidViewModel(application) {
         _createPostState.value = CreatePostState.Idle
         _uploadState.value = UploadState.Idle
         clearHashtagSuggestions()
+        clearSelectedSound()
+    }
+
+    fun selectSound(sound: SoundDTO, startMs: Long = 0, endMs: Long = sound.duration) {
+        _selectedSound.value = sound
+        _soundTrimStart.value = startMs
+        _soundTrimEnd.value = endMs
+    }
+
+    fun clearSelectedSound() {
+        _selectedSound.value = null
+        _soundTrimStart.value = 0
+        _soundTrimEnd.value = 0
+    }
+
+    fun loadTrendingSounds() {
+        _soundsState.value = StoreViewModel.LoadingState.Loading
+        viewModelScope.launch {
+            soundApiService.getTrendingSounds()
+                .onSuccess { response ->
+                    _soundsState.value = StoreViewModel.LoadingState.Success(response.content)
+                }
+                .onFailure { error ->
+                    _soundsState.value = StoreViewModel.LoadingState.Error(error.message ?: "Failed to load sounds")
+                }
+        }
+    }
+
+    fun onSoundSearchQueryChanged(query: String) {
+        _soundSearchQuery.value = query
+        soundSearchJob?.cancel()
+        if (query.isBlank()) {
+            loadTrendingSounds()
+            return
+        }
+        soundSearchJob = viewModelScope.launch {
+            delay(300)
+            _soundsState.value = StoreViewModel.LoadingState.Loading
+            soundApiService.searchSounds(query)
+                .onSuccess { response ->
+                    _soundsState.value = StoreViewModel.LoadingState.Success(response.content)
+                }
+                .onFailure { error ->
+                    _soundsState.value = StoreViewModel.LoadingState.Error(error.message ?: "Failed to search sounds")
+                }
+        }
     }
 
     fun onCaptionInputChanged(caption: String) {

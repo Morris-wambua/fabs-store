@@ -69,7 +69,10 @@ import coil.compose.AsyncImage
 import coil.decode.VideoFrameDecoder
 import coil.request.ImageRequest
 import com.morrislabs.fabs_store.data.model.PostType
+import com.morrislabs.fabs_store.data.model.SoundDTO
 import com.morrislabs.fabs_store.ui.viewmodel.PostViewModel
+import com.morrislabs.fabs_store.ui.viewmodel.StoreViewModel
+import androidx.compose.material.icons.filled.MusicNote
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -92,6 +95,12 @@ fun CreatePostScreen(
     var mediaUrl by rememberSaveable { mutableStateOf("") }
     var mediaFilename by rememberSaveable { mutableStateOf("") }
     var postType by remember { mutableStateOf(PostType.IMAGE) }
+    var showSoundPicker by remember { mutableStateOf(false) }
+    var showSoundTrimmer by remember { mutableStateOf(false) }
+    var pendingTrimSound by remember { mutableStateOf<SoundDTO?>(null) }
+    val selectedSound by postViewModel.selectedSound.collectAsState()
+    val soundsState by postViewModel.soundsState.collectAsState()
+    val soundSearchQuery by postViewModel.soundSearchQuery.collectAsState()
 
     val mediaLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.GetContent()
@@ -186,6 +195,17 @@ fun CreatePostScreen(
                         }
                     )
 
+                    Spacer(modifier = Modifier.height(12.dp))
+
+                    SoundAttachmentRow(
+                        selectedSound = selectedSound,
+                        onAddSound = {
+                            postViewModel.loadTrendingSounds()
+                            showSoundPicker = true
+                        },
+                        onRemoveSound = { postViewModel.clearSelectedSound() }
+                    )
+
                     Spacer(modifier = Modifier.height(20.dp))
 
                     CaptionSection(
@@ -218,6 +238,38 @@ fun CreatePostScreen(
                 )
             }
         }
+    }
+
+    if (showSoundPicker) {
+        val soundsList = (soundsState as? StoreViewModel.LoadingState.Success)?.data ?: emptyList()
+        val isLoadingSounds = soundsState is StoreViewModel.LoadingState.Loading
+        SoundPickerBottomSheet(
+            sounds = soundsList,
+            isLoading = isLoadingSounds,
+            searchQuery = soundSearchQuery,
+            onSearchQueryChange = { postViewModel.onSoundSearchQueryChanged(it) },
+            onSoundSelected = { sound ->
+                showSoundPicker = false
+                pendingTrimSound = sound
+                showSoundTrimmer = true
+            },
+            onDismiss = { showSoundPicker = false }
+        )
+    }
+
+    if (showSoundTrimmer && pendingTrimSound != null) {
+        SoundTrimmerBottomSheet(
+            sound = pendingTrimSound!!,
+            onDismiss = {
+                showSoundTrimmer = false
+                pendingTrimSound = null
+            },
+            onConfirm = { startMs, endMs ->
+                postViewModel.selectSound(pendingTrimSound!!, startMs, endMs)
+                showSoundTrimmer = false
+                pendingTrimSound = null
+            }
+        )
     }
 }
 
@@ -470,81 +522,4 @@ private fun applyHashtagSuggestion(caption: String, hashtag: String): String {
     return if (caption.endsWith(" ")) "$caption$hashtag " else "$caption $hashtag "
 }
 
-@Composable
-private fun GoLiveSection(onGoLive: () -> Unit) {
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .height(300.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Center
-    ) {
-        Icon(
-            imageVector = Icons.Default.RocketLaunch,
-            contentDescription = null,
-            modifier = Modifier.size(64.dp),
-            tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.6f)
-        )
-        Spacer(modifier = Modifier.height(16.dp))
-        Text(
-            "Start a Live Stream",
-            style = MaterialTheme.typography.titleMedium,
-            fontWeight = FontWeight.SemiBold
-        )
-        Spacer(modifier = Modifier.height(8.dp))
-        Text(
-            "Broadcast live to your customers and showcase your services in real time",
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            textAlign = TextAlign.Center,
-            modifier = Modifier.padding(horizontal = 24.dp)
-        )
-        Spacer(modifier = Modifier.height(24.dp))
-        Button(
-            onClick = onGoLive,
-            shape = RoundedCornerShape(12.dp),
-            colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
-        ) {
-            Text("Go Live", fontWeight = FontWeight.SemiBold)
-        }
-    }
-}
 
-@Composable
-private fun ShareButton(
-    enabled: Boolean,
-    isLoading: Boolean,
-    onClick: () -> Unit
-) {
-    Button(
-        onClick = onClick,
-        enabled = enabled,
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 12.dp)
-            .height(50.dp),
-        shape = RoundedCornerShape(12.dp),
-        colors = ButtonDefaults.buttonColors(
-            containerColor = MaterialTheme.colorScheme.primary
-        )
-    ) {
-        if (isLoading) {
-            CircularProgressIndicator(
-                modifier = Modifier.size(20.dp),
-                color = MaterialTheme.colorScheme.onPrimary,
-                strokeWidth = 2.dp
-            )
-        } else {
-            Icon(
-                Icons.Default.RocketLaunch,
-                contentDescription = null,
-                modifier = Modifier.size(20.dp)
-            )
-            Spacer(modifier = Modifier.width(8.dp))
-            Text(
-                "Share to Feed",
-                fontWeight = FontWeight.SemiBold
-            )
-        }
-    }
-}

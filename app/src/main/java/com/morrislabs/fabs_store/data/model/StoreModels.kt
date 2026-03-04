@@ -359,7 +359,10 @@ data class PostPayload(
     val type: PostType,
     val mediaS3Data: MediaS3Data,
     val autoPlay: Boolean = false,
-    val postTypeLevel: PostTypeLevel? = null
+    val postTypeLevel: PostTypeLevel? = null,
+    val soundId: String? = null,
+    val soundStartMs: Long? = null,
+    val soundEndMs: Long? = null
 )
 
 @Serializable
@@ -412,7 +415,8 @@ data class PostDTO(
     val userFirstName: String? = null,
     val userLastName: String? = null,
     val displayName: String? = null,
-    val isUserPost: Boolean = false
+    val isUserPost: Boolean = false,
+    val soundData: PostSoundData? = null
 )
 
 @Serializable
@@ -439,4 +443,27 @@ data class PagedCommentResponse(
 data class HashtagSuggestionDTO(
     val hashtag: String,
     val usageCount: Long = 0
+)
+
+@Serializable
+data class SoundDTO(
+    val id: String? = null,
+    val title: String? = null,
+    val artistName: String? = null,
+    val audioUrl: String? = null,
+    val coverImageUrl: String? = null,
+    val duration: Long = 0,
+    val usageCount: Long = 0,
+    val isOriginal: Boolean = false,
+    val dateCreated: String? = null
+)
+
+@Serializable
+data class PostSoundData(
+    val soundId: String? = null,
+    val title: String? = null,
+    val artistName: String? = null,
+    val audioUrl: String? = null,
+    val startMs: Long = 0,
+    val endMs: Long = 0
 )
