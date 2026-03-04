@@ -198,7 +198,7 @@ class AuthApiService {
             }
 
             val responseText = response.bodyAsText()
-            val tokenResponse = Json.decodeFromString<RefreshTokenDTO>(responseText)
+            val tokenResponse = Json { ignoreUnknownKeys = true }.decodeFromString<RefreshTokenDTO>(responseText)
             Log.d(TAG, "Token refreshed successfully")
             Result.success(tokenResponse)
         } catch (e: ClientRequestException) {
