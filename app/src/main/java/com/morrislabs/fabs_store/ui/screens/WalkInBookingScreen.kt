@@ -22,9 +22,11 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DatePicker
 import androidx.compose.material3.DatePickerDialog
@@ -49,6 +51,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
@@ -348,13 +351,24 @@ internal fun WalkInBookingScreen(
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(12.dp),
                     contentPadding = PaddingValues(vertical = 14.dp),
-                    enabled = bookingActionState !is StoreViewModel.WalkInBookingActionState.Loading
+                    enabled = bookingActionState !is StoreViewModel.WalkInBookingActionState.Loading,
+                    colors = if (currentStep == 2) {
+                        ButtonDefaults.buttonColors(
+                            containerColor = Color(0xFF1B4311),
+                            contentColor = Color.White
+                        )
+                    } else {
+                        ButtonDefaults.buttonColors(
+                            containerColor = Color(0xFF13EC5B),
+                            contentColor = Color.Black
+                        )
+                    }
                 ) {
                     if (bookingActionState is StoreViewModel.WalkInBookingActionState.Loading) {
                         CircularProgressIndicator(
                             modifier = Modifier.size(20.dp),
                             strokeWidth = 2.dp,
-                            color = MaterialTheme.colorScheme.onPrimary
+                            color = if (currentStep == 2) Color.White else Color.Black
                         )
                     } else {
                         if (currentStep == 2) {
@@ -363,6 +377,8 @@ internal fun WalkInBookingScreen(
                             Text("Confirm Booking")
                         } else {
                             Text("Continue")
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Icon(Icons.Default.ChevronRight, contentDescription = null, modifier = Modifier.size(18.dp))
                         }
                     }
                 }
