@@ -146,7 +146,18 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
         viewModelScope.launch {
             repository.requestPasswordReset(email)
                 .onSuccess { response ->
-                    _resetPasswordState.value = ResetPasswordState.CodeSent(response.message)
+                    if (response.locked == true) {
+                        val lockedMessage = response.retryAfterMinutes
+                            ?.takeIf { it > 0 }
+                            ?.let { "Password reset is temporarily locked. Try again in about $it minute(s)." }
+                            ?: response.message
+                        _resetPasswordState.value = ResetPasswordState.Locked(
+                            message = lockedMessage,
+                            retryAfterMinutes = response.retryAfterMinutes
+                        )
+                    } else {
+                        _resetPasswordState.value = ResetPasswordState.CodeSent(response.message)
+                    }
                 }
                 .onFailure { error ->
                     _resetPasswordState.value = ResetPasswordState.Error(
@@ -266,6 +277,7 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
         data object Idle : ResetPasswordState()
         data object RequestLoading : ResetPasswordState()
         data object ConfirmLoading : ResetPasswordState()
+        data class Locked(val message: String, val retryAfterMinutes: Long?) : ResetPasswordState()
         data class CodeSent(val message: String) : ResetPasswordState()
         data class Success(val message: String) : ResetPasswordState()
         data class Error(val message: String) : ResetPasswordState()

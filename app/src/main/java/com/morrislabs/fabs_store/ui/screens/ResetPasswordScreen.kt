@@ -181,6 +181,7 @@ fun ResetPasswordScreen(
             Text(
                 text = when (val state = resetState) {
                     is AuthViewModel.ResetPasswordState.Success -> state.message
+                    is AuthViewModel.ResetPasswordState.Locked -> state.message
                     is AuthViewModel.ResetPasswordState.CodeSent -> state.message
                     else -> "Enter your email to receive a reset code, then set a new password."
                 },

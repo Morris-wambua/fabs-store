@@ -90,5 +90,7 @@ data class PasswordResetConfirmDTO(
 
 @Serializable
 data class PasswordResetResponseDTO(
-    val message: String
+    val message: String,
+    val locked: Boolean? = null,
+    val retryAfterMinutes: Long? = null
 )
