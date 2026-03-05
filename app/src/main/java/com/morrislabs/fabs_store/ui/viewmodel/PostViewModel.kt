@@ -291,7 +291,19 @@ class PostViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    fun createPost(storeId: String, caption: String, mediaUrl: String, filename: String, type: PostType) {
+    fun createPost(
+        storeId: String,
+        caption: String,
+        mediaUrl: String,
+        filename: String,
+        type: PostType,
+        videoTrimStartMs: Long? = null,
+        videoTrimEndMs: Long? = null,
+        videoSpeed: Float? = null,
+        filterName: String? = null,
+        textOverlays: List<String>? = null,
+        emojiOverlays: List<String>? = null
+    ) {
         _createPostState.value = CreatePostState.Loading
 
         viewModelScope.launch {
@@ -306,7 +318,13 @@ class PostViewModel(application: Application) : AndroidViewModel(application) {
                 autoPlay = type == PostType.VIDEO,
                 soundId = sound?.id,
                 soundStartMs = if (sound != null) _soundTrimStart.value else null,
-                soundEndMs = if (sound != null) _soundTrimEnd.value else null
+                soundEndMs = if (sound != null) _soundTrimEnd.value else null,
+                videoTrimStartMs = videoTrimStartMs,
+                videoTrimEndMs = videoTrimEndMs,
+                videoSpeed = videoSpeed,
+                filterName = filterName,
+                textOverlays = textOverlays,
+                emojiOverlays = emojiOverlays
             )
 
             postApiService.createStorePost(storeId, payload)
