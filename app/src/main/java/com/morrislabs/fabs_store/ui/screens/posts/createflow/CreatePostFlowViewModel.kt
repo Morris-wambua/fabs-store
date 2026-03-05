@@ -17,6 +17,8 @@ class CreatePostFlowViewModel(application: Application) : AndroidViewModel(appli
 
     private val _timerCountdown = MutableStateFlow<Int?>(null)
     val timerCountdown: StateFlow<Int?> = _timerCountdown.asStateFlow()
+    private val _timerStopAtSeconds = MutableStateFlow<Float?>(null)
+    val timerStopAtSeconds: StateFlow<Float?> = _timerStopAtSeconds.asStateFlow()
 
     fun setMediaUri(uri: Uri, type: PostType) {
         _draft.update { it.copy(mediaUri = uri, postType = type) }
@@ -84,8 +86,13 @@ class CreatePostFlowViewModel(application: Application) : AndroidViewModel(appli
         _timerCountdown.value = seconds
     }
 
+    fun setTimerStopAtSeconds(seconds: Float?) {
+        _timerStopAtSeconds.value = seconds
+    }
+
     fun resetDraft() {
         _draft.value = CreatePostDraft()
         _timerCountdown.value = null
+        _timerStopAtSeconds.value = null
     }
 }
