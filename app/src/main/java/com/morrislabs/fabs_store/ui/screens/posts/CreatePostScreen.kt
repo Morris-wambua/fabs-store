@@ -98,6 +98,8 @@ fun CreatePostScreen(
     var showSoundPicker by remember { mutableStateOf(false) }
     var showSoundTrimmer by remember { mutableStateOf(false) }
     var pendingTrimSound by remember { mutableStateOf<SoundDTO?>(null) }
+    var showPostEditor by remember { mutableStateOf(false) }
+    var editState by remember { mutableStateOf(PostEditingState()) }
     val selectedSound by postViewModel.selectedSound.collectAsState()
     val soundsState by postViewModel.soundsState.collectAsState()
     val soundSearchQuery by postViewModel.soundSearchQuery.collectAsState()
@@ -113,6 +115,7 @@ fun CreatePostScreen(
                 mediaUrl = url
                 mediaFilename = filename
             }
+            showPostEditor = true
         }
     }
 
@@ -129,6 +132,10 @@ fun CreatePostScreen(
     val isUploading = uploadState is PostViewModel.UploadState.Uploading
     val isCreating = createPostState is PostViewModel.CreatePostState.Loading
     val canPost = storeId.isNotBlank() && mediaUrl.isNotBlank() && caption.isNotBlank() && !isUploading && !isCreating
+
+    LaunchedEffect(Unit) {
+        PostEditingDraftStore.load(context)?.let { editState = it }
+    }
 
     Scaffold(
         topBar = {
@@ -147,7 +154,19 @@ fun CreatePostScreen(
                 actions = {
                     TextButton(
                         onClick = {
-                            postViewModel.createPost(storeId, caption, mediaUrl, mediaFilename, postType)
+                            postViewModel.createPost(
+                                storeId = storeId,
+                                caption = caption,
+                                mediaUrl = mediaUrl,
+                                filename = mediaFilename,
+                                type = postType,
+                                videoTrimStartMs = editState.videoTrimStartMs,
+                                videoTrimEndMs = editState.videoTrimEndMs,
+                                videoSpeed = editState.videoSpeed,
+                                filterName = editState.filterName,
+                                textOverlays = editState.textOverlays,
+                                emojiOverlays = editState.emojiOverlays
+                            )
                         },
                         enabled = canPost
                     ) {
@@ -162,7 +181,29 @@ fun CreatePostScreen(
             )
         }
     ) { paddingValues ->
-        Column(
+        if (showPostEditor) {
+            PostEditingScreen(
+                mediaUri = selectedUri,
+                postType = postType,
+                selectedSound = selectedSound,
+                initialState = editState,
+                onBack = { showPostEditor = false },
+                onPickMedia = { mediaLauncher.launch("*/*") },
+                onAddSound = {
+                    postViewModel.loadTrendingSounds()
+                    showSoundPicker = true
+                },
+                onRemoveSound = { postViewModel.clearSelectedSound() },
+                onApply = {
+                    editState = it
+                    showPostEditor = false
+                },
+                onSaveDraft = {
+                    editState = it
+                    PostEditingDraftStore.save(context, it)
+                }
+            )
+        } else Column(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(paddingValues)
@@ -208,6 +249,17 @@ fun CreatePostScreen(
 
                     Spacer(modifier = Modifier.height(20.dp))
 
+                    if (selectedUri != null) {
+                        Button(
+                            onClick = { showPostEditor = true },
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(10.dp)
+                        ) {
+                            Text("Open Post Editor")
+                        }
+                        Spacer(modifier = Modifier.height(12.dp))
+                    }
+
                     CaptionSection(
                         caption = caption,
                         onCaptionChange = {
@@ -233,7 +285,19 @@ fun CreatePostScreen(
                     enabled = canPost,
                     isLoading = isCreating,
                     onClick = {
-                        postViewModel.createPost(storeId, caption, mediaUrl, mediaFilename, postType)
+                        postViewModel.createPost(
+                            storeId = storeId,
+                            caption = caption,
+                            mediaUrl = mediaUrl,
+                            filename = mediaFilename,
+                            type = postType,
+                            videoTrimStartMs = editState.videoTrimStartMs,
+                            videoTrimEndMs = editState.videoTrimEndMs,
+                            videoSpeed = editState.videoSpeed,
+                            filterName = editState.filterName,
+                            textOverlays = editState.textOverlays,
+                            emojiOverlays = editState.emojiOverlays
+                        )
                     }
                 )
             }
@@ -521,5 +585,3 @@ private fun applyHashtagSuggestion(caption: String, hashtag: String): String {
     }
     return if (caption.endsWith(" ")) "$caption$hashtag " else "$caption $hashtag "
 }
-
-

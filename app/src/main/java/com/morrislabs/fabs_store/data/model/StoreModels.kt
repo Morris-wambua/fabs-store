@@ -1,4 +1,4 @@
-package com.morrislabs.fabs_store.data.model
+﻿package com.morrislabs.fabs_store.data.model
 
 import kotlinx.serialization.Serializable
 
@@ -362,7 +362,13 @@ data class PostPayload(
     val postTypeLevel: PostTypeLevel? = null,
     val soundId: String? = null,
     val soundStartMs: Long? = null,
-    val soundEndMs: Long? = null
+    val soundEndMs: Long? = null,
+    val videoTrimStartMs: Long? = null,
+    val videoTrimEndMs: Long? = null,
+    val videoSpeed: Float? = null,
+    val filterName: String? = null,
+    val textOverlays: List<String>? = null,
+    val emojiOverlays: List<String>? = null
 )
 
 @Serializable
@@ -467,3 +473,4 @@ data class PostSoundData(
     val startMs: Long = 0,
     val endMs: Long = 0
 )
+
