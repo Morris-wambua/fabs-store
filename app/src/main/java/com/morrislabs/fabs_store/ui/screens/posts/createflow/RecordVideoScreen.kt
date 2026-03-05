@@ -51,8 +51,10 @@ import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -73,6 +75,9 @@ import com.google.accompanist.permissions.ExperimentalPermissionsApi
 import com.google.accompanist.permissions.rememberMultiplePermissionsState
 import com.morrislabs.fabs_store.data.model.PostType
 import java.io.File
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 
 private val RecordGreen = Color(0xFF13EC5B)
 private val ToolBtnBg = Color(0x33000000)
@@ -88,8 +93,11 @@ fun RecordVideoScreen(
     onNavigateToSounds: () -> Unit
 ) {
     val draft by viewModel.draft.collectAsState()
+    val timerCountdownSec by viewModel.timerCountdown.collectAsState()
+    val timerStopAtSec by viewModel.timerStopAtSeconds.collectAsState()
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
+    val scope = rememberCoroutineScope()
     val permissions = rememberMultiplePermissionsState(
         listOf(Manifest.permission.CAMERA, Manifest.permission.RECORD_AUDIO)
     )
@@ -100,6 +108,9 @@ fun RecordVideoScreen(
     }
     var isRecording by remember { mutableStateOf(false) }
     var activeRecording by remember { mutableStateOf<Recording?>(null) }
+    var countdownDisplay by remember { mutableIntStateOf(0) }
+    var countdownJob by remember { mutableStateOf<Job?>(null) }
+    var autoStopJob by remember { mutableStateOf<Job?>(null) }
     var showSpeedPopup by remember { mutableStateOf(false) }
     var showTimerSheet by remember { mutableStateOf(false) }
     val galleryLauncher = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri: Uri? ->
@@ -117,7 +128,12 @@ fun RecordVideoScreen(
     }
     DisposableEffect(lifecycleOwner) {
         cameraController.bindToLifecycle(lifecycleOwner)
-        onDispose { cameraController.unbind() }
+        onDispose {
+            countdownJob?.cancel()
+            autoStopJob?.cancel()
+            activeRecording?.stop()
+            cameraController.unbind()
+        }
     }
 
     if (!permissions.allPermissionsGranted) {
@@ -168,29 +184,93 @@ fun RecordVideoScreen(
             isRecording = isRecording,
             onRecord = {
                 if (isRecording) {
-                    activeRecording?.stop(); activeRecording = null; isRecording = false
+                    countdownJob?.cancel()
+                    autoStopJob?.cancel()
+                    activeRecording?.stop()
+                    activeRecording = null
+                    isRecording = false
                 } else {
-                    @Suppress("MissingPermission")
-                    val file = File(context.cacheDir, "video_${System.currentTimeMillis()}.mp4")
-                    val opts = FileOutputOptions.Builder(file).build()
-                    val audioConfig = AudioConfig.create(true)
-                    activeRecording = cameraController.startRecording(
-                        opts, audioConfig, ContextCompat.getMainExecutor(context)
-                    ) { event ->
-                        if (event is VideoRecordEvent.Finalize && !event.hasError()) {
-                            viewModel.setMediaUri(Uri.fromFile(file), PostType.VIDEO)
-                            onNavigateToTrimCrop()
+                    val startRecordingNow = {
+                        @Suppress("MissingPermission")
+                        val file = File(context.cacheDir, "video_${System.currentTimeMillis()}.mp4")
+                        val opts = FileOutputOptions.Builder(file).build()
+                        val audioConfig = AudioConfig.create(true)
+                        activeRecording = cameraController.startRecording(
+                            opts, audioConfig, ContextCompat.getMainExecutor(context)
+                        ) { event ->
+                            if (event is VideoRecordEvent.Finalize) {
+                                isRecording = false
+                                activeRecording = null
+                                autoStopJob?.cancel()
+                                if (!event.hasError()) {
+                                    viewModel.setMediaUri(Uri.fromFile(file), PostType.VIDEO)
+                                    onNavigateToTrimCrop()
+                                }
+                            }
+                        }
+                        isRecording = true
+
+                        val stopAfter = timerStopAtSec
+                        if (stopAfter != null && stopAfter > 0f) {
+                            autoStopJob?.cancel()
+                            autoStopJob = scope.launch {
+                                delay((stopAfter * 1000f).toLong())
+                                if (isRecording) {
+                                    activeRecording?.stop()
+                                }
+                            }
                         }
                     }
-                    isRecording = true
+
+                    val countdown = timerCountdownSec
+                    if (countdown != null && countdown > 0) {
+                        countdownJob?.cancel()
+                        countdownJob = scope.launch {
+                            for (second in countdown downTo 1) {
+                                countdownDisplay = second
+                                delay(1000)
+                            }
+                            countdownDisplay = 0
+                            startRecordingNow()
+                        }
+                    } else {
+                        startRecordingNow()
+                    }
                 }
             },
             onUpload = { galleryLauncher.launch("video/*") },
             onDurationChange = { viewModel.setDurationMode(it) }
         )
 
+        if (countdownDisplay > 0) {
+            Box(
+                modifier = Modifier
+                    .align(Alignment.Center)
+                    .size(120.dp)
+                    .clip(CircleShape)
+                    .background(Color.Black.copy(alpha = 0.55f)),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    text = countdownDisplay.toString(),
+                    color = Color.White,
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 52.sp
+                )
+            }
+        }
+
         if (showTimerSheet) {
-            TimerBottomSheet(viewModel) { showTimerSheet = false }
+            TimerBottomSheet(
+                initialCountdown = timerCountdownSec ?: 3,
+                initialStopAt = timerStopAtSec ?: 6.5f,
+                onDismiss = { showTimerSheet = false },
+                onApply = { countdown, stopAt ->
+                    viewModel.setTimerCountdown(countdown)
+                    viewModel.setTimerStopAtSeconds(stopAt)
+                    showTimerSheet = false
+                }
+            )
         }
     }
 }
@@ -356,10 +436,14 @@ private fun SpeedPopup(currentSpeed: Float, onSelect: (Float) -> Unit, modifier:
 }
 
 @Composable
-private fun TimerBottomSheet(viewModel: CreatePostFlowViewModel, onDismiss: () -> Unit) {
-    val timerCountdown by viewModel.timerCountdown.collectAsState()
-    var selectedCountdown by remember { mutableStateOf(timerCountdown ?: 3) }
-    var stopAt by remember { mutableFloatStateOf(6.5f) }
+private fun TimerBottomSheet(
+    initialCountdown: Int,
+    initialStopAt: Float,
+    onDismiss: () -> Unit,
+    onApply: (Int, Float) -> Unit
+) {
+    var selectedCountdown by remember { mutableStateOf(initialCountdown) }
+    var stopAt by remember { mutableFloatStateOf(initialStopAt) }
 
     Box(Modifier.fillMaxSize().background(Color.Black.copy(alpha = 0.2f)).clickable(onClick = onDismiss)) {
         Column(
@@ -440,7 +524,7 @@ private fun TimerBottomSheet(viewModel: CreatePostFlowViewModel, onDismiss: () -
             Spacer(Modifier.height(24.dp))
             Box(
                 Modifier.fillMaxWidth().clip(RoundedCornerShape(50)).background(RecordGreen)
-                    .clickable { viewModel.setTimerCountdown(selectedCountdown); onDismiss() }
+                    .clickable { onApply(selectedCountdown, stopAt) }
                     .padding(vertical = 16.dp),
                 contentAlignment = Alignment.Center
             ) {
