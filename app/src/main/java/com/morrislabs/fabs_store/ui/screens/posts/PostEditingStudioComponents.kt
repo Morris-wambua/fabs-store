@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -33,6 +34,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Slider
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -138,28 +140,58 @@ fun MediaPreviewPane(
 @Composable
 fun ToolRail(
     modifier: Modifier = Modifier,
-    onTimeline: () -> Unit,
-    onTrim: () -> Unit,
-    onSpeed: () -> Unit,
-    onFilters: () -> Unit,
-    onText: () -> Unit,
-    onEmoji: () -> Unit
+    activeTab: EditorTab?,
+    onTabSelected: (EditorTab?) -> Unit,
+    drawerContent: @Composable (EditorTab) -> Unit
 ) {
+    val entries = listOf(
+        EditorTab.TIMELINE to ("Edit" to Icons.Default.Tune),
+        EditorTab.TRIM to ("Trim" to Icons.Default.AutoAwesome),
+        EditorTab.SPEED to ("Speed" to Icons.Default.Speed),
+        EditorTab.FILTERS to ("Filters" to Icons.Default.Filter),
+        EditorTab.TEXT to ("Text" to Icons.Default.TextFields),
+        EditorTab.EMOJI to ("Emoji" to Icons.Default.EmojiEmotions),
+    )
+
     Column(modifier = modifier, verticalArrangement = Arrangement.spacedBy(8.dp), horizontalAlignment = Alignment.End) {
-        ToolRailButton("Edit", Icons.Default.Tune, onTimeline)
-        ToolRailButton("Trim", Icons.Default.AutoAwesome, onTrim)
-        ToolRailButton("Speed", Icons.Default.Speed, onSpeed)
-        ToolRailButton("Filters", Icons.Default.Filter, onFilters)
-        ToolRailButton("Text", Icons.Default.TextFields, onText)
-        ToolRailButton("Emoji", Icons.Default.EmojiEmotions, onEmoji)
-        ToolRailButton("Captions", Icons.Default.ClosedCaption) {}
+        entries.forEach { (tab, labelIcon) ->
+            val (label, icon) = labelIcon
+            val isActive = activeTab == tab
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                if (isActive) {
+                    Surface(
+                        color = Color(0xFF171717),
+                        shape = RoundedCornerShape(16.dp),
+                        modifier = Modifier.widthIn(max = 220.dp)
+                    ) {
+                        Box(Modifier.padding(horizontal = 10.dp, vertical = 8.dp)) {
+                            drawerContent(tab)
+                        }
+                    }
+                    Spacer(Modifier.width(8.dp))
+                }
+                ToolRailButton(
+                    label = label,
+                    icon = icon,
+                    isActive = isActive,
+                    onClick = { onTabSelected(if (isActive) null else tab) }
+                )
+            }
+        }
+        ToolRailButton(
+            label = "Captions",
+            icon = Icons.Default.ClosedCaption,
+            isActive = false,
+            onClick = {}
+        )
     }
 }
 
 @Composable
-private fun ToolRailButton(label: String, icon: androidx.compose.ui.graphics.vector.ImageVector, onClick: () -> Unit) {
+private fun ToolRailButton(label: String, icon: ImageVector, isActive: Boolean, onClick: () -> Unit) {
+    val bgColor = if (isActive) Color(0xFF2A2A2A) else Color.Black.copy(alpha = 0.4f)
     Column(horizontalAlignment = Alignment.CenterHorizontally) {
-        IconButton(onClick = onClick, modifier = Modifier.background(Color.Black.copy(alpha = 0.4f), CircleShape)) {
+        IconButton(onClick = onClick, modifier = Modifier.background(bgColor, CircleShape)) {
             Icon(icon, contentDescription = label, tint = Color.White)
         }
         Text(label, color = Color.White, style = MaterialTheme.typography.labelSmall)

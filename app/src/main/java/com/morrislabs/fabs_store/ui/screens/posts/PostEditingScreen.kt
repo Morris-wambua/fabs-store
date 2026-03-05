@@ -20,14 +20,11 @@ import androidx.compose.material.icons.filled.MusicNote
 import androidx.compose.material3.AssistChip
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
-import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.RangeSlider
 import androidx.compose.material3.Text
-import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -53,7 +50,7 @@ enum class EditorTab {
     TIMELINE, TRIM, SPEED, FILTERS, TEXT, EMOJI
 }
 
-@OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun PostEditingScreen(
     mediaUri: Uri?,
@@ -164,52 +161,10 @@ fun PostEditingScreen(
             modifier = Modifier
                 .align(Alignment.CenterEnd)
                 .padding(end = 10.dp),
-            onTimeline = { activeSheet = EditorTab.TIMELINE },
-            onTrim = { activeSheet = EditorTab.TRIM },
-            onSpeed = { activeSheet = EditorTab.SPEED },
-            onFilters = { activeSheet = EditorTab.FILTERS },
-            onText = { activeSheet = EditorTab.TEXT },
-            onEmoji = { activeSheet = EditorTab.EMOJI }
-        )
-
-        Row(
-            horizontalArrangement = Arrangement.spacedBy(10.dp),
-            modifier = Modifier
-                .align(Alignment.BottomCenter)
-                .fillMaxWidth()
-                .padding(horizontal = 10.dp, vertical = 12.dp)
-        ) {
-            Button(
-                onClick = { onApply(stateSnapshot) },
-                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFFF2B55)),
-                modifier = Modifier.weight(1f)
-            ) {
-                Text("Preview")
-            }
-            Button(
-                onClick = { onApply(stateSnapshot) },
-                modifier = Modifier.weight(1f)
-            ) {
-                Text("Next")
-            }
-        }
-    }
-
-    activeSheet?.let { sheet ->
-        val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
-        ModalBottomSheet(
-            onDismissRequest = { activeSheet = null },
-            sheetState = sheetState,
-            containerColor = Color(0xFF171717),
-            shape = RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp)
-        ) {
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 14.dp, vertical = 12.dp),
-                verticalArrangement = Arrangement.spacedBy(10.dp)
-            ) {
-                when (sheet) {
+            activeTab = activeSheet,
+            onTabSelected = { activeSheet = it },
+            drawerContent = { tab ->
+                when (tab) {
                     EditorTab.TIMELINE -> {
                         TimelineSection(
                             previewPositionMs = previewPositionMs,
@@ -320,6 +275,28 @@ fun PostEditingScreen(
                         }
                     }
                 }
+            }
+        )
+
+        Row(
+            horizontalArrangement = Arrangement.spacedBy(10.dp),
+            modifier = Modifier
+                .align(Alignment.BottomCenter)
+                .fillMaxWidth()
+                .padding(horizontal = 10.dp, vertical = 12.dp)
+        ) {
+            Button(
+                onClick = { onApply(stateSnapshot) },
+                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFFF2B55)),
+                modifier = Modifier.weight(1f)
+            ) {
+                Text("Preview")
+            }
+            Button(
+                onClick = { onApply(stateSnapshot) },
+                modifier = Modifier.weight(1f)
+            ) {
+                Text("Next")
             }
         }
     }
