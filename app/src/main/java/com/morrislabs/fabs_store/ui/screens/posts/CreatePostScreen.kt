@@ -1,587 +1,247 @@
 package com.morrislabs.fabs_store.ui.screens.posts
 
-import android.net.Uri
-import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.AddAPhoto
-import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.PlayCircleFilled
-import androidx.compose.material.icons.filled.RocketLaunch
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Tab
-import androidx.compose.material3.TabRow
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
-import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.drawBehind
-import androidx.compose.ui.draw.shadow
-import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.PathEffect
-import androidx.compose.ui.graphics.drawscope.Stroke
-import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import coil.ImageLoader
-import coil.compose.AsyncImage
-import coil.decode.VideoFrameDecoder
-import coil.request.ImageRequest
-import com.morrislabs.fabs_store.data.model.PostType
-import com.morrislabs.fabs_store.data.model.SoundDTO
+import androidx.lifecycle.viewmodel.compose.viewModel
+import com.morrislabs.fabs_store.ui.screens.posts.createflow.CreatePostFlowRoutes
+import com.morrislabs.fabs_store.ui.screens.posts.createflow.CreatePostFlowViewModel
+import com.morrislabs.fabs_store.ui.screens.posts.createflow.CaptionsTagsScreen
+import com.morrislabs.fabs_store.ui.screens.posts.createflow.FiltersScreen
+import com.morrislabs.fabs_store.ui.screens.posts.createflow.OverlayItem
+import com.morrislabs.fabs_store.ui.screens.posts.createflow.PostPreviewScreen
+import com.morrislabs.fabs_store.ui.screens.posts.createflow.RecordVideoScreen
+import com.morrislabs.fabs_store.ui.screens.posts.createflow.SoundPickerScreen
+import com.morrislabs.fabs_store.ui.screens.posts.createflow.TagStoreDetailsScreen
+import com.morrislabs.fabs_store.ui.screens.posts.createflow.TagStoreServicesScreen
+import com.morrislabs.fabs_store.ui.screens.posts.createflow.TextStickersScreen
+import com.morrislabs.fabs_store.ui.screens.posts.createflow.TrimCropScreen
 import com.morrislabs.fabs_store.ui.viewmodel.PostViewModel
 import com.morrislabs.fabs_store.ui.viewmodel.StoreViewModel
-import androidx.compose.material.icons.filled.MusicNote
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun CreatePostScreen(
     storeId: String,
     postViewModel: PostViewModel,
     onNavigateBack: () -> Unit,
     onPostCreated: () -> Unit,
-    onNavigateToLiveStream: () -> Unit = {}
+    onNavigateToLiveStream: () -> Unit
 ) {
+    val flowViewModel: CreatePostFlowViewModel = viewModel()
+    val draft by flowViewModel.draft.collectAsState()
     val createPostState by postViewModel.createPostState.collectAsState()
     val uploadState by postViewModel.uploadState.collectAsState()
-    val hashtagSuggestions by postViewModel.hashtagSuggestions.collectAsState()
-    val showHashtagSuggestions by postViewModel.showHashtagSuggestions.collectAsState()
-    val context = LocalContext.current
-
-    var selectedTab by rememberSaveable { mutableIntStateOf(0) }
-    var caption by rememberSaveable { mutableStateOf("") }
-    var selectedUri by remember { mutableStateOf<Uri?>(null) }
-    var mediaUrl by rememberSaveable { mutableStateOf("") }
-    var mediaFilename by rememberSaveable { mutableStateOf("") }
-    var postType by remember { mutableStateOf(PostType.IMAGE) }
-    var showSoundPicker by remember { mutableStateOf(false) }
-    var showSoundTrimmer by remember { mutableStateOf(false) }
-    var pendingTrimSound by remember { mutableStateOf<SoundDTO?>(null) }
-    var showPostEditor by remember { mutableStateOf(false) }
-    var editState by remember { mutableStateOf(PostEditingState()) }
-    val selectedSound by postViewModel.selectedSound.collectAsState()
     val soundsState by postViewModel.soundsState.collectAsState()
     val soundSearchQuery by postViewModel.soundSearchQuery.collectAsState()
+    val hashtagSuggestions by postViewModel.hashtagSuggestions.collectAsState()
+    val showHashtagSuggestions by postViewModel.showHashtagSuggestions.collectAsState()
 
-    val mediaLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.GetContent()
-    ) { uri ->
-        uri?.let {
-            selectedUri = it
-            val mimeType = context.contentResolver.getType(it)
-            postType = if (mimeType?.startsWith("video/") == true) PostType.VIDEO else PostType.IMAGE
-            postViewModel.uploadMedia(it) { url, filename ->
-                mediaUrl = url
-                mediaFilename = filename
-            }
-            showPostEditor = true
-        }
-    }
+    var currentRoute by rememberSaveable { mutableStateOf(CreatePostFlowRoutes.RECORD) }
+    var returnRouteAfterSounds by rememberSaveable { mutableStateOf(CreatePostFlowRoutes.RECORD) }
+    var localError by remember { mutableStateOf<String?>(null) }
+
+    val sounds = (soundsState as? StoreViewModel.LoadingState.Success)?.data ?: emptyList()
+    val isLoadingSounds = soundsState is StoreViewModel.LoadingState.Loading
+    val isPublishing = uploadState is PostViewModel.UploadState.Uploading || createPostState is PostViewModel.CreatePostState.Loading
 
     LaunchedEffect(createPostState) {
-        if (createPostState is PostViewModel.CreatePostState.Success) {
-            onPostCreated()
+        when (createPostState) {
+            is PostViewModel.CreatePostState.Success -> {
+                flowViewModel.resetDraft()
+                onPostCreated()
+            }
+
+            is PostViewModel.CreatePostState.Error -> {
+                localError = (createPostState as PostViewModel.CreatePostState.Error).message
+            }
+
+            else -> Unit
         }
     }
 
     DisposableEffect(Unit) {
-        onDispose { postViewModel.resetCreatePostState() }
-    }
-
-    val isUploading = uploadState is PostViewModel.UploadState.Uploading
-    val isCreating = createPostState is PostViewModel.CreatePostState.Loading
-    val canPost = storeId.isNotBlank() && mediaUrl.isNotBlank() && caption.isNotBlank() && !isUploading && !isCreating
-
-    LaunchedEffect(Unit) {
-        PostEditingDraftStore.load(context)?.let { editState = it }
-    }
-
-    Scaffold(
-        topBar = {
-            TopAppBar(
-                title = {
-                    Text(
-                        "Create Post",
-                        fontWeight = FontWeight.Bold
-                    )
-                },
-                navigationIcon = {
-                    IconButton(onClick = onNavigateBack) {
-                        Icon(Icons.Default.Close, contentDescription = "Close")
-                    }
-                },
-                actions = {
-                    TextButton(
-                        onClick = {
-                            postViewModel.createPost(
-                                storeId = storeId,
-                                caption = caption,
-                                mediaUrl = mediaUrl,
-                                filename = mediaFilename,
-                                type = postType,
-                                videoTrimStartMs = editState.videoTrimStartMs,
-                                videoTrimEndMs = editState.videoTrimEndMs,
-                                videoSpeed = editState.videoSpeed,
-                                filterName = editState.filterName,
-                                textOverlays = editState.textOverlays,
-                                emojiOverlays = editState.emojiOverlays
-                            )
-                        },
-                        enabled = canPost
-                    ) {
-                        Text(
-                            "Post",
-                            color = if (canPost) MaterialTheme.colorScheme.primary
-                            else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f),
-                            fontWeight = FontWeight.SemiBold
-                        )
-                    }
-                }
-            )
-        }
-    ) { paddingValues ->
-        if (showPostEditor) {
-            PostEditingScreen(
-                mediaUri = selectedUri,
-                postType = postType,
-                selectedSound = selectedSound,
-                initialState = editState,
-                onBack = { showPostEditor = false },
-                onPickMedia = { mediaLauncher.launch("*/*") },
-                onAddSound = {
-                    postViewModel.loadTrendingSounds()
-                    showSoundPicker = true
-                },
-                onRemoveSound = { postViewModel.clearSelectedSound() },
-                onApply = {
-                    editState = it
-                    showPostEditor = false
-                },
-                onSaveDraft = {
-                    editState = it
-                    PostEditingDraftStore.save(context, it)
-                }
-            )
-        } else Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(paddingValues)
-        ) {
-            Column(
-                modifier = Modifier
-                    .weight(1f)
-                    .verticalScroll(rememberScrollState())
-                    .padding(horizontal = 16.dp)
-            ) {
-                Spacer(modifier = Modifier.height(8.dp))
-
-                ToggleTabs(
-                    selectedTab = selectedTab,
-                    onTabSelected = { selectedTab = it }
-                )
-
-                Spacer(modifier = Modifier.height(16.dp))
-
-                if (selectedTab == 0) {
-                    MediaUploadArea(
-                        selectedUri = selectedUri,
-                        postType = postType,
-                        isUploading = isUploading,
-                        onSelectMedia = { mediaLauncher.launch("*/*") },
-                        onRemoveMedia = {
-                            selectedUri = null
-                            mediaUrl = ""
-                            mediaFilename = ""
-                        }
-                    )
-
-                    Spacer(modifier = Modifier.height(12.dp))
-
-                    SoundAttachmentRow(
-                        selectedSound = selectedSound,
-                        onAddSound = {
-                            postViewModel.loadTrendingSounds()
-                            showSoundPicker = true
-                        },
-                        onRemoveSound = { postViewModel.clearSelectedSound() }
-                    )
-
-                    Spacer(modifier = Modifier.height(20.dp))
-
-                    if (selectedUri != null) {
-                        Button(
-                            onClick = { showPostEditor = true },
-                            modifier = Modifier.fillMaxWidth(),
-                            shape = RoundedCornerShape(10.dp)
-                        ) {
-                            Text("Open Post Editor")
-                        }
-                        Spacer(modifier = Modifier.height(12.dp))
-                    }
-
-                    CaptionSection(
-                        caption = caption,
-                        onCaptionChange = {
-                            caption = it
-                            postViewModel.onCaptionInputChanged(it)
-                        },
-                        suggestions = hashtagSuggestions.map { it.hashtag to it.usageCount },
-                        showSuggestions = showHashtagSuggestions,
-                        onTagClick = { tag ->
-                            caption = applyHashtagSuggestion(caption, tag)
-                            postViewModel.clearHashtagSuggestions()
-                        }
-                    )
-
-                    Spacer(modifier = Modifier.height(24.dp))
-                } else {
-                    GoLiveSection(onGoLive = onNavigateToLiveStream)
-                }
-            }
-
-            if (selectedTab == 0) {
-                ShareButton(
-                    enabled = canPost,
-                    isLoading = isCreating,
-                    onClick = {
-                        postViewModel.createPost(
-                            storeId = storeId,
-                            caption = caption,
-                            mediaUrl = mediaUrl,
-                            filename = mediaFilename,
-                            type = postType,
-                            videoTrimStartMs = editState.videoTrimStartMs,
-                            videoTrimEndMs = editState.videoTrimEndMs,
-                            videoSpeed = editState.videoSpeed,
-                            filterName = editState.filterName,
-                            textOverlays = editState.textOverlays,
-                            emojiOverlays = editState.emojiOverlays
-                        )
-                    }
-                )
-            }
+        onDispose {
+            postViewModel.resetCreatePostState()
+            flowViewModel.resetDraft()
         }
     }
 
-    if (showSoundPicker) {
-        val soundsList = (soundsState as? StoreViewModel.LoadingState.Success)?.data ?: emptyList()
-        val isLoadingSounds = soundsState is StoreViewModel.LoadingState.Loading
-        SoundPickerBottomSheet(
-            sounds = soundsList,
-            isLoading = isLoadingSounds,
-            searchQuery = soundSearchQuery,
-            onSearchQueryChange = { postViewModel.onSoundSearchQueryChanged(it) },
-            onSoundSelected = { sound ->
-                showSoundPicker = false
-                pendingTrimSound = sound
-                showSoundTrimmer = true
-            },
-            onDismiss = { showSoundPicker = false }
-        )
+    fun goToSounds(returnTo: String) {
+        returnRouteAfterSounds = returnTo
+        postViewModel.loadTrendingSounds()
+        currentRoute = CreatePostFlowRoutes.SOUNDS
     }
 
-    if (showSoundTrimmer && pendingTrimSound != null) {
-        SoundTrimmerBottomSheet(
-            sound = pendingTrimSound!!,
-            onDismiss = {
-                showSoundTrimmer = false
-                pendingTrimSound = null
-            },
-            onConfirm = { startMs, endMs ->
-                postViewModel.selectSound(pendingTrimSound!!, startMs, endMs)
-                showSoundTrimmer = false
-                pendingTrimSound = null
-            }
-        )
-    }
-}
-
-@Composable
-private fun ToggleTabs(
-    selectedTab: Int,
-    onTabSelected: (Int) -> Unit
-) {
-    TabRow(
-        selectedTabIndex = selectedTab,
-        containerColor = MaterialTheme.colorScheme.surfaceVariant,
-        contentColor = MaterialTheme.colorScheme.primary,
-        modifier = Modifier.clip(RoundedCornerShape(8.dp))
-    ) {
-        Tab(
-            selected = selectedTab == 0,
-            onClick = { onTabSelected(0) },
-            text = { Text("Image/Video") }
-        )
-        Tab(
-            selected = selectedTab == 1,
-            onClick = { onTabSelected(1) },
-            text = { Text("Go Live") }
-        )
-    }
-}
-
-@Composable
-private fun MediaUploadArea(
-    selectedUri: Uri?,
-    postType: PostType,
-    isUploading: Boolean,
-    onSelectMedia: () -> Unit,
-    onRemoveMedia: () -> Unit
-) {
-    val borderColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.5f)
-    val cornerRadius = 16.dp
-    val context = LocalContext.current
-
-    val videoImageLoader = remember {
-        ImageLoader.Builder(context)
-            .components { add(VideoFrameDecoder.Factory()) }
-            .build()
-    }
-
-    Box(
-        modifier = Modifier
-            .fillMaxWidth()
-            .height(220.dp)
-            .clip(RoundedCornerShape(cornerRadius))
-            .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.05f))
-            .drawBehind {
-                val stroke = Stroke(
-                    width = 2.dp.toPx(),
-                    pathEffect = PathEffect.dashPathEffect(floatArrayOf(10f, 10f), 0f)
-                )
-                drawRoundRect(
-                    color = borderColor,
-                    cornerRadius = CornerRadius(cornerRadius.toPx()),
-                    style = stroke
-                )
-            }
-            .clickable(onClick = onSelectMedia),
-        contentAlignment = Alignment.Center
-    ) {
-        if (selectedUri != null) {
-            if (postType == PostType.VIDEO) {
-                val videoModel = remember(selectedUri) {
-                    ImageRequest.Builder(context)
-                        .data(selectedUri)
-                        .decoderFactory(VideoFrameDecoder.Factory())
-                        .build()
-                }
-                AsyncImage(
-                    model = videoModel,
-                    imageLoader = videoImageLoader,
-                    contentDescription = "Selected video thumbnail",
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .clip(RoundedCornerShape(cornerRadius)),
-                    contentScale = ContentScale.Crop
-                )
-                Icon(
-                    imageVector = Icons.Default.PlayCircleFilled,
-                    contentDescription = null,
-                    modifier = Modifier.size(48.dp),
-                    tint = Color.White.copy(alpha = 0.85f)
-                )
-            } else {
-                AsyncImage(
-                    model = selectedUri,
-                    contentDescription = "Selected image",
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .clip(RoundedCornerShape(cornerRadius)),
-                    contentScale = ContentScale.Crop
-                )
-            }
-            IconButton(
-                onClick = onRemoveMedia,
-                modifier = Modifier
-                    .align(Alignment.TopEnd)
-                    .padding(8.dp)
-                    .size(28.dp)
-                    .background(
-                        MaterialTheme.colorScheme.surface.copy(alpha = 0.8f),
-                        CircleShape
-                    )
-            ) {
-                Icon(
-                    Icons.Default.Close,
-                    contentDescription = "Remove media",
-                    modifier = Modifier.size(16.dp),
-                    tint = MaterialTheme.colorScheme.onSurface
-                )
-            }
-            if (isUploading) {
-                Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.6f)),
-                    contentAlignment = Alignment.Center
-                ) {
-                    CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
-                }
-            }
-        } else {
-            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                Icon(
-                    imageVector = Icons.Default.AddAPhoto,
-                    contentDescription = "Upload media",
-                    modifier = Modifier.size(48.dp),
-                    tint = MaterialTheme.colorScheme.primary
-                )
-                Spacer(modifier = Modifier.height(12.dp))
-                Text(
-                    "Upload Media",
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.onSurface
-                )
-                Spacer(modifier = Modifier.height(4.dp))
-                Text(
-                    "Tap to select photos or videos",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
-                )
-            }
+    fun publishDraft() {
+        val mediaUri = draft.mediaUri ?: run {
+            localError = "Select or record a video before publishing."
+            return
         }
-    }
-}
+        localError = null
 
-@Composable
-private fun CaptionSection(
-    caption: String,
-    onCaptionChange: (String) -> Unit,
-    suggestions: List<Pair<String, Long>>,
-    showSuggestions: Boolean,
-    onTagClick: (String) -> Unit
-) {
-    Text(
-        "Caption",
-        style = MaterialTheme.typography.titleSmall,
-        fontWeight = FontWeight.SemiBold,
-        color = MaterialTheme.colorScheme.onSurface
-    )
-    Spacer(modifier = Modifier.height(8.dp))
-    OutlinedTextField(
-        value = caption,
-        onValueChange = onCaptionChange,
-        modifier = Modifier.fillMaxWidth(),
-        placeholder = {
-            Text("Share what's happening at your store...")
-        },
-        minLines = 4,
-        maxLines = 6,
-        shape = RoundedCornerShape(12.dp)
-    )
-    if (showSuggestions && suggestions.isNotEmpty()) {
-        Spacer(modifier = Modifier.height(8.dp))
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .shadow(8.dp, RoundedCornerShape(12.dp))
-                .clip(RoundedCornerShape(12.dp))
-                .background(MaterialTheme.colorScheme.surface)
-                .border(
-                    1.dp,
-                    MaterialTheme.colorScheme.outline.copy(alpha = 0.25f),
-                    RoundedCornerShape(12.dp)
-                )
-                .padding(6.dp)
-        ) {
-            HashtagSuggestionsSection(
-                tags = suggestions,
-                onTagClick = onTagClick
+        draft.soundSelection?.let {
+            postViewModel.selectSound(it.sound, it.trimStartMs, if (it.trimEndMs > 0L) it.trimEndMs else it.sound.duration)
+        } ?: postViewModel.clearSelectedSound()
+
+        postViewModel.uploadMedia(mediaUri) { mediaUrl, filename ->
+            postViewModel.createPost(
+                storeId = storeId,
+                caption = draft.caption.ifBlank { "Fresh looks this week #FlashSale #StyleInspo #ShoppingDay" },
+                mediaUrl = mediaUrl,
+                filename = filename,
+                type = draft.postType,
+                videoTrimStartMs = draft.trim.startMs,
+                videoTrimEndMs = draft.trim.endMs,
+                videoSpeed = draft.recordingSpeed,
+                filterName = draft.filter.name.takeUnless { it.equals("Original", ignoreCase = true) },
+                textOverlays = draft.overlays.filterIsInstance<OverlayItem.TextOverlay>().map { it.text },
+                emojiOverlays = draft.overlays.filterIsInstance<OverlayItem.StickerOverlay>().map { it.stickerType.name }
             )
         }
     }
-}
 
-@Composable
-private fun HashtagSuggestionsSection(
-    tags: List<Pair<String, Long>>,
-    onTagClick: (String) -> Unit
-) {
-    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        tags.forEach { (tag, usageCount) ->
-            Row(
+    Box(modifier = Modifier.fillMaxSize()) {
+        when (currentRoute) {
+            CreatePostFlowRoutes.RECORD -> {
+                RecordVideoScreen(
+                    viewModel = flowViewModel,
+                    onClose = onNavigateBack,
+                    onNavigateToTrimCrop = { currentRoute = CreatePostFlowRoutes.TRIM_CROP },
+                    onNavigateToSounds = { goToSounds(CreatePostFlowRoutes.RECORD) }
+                )
+            }
+
+            CreatePostFlowRoutes.TRIM_CROP -> {
+                TrimCropScreen(
+                    viewModel = flowViewModel,
+                    onBack = { currentRoute = CreatePostFlowRoutes.RECORD },
+                    onSave = { currentRoute = CreatePostFlowRoutes.FILTERS }
+                )
+            }
+
+            CreatePostFlowRoutes.FILTERS -> {
+                FiltersScreen(
+                    viewModel = flowViewModel,
+                    onBack = { currentRoute = CreatePostFlowRoutes.TRIM_CROP },
+                    onNext = { goToSounds(CreatePostFlowRoutes.TEXT_STICKERS) }
+                )
+            }
+
+            CreatePostFlowRoutes.SOUNDS -> {
+                SoundPickerScreen(
+                    viewModel = flowViewModel,
+                    sounds = sounds,
+                    isLoading = isLoadingSounds,
+                    searchQuery = soundSearchQuery,
+                    onSearchQueryChange = postViewModel::onSoundSearchQueryChanged,
+                    onLoadTrending = postViewModel::loadTrendingSounds,
+                    onBack = { currentRoute = returnRouteAfterSounds },
+                    onDone = { currentRoute = returnRouteAfterSounds }
+                )
+            }
+
+            CreatePostFlowRoutes.TEXT_STICKERS -> {
+                TextStickersScreen(
+                    viewModel = flowViewModel,
+                    onBack = { currentRoute = CreatePostFlowRoutes.FILTERS },
+                    onDone = { currentRoute = CreatePostFlowRoutes.TAG_STORE_DETAILS },
+                    onSaveDraft = { },
+                    onSavePost = { currentRoute = CreatePostFlowRoutes.TAG_STORE_DETAILS }
+                )
+            }
+
+            CreatePostFlowRoutes.TAG_STORE_DETAILS -> {
+                TagStoreDetailsScreen(
+                    viewModel = flowViewModel,
+                    onBack = { currentRoute = CreatePostFlowRoutes.TEXT_STICKERS },
+                    onNext = { currentRoute = CreatePostFlowRoutes.TAG_STORE }
+                )
+            }
+
+            CreatePostFlowRoutes.TAG_STORE -> {
+                TagStoreServicesScreen(
+                    viewModel = flowViewModel,
+                    onBack = { currentRoute = CreatePostFlowRoutes.TAG_STORE_DETAILS },
+                    onDone = { currentRoute = CreatePostFlowRoutes.CAPTIONS_TAGS }
+                )
+            }
+
+            CreatePostFlowRoutes.CAPTIONS_TAGS -> {
+                CaptionsTagsScreen(
+                    draft = draft,
+                    suggestions = hashtagSuggestions,
+                    showSuggestions = showHashtagSuggestions,
+                    onBack = { currentRoute = CreatePostFlowRoutes.TAG_STORE },
+                    onSaveDraft = { },
+                    onCaptionChange = {
+                        flowViewModel.setCaption(it)
+                        postViewModel.onCaptionInputChanged(it)
+                    },
+                    onSuggestionClick = { suggestion ->
+                        val updated = replaceActiveHashtagToken(draft.caption, suggestion)
+                        flowViewModel.setCaption(updated)
+                        postViewModel.onCaptionInputChanged(updated)
+                    },
+                    onPublish = { if (!isPublishing) publishDraft() }
+                )
+            }
+
+            CreatePostFlowRoutes.PREVIEW -> {
+                PostPreviewScreen(
+                    viewModel = flowViewModel,
+                    storeName = "fabs_store",
+                    onEdit = { currentRoute = CreatePostFlowRoutes.TEXT_STICKERS },
+                    onPublish = { if (!isPublishing) publishDraft() }
+                )
+            }
+        }
+
+        if (isPublishing) {
+            Box(
                 modifier = Modifier
-                    .fillMaxWidth()
-                    .clip(RoundedCornerShape(12.dp))
-                    .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f))
-                    .border(
-                        1.dp,
-                        MaterialTheme.colorScheme.primary.copy(alpha = 0.25f),
-                        RoundedCornerShape(12.dp)
-                    )
-                    .clickable { onTagClick(tag) }
-                    .padding(horizontal = 12.dp, vertical = 10.dp),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
+                    .fillMaxSize()
+                    .background(Color.Black.copy(alpha = 0.35f)),
+                contentAlignment = Alignment.Center
             ) {
-                Text(
-                    text = tag,
-                    style = MaterialTheme.typography.labelLarge,
-                    color = MaterialTheme.colorScheme.primary
-                )
-                Text(
-                    text = "$usageCount uses",
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
+                CircularProgressIndicator(color = Color(0xFF13EC5B))
+            }
+        }
+
+        localError?.let { message ->
+            Box(modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = 24.dp)) {
+                Text(text = message, color = Color.Red)
             }
         }
     }
 }
 
-private fun applyHashtagSuggestion(caption: String, hashtag: String): String {
-    if (caption.isBlank()) return "$hashtag "
+private fun replaceActiveHashtagToken(caption: String, hashtag: String): String {
+    val clean = hashtag.removePrefix("#")
+    val hash = "#$clean"
+    if (caption.isBlank()) return "$hash "
+
     var index = caption.length - 1
     while (index >= 0 && !caption[index].isWhitespace()) {
         index--
     }
     val tokenStart = index + 1
     val token = caption.substring(tokenStart)
-    if (token.startsWith("#")) {
-        return caption.substring(0, tokenStart) + hashtag + " "
-    }
-    return if (caption.endsWith(" ")) "$caption$hashtag " else "$caption $hashtag "
+    if (!token.startsWith("#")) return "$caption $hash "
+    return caption.substring(0, tokenStart) + "$hash "
 }
