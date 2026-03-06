@@ -1,3 +1,8 @@
-<resources>
+﻿<resources>
     <string name="app_name">fabs-store</string>
+    <string name="service_duration_and_price">%1$s &#8226; %2$s</string>
+    <string name="greeting_morning">Good morning</string>
+    <string name="greeting_afternoon">Good afternoon</string>
+    <string name="greeting_evening">Good evening</string>
+    <string name="location_coordinates_fallback">Coordinates: %1$s, %2$s</string>
 </resources>

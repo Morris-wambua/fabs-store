@@ -51,6 +51,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextOverflow
@@ -59,13 +60,14 @@ import coil.compose.AsyncImage
 import com.morrislabs.fabs_store.data.model.MainCategory
 import com.morrislabs.fabs_store.data.model.SubCategory
 import com.morrislabs.fabs_store.data.model.toDisplayName
+import com.morrislabs.fabs_store.localization.CurrencyFormatter
+import com.morrislabs.fabs_store.localization.LocaleManager
+import com.morrislabs.fabs_store.localization.MeasurementFormatter
 
 private val DetailsDurationOptions = listOf(30, 45, 60, 90, 120, 180, 240, 300, 360, 420, 480, 540)
 
-private fun formatDuration(minutes: Int): String = when {
-    minutes < 120 -> "$minutes"
-    else -> "${minutes / 60}h"
-}
+private fun formatDuration(minutes: Int, locale: java.util.Locale): String =
+    MeasurementFormatter.formatDurationMinutes(minutes, locale)
 
 @Composable
 internal fun ImageSection(
@@ -176,6 +178,8 @@ internal fun GeneralInfoCard(
     description: String,
     onDescriptionChange: (String) -> Unit
 ) {
+    val locale = LocaleManager.getActiveLocale(LocalContext.current)
+
     Card(
         modifier = Modifier
             .padding(horizontal = 16.dp)
@@ -195,7 +199,7 @@ internal fun GeneralInfoCard(
             Spacer(modifier = Modifier.height(14.dp))
 
             Text(
-                "Price (KES)",
+                "Price",
                 style = MaterialTheme.typography.labelMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
@@ -203,7 +207,7 @@ internal fun GeneralInfoCard(
             OutlinedTextField(
                 value = price,
                 onValueChange = onPriceChange,
-                prefix = { Text("KES") },
+                prefix = { Text(CurrencyFormatter.currencySymbol(locale)) },
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(12.dp),
                 singleLine = true,
@@ -371,6 +375,8 @@ internal fun DurationCard(
     selectedDuration: Int,
     onDurationChange: (Int) -> Unit
 ) {
+    val locale = LocaleManager.getActiveLocale(LocalContext.current)
+
     Card(
         modifier = Modifier
             .padding(horizontal = 16.dp)
@@ -418,7 +424,7 @@ internal fun DurationCard(
                             contentAlignment = Alignment.Center
                         ) {
                             Text(
-                                text = formatDuration(duration),
+                                text = formatDuration(duration, locale),
                                 style = MaterialTheme.typography.labelMedium,
                                 color = if (isSelected) {
                                     MaterialTheme.colorScheme.onPrimary

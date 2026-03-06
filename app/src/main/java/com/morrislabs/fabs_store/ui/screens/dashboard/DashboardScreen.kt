@@ -50,14 +50,18 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
 import coil.request.ImageRequest
+import com.morrislabs.fabs_store.R
 import com.morrislabs.fabs_store.data.model.FetchStoreResponse
 import com.morrislabs.fabs_store.data.model.ReservationStatus
 import com.morrislabs.fabs_store.data.model.ReservationWithPaymentDTO
+import com.morrislabs.fabs_store.localization.CurrencyFormatter
+import com.morrislabs.fabs_store.localization.LocaleManager
 import com.morrislabs.fabs_store.ui.viewmodel.ReviewViewModel
 import com.morrislabs.fabs_store.ui.viewmodel.StoreViewModel
 import java.time.LocalTime
@@ -307,7 +311,7 @@ private fun TodaysInsightsSection(
             item {
                 InsightCard(
                     title = "EARNINGS TODAY",
-                    value = "KES ${String.format("%.0f", earnings)}",
+                    value = localizedCurrency(earnings),
                     delta = "from completed",
                     containerColor = MaterialTheme.colorScheme.tertiaryContainer,
                     contentColor = MaterialTheme.colorScheme.onTertiaryContainer
@@ -507,11 +511,18 @@ private fun EmptyFeedbackCard() {
     }
 }
 
+@Composable
 private fun getGreeting(): String {
     val hour = LocalTime.now().hour
     return when {
-        hour < 12 -> "Good morning"
-        hour < 17 -> "Good afternoon"
-        else -> "Good evening"
+        hour < 12 -> stringResource(R.string.greeting_morning)
+        hour < 17 -> stringResource(R.string.greeting_afternoon)
+        else -> stringResource(R.string.greeting_evening)
     }
+}
+
+@Composable
+private fun localizedCurrency(amount: Number): String {
+    val locale = LocaleManager.getActiveLocale(LocalContext.current)
+    return CurrencyFormatter.format(amount, locale)
 }

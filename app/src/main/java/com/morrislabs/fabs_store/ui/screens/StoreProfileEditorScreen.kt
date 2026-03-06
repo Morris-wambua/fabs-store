@@ -57,6 +57,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -66,8 +67,11 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import coil.compose.AsyncImage
 import com.morrislabs.fabs_store.data.model.FetchStoreResponse
 import com.morrislabs.fabs_store.data.model.UpdateStorePayload
+import com.morrislabs.fabs_store.localization.LocaleManager
+import com.morrislabs.fabs_store.localization.PhoneNumberFormatter
 import com.morrislabs.fabs_store.ui.viewmodel.StoreViewModel
 import androidx.compose.ui.text.input.KeyboardType
+import java.util.Locale
 
 @Composable
 fun StoreProfileEditorScreen(
@@ -76,6 +80,7 @@ fun StoreProfileEditorScreen(
     onNavigateToBusinessHours: () -> Unit,
     storeViewModel: StoreViewModel = viewModel()
 ) {
+    val locale = LocaleManager.getActiveLocale(LocalContext.current)
     val storeState by storeViewModel.storeState.collectAsState()
     val updateState by storeViewModel.updateStoreState.collectAsState()
 
@@ -84,7 +89,9 @@ fun StoreProfileEditorScreen(
     var name by remember { mutableStateOf("") }
     var username by remember { mutableStateOf("") }
     var about by remember { mutableStateOf("") }
-    var selectedCountryCode by remember { mutableStateOf("+254") }
+    var selectedCountryCode by remember {
+        mutableStateOf(PhoneNumberFormatter.defaultCallingCode(locale))
+    }
     var localPhoneNumber by remember { mutableStateOf("") }
     var email by remember { mutableStateOf("") }
     var saveRequested by remember { mutableStateOf(false) }
@@ -499,8 +506,12 @@ private fun PhoneFieldBlock(
     onCountryCodeChange: (String) -> Unit,
     onLocalPhoneChange: (String) -> Unit
 ) {
+    val locale = LocaleManager.getActiveLocale(LocalContext.current)
     var expanded by remember { mutableStateOf(false) }
-    val selectedEntry = countryCodes.find { it.code == countryCode } ?: countryCodes.first()
+    val defaultCode = PhoneNumberFormatter.defaultCallingCode(locale)
+    val selectedEntry = countryCodes.find { it.code == countryCode }
+        ?: countryCodes.find { it.code == defaultCode }
+        ?: countryCodes.first()
 
     Column {
         Text(
@@ -729,12 +740,13 @@ private val countryCodes = listOf(
 )
 
 private fun parsePhoneForUi(phone: String): Pair<String, String> {
-    if (phone.isBlank()) return "+254" to ""
+    val fallback = PhoneNumberFormatter.defaultCallingCode(Locale.getDefault())
+    if (phone.isBlank()) return fallback to ""
     val matched = countryCodes.firstOrNull { phone.startsWith(it.code) }
     return if (matched != null) {
         matched.code to phone.removePrefix(matched.code).trimStart()
     } else {
-        "+254" to phone
+        fallback to phone
     }
 }
 

@@ -1,0 +1,11 @@
+﻿<resources>
+    <plurals name="minutes_count">
+        <item quantity="one">%d minuto</item>
+        <item quantity="other">%d minutos</item>
+    </plurals>
+    <plurals name="remaining_services_to_proceed">
+        <item quantity="one">Completa %d servicio más para continuar</item>
+        <item quantity="other">Completa %d servicios más para continuar</item>
+    </plurals>
+</resources>
+

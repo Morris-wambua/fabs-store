@@ -1,4 +1,4 @@
-package com.morrislabs.fabs_store.ui.screens
+﻿package com.morrislabs.fabs_store.ui.screens
 
 import android.util.Patterns
 import androidx.compose.foundation.background
@@ -64,7 +64,7 @@ import com.morrislabs.fabs_store.data.model.TypeOfServiceDTO
 import com.morrislabs.fabs_store.data.model.toDisplayName
 import com.morrislabs.fabs_store.ui.viewmodel.StoreViewModel
 import kotlinx.coroutines.delay
-import java.text.SimpleDateFormat
+import java.text.DateFormat
 import java.time.Instant
 import java.time.ZoneId
 import java.util.Date
@@ -95,7 +95,7 @@ internal fun WalkInBookingScreen(
     var showDatePicker by remember { mutableStateOf(false) }
     var showUnregisteredWarning by remember { mutableStateOf(false) }
 
-    val dateFormat = remember { SimpleDateFormat("MMMM dd, yyyy", Locale.getDefault()) }
+    val dateFormat = remember { DateFormat.getDateInstance(DateFormat.MEDIUM, Locale.getDefault()) }
     val displayDate = selectedDateMillis?.let { dateFormat.format(Date(it)) } ?: "Select a date"
     val services = (walkInServicesState as? StoreViewModel.LoadingState.Success<List<TypeOfServiceDTO>>)?.data.orEmpty()
     val experts = (walkInExpertsState as? StoreViewModel.LoadingState.Success<List<ExpertDTO>>)?.data.orEmpty()
@@ -448,3 +448,4 @@ internal fun WalkInBookingScreen(
         }
     }
 }
+

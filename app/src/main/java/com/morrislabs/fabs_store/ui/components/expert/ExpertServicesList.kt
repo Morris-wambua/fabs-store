@@ -12,9 +12,12 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.morrislabs.fabs_store.data.model.TypeOfServiceDTO
+import com.morrislabs.fabs_store.localization.CurrencyFormatter
+import com.morrislabs.fabs_store.localization.LocaleManager
 import com.morrislabs.fabs_store.util.formatDuration
 
 @Composable
@@ -23,6 +26,7 @@ fun ExpertServicesList(
     selectedServices: List<TypeOfServiceDTO>,
     onServiceSelected: (TypeOfServiceDTO, Boolean) -> Unit
 ) {
+    val locale = LocaleManager.getActiveLocale(LocalContext.current)
     Column {
         services.forEach { service ->
             val isSelected = selectedServices.contains(service)
@@ -119,7 +123,7 @@ fun ExpertServicesList(
                         horizontalAlignment = Alignment.End
                     ) {
                         Text(
-                            text = "KES ${service.price}",
+                            text = CurrencyFormatter.format(service.price, locale),
                             style = MaterialTheme.typography.titleMedium,
                             fontWeight = FontWeight.Bold,
                             color = MaterialTheme.colorScheme.primary

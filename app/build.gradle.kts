@@ -110,6 +110,7 @@ dependencies {
     implementation(platform(libs.firebase.bom))
     implementation(libs.firebase.firestore)
     implementation(libs.firebase.messaging)
+    implementation(libs.libphonenumber)
 
     // Google Maps & Location
     implementation(libs.playServicesMaps)

@@ -1,4 +1,4 @@
-package com.morrislabs.fabs_store.ui.screens
+﻿package com.morrislabs.fabs_store.ui.screens
 
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
@@ -34,6 +34,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Alignment.Companion.CenterHorizontally
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -42,9 +43,14 @@ import com.morrislabs.fabs_store.data.model.ExpertDTO
 import com.morrislabs.fabs_store.data.model.TimeSlot
 import com.morrislabs.fabs_store.data.model.TypeOfServiceDTO
 import com.morrislabs.fabs_store.data.model.toDisplayName
+import com.morrislabs.fabs_store.localization.CurrencyFormatter
+import com.morrislabs.fabs_store.localization.DateFormatter
+import com.morrislabs.fabs_store.localization.LocaleManager
+import com.morrislabs.fabs_store.localization.MeasurementFormatter
 import com.morrislabs.fabs_store.ui.viewmodel.StoreViewModel
 import java.time.LocalTime
 import java.time.format.DateTimeFormatter
+import java.time.format.FormatStyle
 
 private val WalkInGreen = Color(0xFF13EC5B)
 
@@ -121,6 +127,7 @@ internal fun ServiceSelectionStep(
     selectedServiceIds: Set<String>,
     onServiceToggled: (TypeOfServiceDTO) -> Unit
 ) {
+    val locale = LocaleManager.getActiveLocale(LocalContext.current)
     OutlinedTextField(
         value = serviceSearch,
         onValueChange = onServiceSearchChange,
@@ -180,7 +187,7 @@ internal fun ServiceSelectionStep(
                             horizontalArrangement = Arrangement.spacedBy(8.dp)
                         ) {
                             Text(
-                                text = "KES ${service.price}",
+                                text = CurrencyFormatter.format(service.price, locale),
                                 style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Bold),
                                 color = if (selected) WalkInGreen else MaterialTheme.colorScheme.onSurface
                             )
@@ -201,7 +208,7 @@ internal fun ServiceSelectionStep(
                                     tint = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
                                 Text(
-                                    text = formatDuration(service.duration ?: 60),
+                                    text = formatDuration(service.duration ?: 60, locale),
                                     style = MaterialTheme.typography.bodySmall,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
@@ -240,6 +247,7 @@ internal fun ExpertAssignmentStep(
     selectedExpertsByService: Map<String, Set<String>>,
     onExpertToggled: (String, String) -> Unit
 ) {
+    val locale = LocaleManager.getActiveLocale(LocalContext.current)
     when (expertsState) {
         is StoreViewModel.LoadingState.Loading -> CircularProgressIndicator(modifier = Modifier.size(20.dp))
         is StoreViewModel.LoadingState.Error -> Text(expertsState.message, color = MaterialTheme.colorScheme.error)
@@ -261,7 +269,7 @@ internal fun ExpertAssignmentStep(
                     style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold)
                 )
                 Text(
-                    text = "${formatDuration(service.duration ?: 60)} • KES ${service.price}",
+                    text = "${formatDuration(service.duration ?: 60, locale)} • ${CurrencyFormatter.format(service.price, locale)}",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -303,6 +311,7 @@ internal fun TimeSlotAssignmentStep(
     selectedTimeSlotsByPair: Map<String, TimeSlot>,
     onTimeSlotSelected: (serviceId: String, expertId: String, slot: TimeSlot) -> Unit
 ) {
+    val locale = LocaleManager.getActiveLocale(LocalContext.current)
     selectedServices.forEach { service ->
         val expertIds = selectedExpertsByService[service.id].orEmpty()
         if (expertIds.isEmpty()) {
@@ -322,7 +331,7 @@ internal fun TimeSlotAssignmentStep(
                     style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold)
                 )
                 Text(
-                    text = "Fixed duration: ${formatDuration(service.duration ?: 60)}",
+                    text = "Fixed duration: ${formatDuration(service.duration ?: 60, locale)}",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -359,7 +368,7 @@ internal fun TimeSlotAssignmentStep(
                                         FilterChip(
                                             selected = selected,
                                             onClick = { onTimeSlotSelected(service.id, expertId, slot) },
-                                            label = { Text(formatTimeLabel(slot.startTime)) },
+                                            label = { Text(formatTimeLabel(slot.startTime, locale)) },
                                             leadingIcon = if (selected) {
                                                 {
                                                     Icon(Icons.Default.Check, contentDescription = null, modifier = Modifier.size(16.dp))
@@ -383,6 +392,7 @@ internal fun TimeSlotAssignmentStep(
 
 @Composable
 internal fun WalkInBookingTotals(totalPrice: Int) {
+    val locale = LocaleManager.getActiveLocale(LocalContext.current)
     Surface(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(14.dp),
@@ -401,7 +411,7 @@ internal fun WalkInBookingTotals(totalPrice: Int) {
                 modifier = Modifier.weight(1f)
             )
             Text(
-                text = "KES $totalPrice",
+                text = CurrencyFormatter.format(totalPrice, locale),
                 style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
                 color = MaterialTheme.colorScheme.primary
             )
@@ -409,23 +419,20 @@ internal fun WalkInBookingTotals(totalPrice: Int) {
     }
 }
 
-internal fun formatDuration(minutes: Int): String {
-    if (minutes < 60) return "$minutes min"
-    if (minutes % 60 == 0) {
-        val hours = minutes / 60
-        return if (hours == 1) "1 hr" else "$hours hrs"
-    }
-    return "$minutes min"
+internal fun formatDuration(minutes: Int, locale: java.util.Locale): String {
+    return MeasurementFormatter.formatDurationMinutes(minutes, locale)
 }
 
 internal fun pairKey(serviceId: String, expertId: String): String = "$serviceId|$expertId"
 
-private fun formatTimeLabel(timeString: String): String {
+private fun formatTimeLabel(timeString: String, locale: java.util.Locale): String {
     return try {
         val input = DateTimeFormatter.ofPattern("HH:mm")
-        val output = DateTimeFormatter.ofPattern("h:mm a")
-        LocalTime.parse(timeString, input).format(output)
+        DateFormatter.formatTime(LocalTime.parse(timeString, input), locale, FormatStyle.SHORT)
     } catch (_: Exception) {
         timeString
     }
 }
+
+
+

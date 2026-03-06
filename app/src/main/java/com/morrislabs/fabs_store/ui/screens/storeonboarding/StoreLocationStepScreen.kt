@@ -55,6 +55,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextAlign
@@ -73,10 +74,12 @@ import com.google.maps.android.compose.GoogleMap
 import com.google.maps.android.compose.MapProperties
 import com.google.maps.android.compose.MapUiSettings
 import com.google.maps.android.compose.rememberCameraPositionState
+import com.morrislabs.fabs_store.R
 import com.morrislabs.fabs_store.ui.viewmodel.CreateStoreWizardViewModel
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import java.text.NumberFormat
 import java.util.Locale
 
 private val nairobiLatLng = LatLng(-1.2921, 36.8219)
@@ -89,6 +92,7 @@ fun StoreLocationStepScreen(
     onNavigateNext: () -> Unit
 ) {
     val context = LocalContext.current
+    val coordinatesFallbackTemplate = stringResource(id = R.string.location_coordinates_fallback)
     val scope = rememberCoroutineScope()
 
     val cameraPositionState = rememberCameraPositionState {
@@ -118,9 +122,17 @@ fun StoreLocationStepScreen(
                                 .getFromLocation(target.latitude, target.longitude, 1)
                             val addr = addresses?.firstOrNull()
                             detectedAddress = addr?.getAddressLine(0)
-                                ?: "Lat: ${"%.4f".format(target.latitude)}, Lng: ${"%.4f".format(target.longitude)}"
+                                ?: formatCoordinatesFallback(
+                                    template = coordinatesFallbackTemplate,
+                                    latitude = target.latitude,
+                                    longitude = target.longitude
+                                )
                         } catch (_: Exception) {
-                            detectedAddress = "Lat: ${"%.4f".format(target.latitude)}, Lng: ${"%.4f".format(target.longitude)}"
+                            detectedAddress = formatCoordinatesFallback(
+                                template = coordinatesFallbackTemplate,
+                                latitude = target.latitude,
+                                longitude = target.longitude
+                            )
                         }
                     }
                 }
@@ -243,6 +255,19 @@ fun StoreLocationStepScreen(
             }
         )
     }
+}
+
+private fun formatCoordinatesFallback(
+    template: String,
+    latitude: Double,
+    longitude: Double,
+    locale: Locale = Locale.getDefault()
+): String {
+    val formatter = NumberFormat.getNumberInstance(locale).apply {
+        maximumFractionDigits = 4
+        minimumFractionDigits = 4
+    }
+    return String.format(locale, template, formatter.format(latitude), formatter.format(longitude))
 }
 
 @Composable

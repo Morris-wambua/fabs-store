@@ -44,10 +44,13 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.rotate
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import com.morrislabs.fabs_store.localization.CurrencyFormatter
+import com.morrislabs.fabs_store.localization.LocaleManager
 import com.morrislabs.fabs_store.data.model.ReservationFilter
 import com.morrislabs.fabs_store.data.model.ReservationTransitionAction
 import com.morrislabs.fabs_store.data.model.ReservationStatus
@@ -61,6 +64,7 @@ internal fun ReservationRow(
     onTransitionClick: (String, ReservationTransitionAction) -> Unit,
     onMessageCustomer: (userId: String, customerName: String) -> Unit = { _, _ -> }
 ) {
+    val locale = LocaleManager.getActiveLocale(LocalContext.current)
     val customerName = normalizeCustomerName(reservation.name)
     var expanded by remember { mutableStateOf(false) }
     val arrowRotation by animateFloatAsState(
@@ -152,7 +156,7 @@ internal fun ReservationRow(
                 }
                 Spacer(modifier = Modifier.weight(1f))
                 Text(
-                    text = "KES ${reservation.price.toInt()}",
+                    text = CurrencyFormatter.format(reservation.price, locale),
                     style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.ExtraBold)
                 )
             }
