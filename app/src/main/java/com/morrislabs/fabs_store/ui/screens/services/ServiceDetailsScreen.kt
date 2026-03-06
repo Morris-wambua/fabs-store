@@ -30,6 +30,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -38,8 +39,11 @@ import com.morrislabs.fabs_store.data.model.CreateServicePayload
 import com.morrislabs.fabs_store.data.model.SubCategory
 import com.morrislabs.fabs_store.data.model.TypeOfServiceDTO
 import com.morrislabs.fabs_store.data.model.toDisplayName
+import com.morrislabs.fabs_store.localization.ExchangeRateManager
+import com.morrislabs.fabs_store.localization.LocaleManager
 import com.morrislabs.fabs_store.ui.viewmodel.ServicesViewModel
 import com.morrislabs.fabs_store.ui.viewmodel.StoreViewModel
+import java.math.RoundingMode
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -50,6 +54,8 @@ fun ServiceDetailsScreen(
     storeViewModel: StoreViewModel = viewModel(),
     servicesViewModel: ServicesViewModel = viewModel()
 ) {
+    val context = LocalContext.current
+    val locale = LocaleManager.getActiveLocale(context)
     val storeState by storeViewModel.storeState.collectAsState()
     val saveState by servicesViewModel.saveServiceState.collectAsState()
 
@@ -58,7 +64,7 @@ fun ServiceDetailsScreen(
         else -> ""
     }
 
-    var price by rememberSaveable { mutableStateOf(service.price.toString()) }
+    var price by rememberSaveable { mutableStateOf("") }
     var description by rememberSaveable { mutableStateOf(service.description ?: "") }
     var selectedMainCategory by remember { mutableStateOf(service.mainCategory) }
     var selectedSubCategory by remember { mutableStateOf(service.subCategory) }
@@ -95,6 +101,18 @@ fun ServiceDetailsScreen(
             }
             else -> {}
         }
+    }
+
+    LaunchedEffect(Unit) {
+        ExchangeRateManager.initialize(context)
+        ExchangeRateManager.refreshIfStale(context)
+    }
+
+    LaunchedEffect(service.id, locale) {
+        price = ExchangeRateManager
+            .convertUsdToLocale(service.price, locale)
+            .setScale(0, RoundingMode.HALF_UP)
+            .toPlainString()
     }
 
     DisposableEffect(Unit) {
@@ -183,6 +201,11 @@ fun ServiceDetailsScreen(
                         showErrorDialog = true
                         return@SaveButton
                     }
+                    val usdPrice = ExchangeRateManager
+                        .convertLocalToUsd(priceValue, locale)
+                        .setScale(0, RoundingMode.HALF_UP)
+                        .toInt()
+                        .coerceAtLeast(1)
 
                     val derivedName = selectedSubCategory.name.lowercase().replace("_", " ")
 
@@ -191,7 +214,7 @@ fun ServiceDetailsScreen(
                             name = derivedName,
                             mainCategory = selectedMainCategory,
                             subCategory = selectedSubCategory,
-                            price = priceValue,
+                            price = usdPrice,
                             duration = selectedDuration,
                             description = description.ifBlank { null },
                             imageUrl = finalImageUrl.ifBlank { null }

@@ -75,6 +75,8 @@ import com.morrislabs.fabs_store.ui.viewmodel.AuthViewModel
 @Composable
 fun LoginScreen(
     onNavigateToRegister: () -> Unit,
+    onNavigateToTerms: () -> Unit,
+    onNavigateToPrivacy: () -> Unit,
     onLoginSuccess: (String) -> Unit,
     onForgotPassword: () -> Unit,
     authViewModel: AuthViewModel = viewModel()
@@ -505,8 +507,27 @@ fun LoginScreen(
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 textAlign = TextAlign.Center,
-                modifier = Modifier.padding(top = 16.dp, bottom = 24.dp)
+                modifier = Modifier.padding(top = 16.dp)
             )
+            TextButton(
+                onClick = onNavigateToTerms,
+                contentPadding = PaddingValues(0.dp)
+            ) {
+                Text(
+                    text = "View Terms and Conditions",
+                    style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.SemiBold)
+                )
+            }
+            TextButton(
+                onClick = onNavigateToPrivacy,
+                contentPadding = PaddingValues(0.dp)
+            ) {
+                Text(
+                    text = "View Privacy Policy",
+                    style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.SemiBold)
+                )
+            }
+            Spacer(modifier = Modifier.height(16.dp))
         }
     }
 }

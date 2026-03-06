@@ -78,6 +78,24 @@ object ExchangeRateManager {
         return converted.setScale(digits, RoundingMode.HALF_UP)
     }
 
+    fun convertLocalToUsd(amount: Number, locale: Locale): BigDecimal {
+        val localCurrency = runCatching { Currency.getInstance(locale) }.getOrElse { Currency.getInstance("USD") }
+        val currencyCode = localCurrency.currencyCode
+        if (currencyCode.equals("USD", ignoreCase = true)) {
+            return amount.toString().toBigDecimalOrNull()
+                ?.setScale(2, RoundingMode.HALF_UP)
+                ?: BigDecimal.ZERO
+        }
+        val rate = rates[currencyCode] ?: 1.0
+        if (rate <= 0.0) {
+            return amount.toString().toBigDecimalOrNull()
+                ?.setScale(2, RoundingMode.HALF_UP)
+                ?: BigDecimal.ZERO
+        }
+        val localAmount = amount.toString().toBigDecimalOrNull() ?: BigDecimal.ZERO
+        return localAmount.divide(BigDecimal.valueOf(rate), 2, RoundingMode.HALF_UP)
+    }
+
     @VisibleForTesting
     fun setRatesForTesting(testRates: Map<String, Double>) {
         val mutable = testRates.toMutableMap()
@@ -118,4 +136,3 @@ object ExchangeRateManager {
         }
     }
 }
-

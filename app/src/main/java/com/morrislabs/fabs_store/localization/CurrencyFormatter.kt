@@ -7,7 +7,7 @@ import java.util.Locale
 
 object CurrencyFormatter {
     fun currencySymbol(locale: Locale): String {
-        return Currency.getInstance(locale).symbol
+        return resolveCurrency(locale).symbol
     }
 
     fun format(amount: Number, context: Context): String {
@@ -17,15 +17,21 @@ object CurrencyFormatter {
 
     fun format(amount: Number, locale: Locale): String {
         val formatter = NumberFormat.getCurrencyInstance(locale)
-        formatter.currency = Currency.getInstance(locale)
+        formatter.currency = resolveCurrency(locale)
         val converted = ExchangeRateManager.convertUsdToLocale(amount, locale)
         return formatter.format(converted)
     }
 
     fun formatWithCurrencyCode(amount: Number, currencyCode: String, locale: Locale): String {
         val formatter = NumberFormat.getCurrencyInstance(locale)
-        formatter.currency = Currency.getInstance(currencyCode)
+        formatter.currency = runCatching { Currency.getInstance(currencyCode) }
+            .getOrElse { Currency.getInstance("USD") }
         return formatter.format(amount)
+    }
+
+    private fun resolveCurrency(locale: Locale): Currency {
+        return runCatching { Currency.getInstance(locale) }
+            .getOrElse { Currency.getInstance("USD") }
     }
 }
 
