@@ -4,7 +4,7 @@ import android.net.Uri
 import com.morrislabs.fabs_store.data.model.PostType
 import com.morrislabs.fabs_store.data.model.SoundDTO
 
-enum class DurationMode { S15, S60, TEMPLATES }
+enum class DurationMode { S15, S60, PHOTO }
 
 enum class AspectRatioMode { RATIO_9_16, RATIO_1_1, RATIO_4_5, RATIO_16_9 }
 

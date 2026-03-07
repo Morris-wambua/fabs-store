@@ -78,6 +78,19 @@ fun TrimCropScreen(
         exoPlayer?.let { player ->
             while (player.duration <= 0) delay(100)
             videoDurationMs = player.duration
+            if (draft.trim.endMs == 15_000L || draft.trim.endMs > player.duration) {
+                viewModel.setTrimRange(draft.trim.startMs, player.duration)
+            }
+        }
+    }
+
+    LaunchedEffect(draft.trim.startMs, draft.trim.endMs, exoPlayer) {
+        exoPlayer?.let { player ->
+            val pos = player.currentPosition
+            if (pos < draft.trim.startMs || pos > draft.trim.endMs) {
+                player.seekTo(draft.trim.startMs)
+                currentPositionMs = draft.trim.startMs
+            }
         }
     }
 
@@ -144,6 +157,7 @@ fun TrimCropScreen(
                 durationMs = videoDurationMs,
                 trimStartMs = draft.trim.startMs,
                 trimEndMs = draft.trim.endMs,
+                aspectRatio = draft.crop.aspectRatio,
                 onTogglePlay = {
                     isPlaying = !isPlaying
                     if (isPlaying) exoPlayer?.seekTo(draft.trim.startMs)

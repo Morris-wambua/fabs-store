@@ -36,6 +36,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -73,12 +74,20 @@ internal fun VideoPreview(
     durationMs: Long,
     trimStartMs: Long,
     trimEndMs: Long,
+    aspectRatio: AspectRatioMode = AspectRatioMode.RATIO_9_16,
     onTogglePlay: () -> Unit
 ) {
+    val ratio = when (aspectRatio) {
+        AspectRatioMode.RATIO_9_16 -> 9f / 16f
+        AspectRatioMode.RATIO_1_1 -> 1f
+        AspectRatioMode.RATIO_4_5 -> 4f / 5f
+        AspectRatioMode.RATIO_16_9 -> 16f / 9f
+    }
+
     Box(
         modifier = Modifier
             .fillMaxWidth()
-            .aspectRatio(9f / 16f)
+            .aspectRatio(ratio)
             .heightIn(max = 400.dp)
             .clip(RoundedCornerShape(16.dp))
             .background(Slate900)
@@ -90,9 +99,13 @@ internal fun VideoPreview(
                 factory = { ctx ->
                     PlayerView(ctx).apply {
                         this.player = player
-                        resizeMode = AspectRatioFrameLayout.RESIZE_MODE_ZOOM
                         useController = false
                     }
+                },
+                update = { view ->
+                    view.resizeMode = if (aspectRatio == AspectRatioMode.RATIO_9_16)
+                        AspectRatioFrameLayout.RESIZE_MODE_ZOOM
+                    else AspectRatioFrameLayout.RESIZE_MODE_FIT
                 },
                 modifier = Modifier.fillMaxSize()
             )
@@ -329,12 +342,12 @@ private fun FilmstripTrimmer(
             widthDp = handleWidthDp,
             shape = RoundedCornerShape(topStart = 6.dp, bottomStart = 6.dp),
             onDrag = { dragAmount ->
+                if (usableWidth <= 0f) return@TrimHandle
                 val newStartPx = (leftOffsetPx - handleWidthPx + dragAmount)
                     .coerceIn(0f, rightOffsetPx - handleWidthPx - handleWidthPx)
                 val newFraction = (newStartPx / usableWidth).coerceIn(0f, endFraction - 0.05f)
                 onTrimChanged((newFraction * videoDurationMs).toLong(), trimEndMs)
-            },
-            dragKey = videoDurationMs
+            }
         )
 
         TrimHandle(
@@ -342,13 +355,13 @@ private fun FilmstripTrimmer(
             widthDp = handleWidthDp,
             shape = RoundedCornerShape(topEnd = 6.dp, bottomEnd = 6.dp),
             onDrag = { dragAmount ->
+                if (usableWidth <= 0f) return@TrimHandle
                 val newEndPx = (rightOffsetPx + dragAmount)
                     .coerceIn(leftOffsetPx + handleWidthPx, containerWidthPx - handleWidthPx)
                 val newFraction = ((newEndPx - handleWidthPx) / usableWidth)
                     .coerceIn(startFraction + 0.05f, 1f)
                 onTrimChanged(trimStartMs, (newFraction * videoDurationMs).toLong())
-            },
-            dragKey = videoDurationMs
+            }
         )
     }
 }
@@ -358,9 +371,9 @@ private fun TrimHandle(
     offsetPx: Int,
     widthDp: androidx.compose.ui.unit.Dp,
     shape: RoundedCornerShape,
-    onDrag: (Float) -> Unit,
-    dragKey: Any
+    onDrag: (Float) -> Unit
 ) {
+    val currentOnDrag by rememberUpdatedState(onDrag)
     Box(
         modifier = Modifier
             .offset { IntOffset(offsetPx, 0) }
@@ -368,8 +381,8 @@ private fun TrimHandle(
             .height(64.dp)
             .clip(shape)
             .background(PrimaryGreen)
-            .pointerInput(dragKey) {
-                detectHorizontalDragGestures { _, dragAmount -> onDrag(dragAmount) }
+            .pointerInput(Unit) {
+                detectHorizontalDragGestures { _, dragAmount -> currentOnDrag(dragAmount) }
             },
         contentAlignment = Alignment.Center
     ) {
