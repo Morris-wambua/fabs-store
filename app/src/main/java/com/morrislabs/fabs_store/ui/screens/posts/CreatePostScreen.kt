@@ -198,7 +198,7 @@ fun CreatePostScreen(
                         flowViewModel.setCaption(updated)
                         postViewModel.onCaptionInputChanged(updated)
                     },
-                    onPublish = { if (!isPublishing) publishDraft() }
+                    onPublish = { currentRoute = CreatePostFlowRoutes.PREVIEW }
                 )
             }
 
@@ -206,7 +206,7 @@ fun CreatePostScreen(
                 PostPreviewScreen(
                     viewModel = flowViewModel,
                     storeName = "fabs_store",
-                    onEdit = { currentRoute = CreatePostFlowRoutes.TEXT_STICKERS },
+                    onEdit = { currentRoute = CreatePostFlowRoutes.CAPTIONS_TAGS },
                     onPublish = { if (!isPublishing) publishDraft() }
                 )
             }

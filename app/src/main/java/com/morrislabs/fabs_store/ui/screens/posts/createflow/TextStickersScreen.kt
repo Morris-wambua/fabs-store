@@ -85,6 +85,7 @@ fun TextStickersScreen(
                     player = player,
                     overlays = draft.overlays,
                     onOverlayMoved = { viewModel.updateOverlay(it) },
+                    onOverlayDeleted = { viewModel.removeOverlay(it) },
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(460.dp)
