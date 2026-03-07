@@ -76,6 +76,8 @@ import com.morrislabs.fabs_store.ui.viewmodel.AuthViewModel
 @Composable
 fun RegisterScreen(
     onNavigateToLogin: () -> Unit,
+    onNavigateToTerms: () -> Unit,
+    onNavigateToPrivacy: () -> Unit,
     onRegisterSuccess: (String) -> Unit,
     authViewModel: AuthViewModel = viewModel()
 ) {
@@ -493,15 +495,38 @@ fun RegisterScreen(
             ) {
                 Checkbox(
                     checked = acceptTerms,
-                    onCheckedChange = { acceptTerms = it },
+                    onCheckedChange = {
+                        acceptTerms = it
+                        termsError = null
+                    },
                     colors = CheckboxDefaults.colors(
                         checkedColor = MaterialTheme.colorScheme.primary
                     )
                 )
-                Text(
-                    text = "I agree to the Terms & Conditions",
-                    style = MaterialTheme.typography.bodySmall
-                )
+                Column {
+                    Text(
+                        text = "I agree to the Terms & Conditions",
+                        style = MaterialTheme.typography.bodySmall
+                    )
+                    TextButton(
+                        onClick = onNavigateToTerms,
+                        contentPadding = PaddingValues(0.dp)
+                    ) {
+                        Text(
+                            text = "Read Terms and Conditions",
+                            style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.SemiBold)
+                        )
+                    }
+                    TextButton(
+                        onClick = onNavigateToPrivacy,
+                        contentPadding = PaddingValues(0.dp)
+                    ) {
+                        Text(
+                            text = "Read Privacy Policy",
+                            style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.SemiBold)
+                        )
+                    }
+                }
             }
 
             if (termsError != null) {

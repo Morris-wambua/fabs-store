@@ -49,6 +49,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -56,6 +57,9 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import coil.compose.AsyncImage
 import com.morrislabs.fabs_store.data.model.TypeOfServiceDTO
 import com.morrislabs.fabs_store.data.model.toDisplayName
+import com.morrislabs.fabs_store.localization.CurrencyFormatter
+import com.morrislabs.fabs_store.localization.LocaleManager
+import com.morrislabs.fabs_store.localization.MeasurementFormatter
 import com.morrislabs.fabs_store.ui.viewmodel.ServicesViewModel
 import com.morrislabs.fabs_store.ui.viewmodel.StoreViewModel
 
@@ -280,7 +284,7 @@ private fun ServiceCard(
                 )
                 Spacer(modifier = Modifier.height(4.dp))
                 Text(
-                    text = "KES ${service.price} \u2022 ${service.duration ?: 60} min",
+                    text = "${localizedPrice(service.price)} \u2022 ${localizedDuration(service.duration ?: 60)}",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -372,4 +376,16 @@ private fun ServiceErrorState(errorMessage: String, onRetry: () -> Unit) {
             }
         }
     }
+}
+
+@Composable
+private fun localizedPrice(price: Number): String {
+    val locale = LocaleManager.getActiveLocale(LocalContext.current)
+    return CurrencyFormatter.format(price, locale)
+}
+
+@Composable
+private fun localizedDuration(minutes: Int): String {
+    val locale = LocaleManager.getActiveLocale(LocalContext.current)
+    return MeasurementFormatter.formatDurationMinutes(minutes, locale)
 }

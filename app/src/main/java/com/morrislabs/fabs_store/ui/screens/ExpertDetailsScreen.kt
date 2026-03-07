@@ -30,6 +30,8 @@ import com.morrislabs.fabs_store.data.model.ExpertDTO
 import com.morrislabs.fabs_store.data.model.SubCategory
 import com.morrislabs.fabs_store.data.model.TypeOfServiceDTO
 import com.morrislabs.fabs_store.data.model.toDisplayName
+import com.morrislabs.fabs_store.localization.CurrencyFormatter
+import com.morrislabs.fabs_store.localization.LocaleManager
 import com.morrislabs.fabs_store.ui.components.expert.ExpertDetailsComponents
 import com.morrislabs.fabs_store.ui.viewmodel.ExpertViewModel
 import com.morrislabs.fabs_store.ui.viewmodel.StoreViewModel
@@ -609,10 +611,16 @@ private fun ServiceItem(service: TypeOfServiceDTO) {
         }
 
         Text(
-            text = "KES ${service.price}",
+            text = localizedPrice(service.price),
             style = MaterialTheme.typography.bodyLarge,
             fontWeight = FontWeight.Bold,
             color = MaterialTheme.colorScheme.primary
         )
     }
+}
+
+@Composable
+private fun localizedPrice(price: Number): String {
+    val locale = LocaleManager.getActiveLocale(LocalContext.current)
+    return CurrencyFormatter.format(price, locale)
 }

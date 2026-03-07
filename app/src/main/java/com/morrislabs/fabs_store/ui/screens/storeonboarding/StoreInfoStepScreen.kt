@@ -77,6 +77,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.content.FileProvider
 import coil.compose.AsyncImage
+import com.morrislabs.fabs_store.localization.LocaleManager
+import com.morrislabs.fabs_store.localization.PhoneNumberFormatter
 import com.morrislabs.fabs_store.ui.viewmodel.CreateStoreWizardViewModel
 import java.io.File
 
@@ -497,8 +499,12 @@ private fun PhoneNumberField(
     phoneNumber: String,
     onPhoneNumberChange: (String) -> Unit
 ) {
+    val locale = LocaleManager.getActiveLocale(LocalContext.current)
+    val defaultCode = PhoneNumberFormatter.defaultCallingCode(locale)
     var expanded by remember { mutableStateOf(false) }
-    val selectedEntry = countryCodes.find { it.code == countryCode } ?: countryCodes.first()
+    val selectedEntry = countryCodes.find { it.code == countryCode }
+        ?: countryCodes.find { it.code == defaultCode }
+        ?: countryCodes.first()
 
     Column {
         Text(

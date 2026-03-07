@@ -1,6 +1,7 @@
 package com.morrislabs.fabs_store.ui.screens
 
 import android.app.TimePickerDialog
+import android.text.format.DateFormat.is24HourFormat
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -50,6 +51,10 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.morrislabs.fabs_store.data.model.BusinessHourDTO
 import com.morrislabs.fabs_store.data.model.UpdateStorePayload
 import com.morrislabs.fabs_store.ui.viewmodel.StoreViewModel
+import java.text.DateFormat
+import java.time.DayOfWeek
+import java.time.format.TextStyle
+import java.util.Calendar
 import java.util.Locale
 
 @Composable
@@ -277,9 +282,9 @@ private fun DayHoursCard(
             if (day.isOpen) {
                 Spacer(modifier = Modifier.height(10.dp))
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
-                    TimeCell("OPENING TIME", day.openTime ?: "09:00 AM", onOpenTimeChange, Modifier.weight(1f))
+                    TimeCell("OPENING TIME", day.openTime ?: defaultLocalizedTime(9, 0), onOpenTimeChange, Modifier.weight(1f))
                     Text("→", color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    TimeCell("CLOSING TIME", day.closeTime ?: "06:00 PM", onCloseTimeChange, Modifier.weight(1f))
+                    TimeCell("CLOSING TIME", day.closeTime ?: defaultLocalizedTime(18, 0), onCloseTimeChange, Modifier.weight(1f))
                 }
             }
         }
@@ -302,7 +307,7 @@ private fun TimeCell(
                 val (h, m) = parseTime(time)
                 TimePickerDialog(context, { _, hour, minute ->
                     onTimeChanged(formatTime(hour, minute))
-                }, h, m, false).show()
+                }, h, m, is24HourFormat(context)).show()
             },
             shape = RoundedCornerShape(10.dp),
             colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
@@ -320,37 +325,56 @@ private fun TimeCell(
     }
 }
 
-private fun defaultWeeklySchedule(): List<BusinessHourDTO> = listOf(
-    BusinessHourDTO("Monday", 0, true, "09:00 AM", "06:00 PM"),
-    BusinessHourDTO("Tuesday", 1, true, "09:00 AM", "06:00 PM"),
-    BusinessHourDTO("Wednesday", 2, true, "09:00 AM", "06:00 PM"),
-    BusinessHourDTO("Thursday", 3, true, "09:00 AM", "06:00 PM"),
-    BusinessHourDTO("Friday", 4, true, "09:00 AM", "08:00 PM"),
-    BusinessHourDTO("Saturday", 5, false, null, null),
-    BusinessHourDTO("Sunday", 6, false, null, null)
+private fun defaultWeeklySchedule(locale: Locale = Locale.getDefault()): List<BusinessHourDTO> = listOf(
+    BusinessHourDTO(localizedDayName(DayOfWeek.MONDAY, locale), 0, true, defaultLocalizedTime(9, 0, locale), defaultLocalizedTime(18, 0, locale)),
+    BusinessHourDTO(localizedDayName(DayOfWeek.TUESDAY, locale), 1, true, defaultLocalizedTime(9, 0, locale), defaultLocalizedTime(18, 0, locale)),
+    BusinessHourDTO(localizedDayName(DayOfWeek.WEDNESDAY, locale), 2, true, defaultLocalizedTime(9, 0, locale), defaultLocalizedTime(18, 0, locale)),
+    BusinessHourDTO(localizedDayName(DayOfWeek.THURSDAY, locale), 3, true, defaultLocalizedTime(9, 0, locale), defaultLocalizedTime(18, 0, locale)),
+    BusinessHourDTO(localizedDayName(DayOfWeek.FRIDAY, locale), 4, true, defaultLocalizedTime(9, 0, locale), defaultLocalizedTime(20, 0, locale)),
+    BusinessHourDTO(localizedDayName(DayOfWeek.SATURDAY, locale), 5, false, null, null),
+    BusinessHourDTO(localizedDayName(DayOfWeek.SUNDAY, locale), 6, false, null, null)
 )
 
 private fun parseTime(time: String): Pair<Int, Int> {
     return try {
-        val clean = time.uppercase(Locale.US).replace("AM", "").replace("PM", "").trim()
-        val parts = clean.split(":")
-        var hour = parts[0].toInt()
-        val minute = parts[1].toInt()
-        val pm = time.uppercase(Locale.US).contains("PM")
-        if (pm && hour != 12) hour += 12
-        if (!pm && hour == 12) hour = 0
-        hour to minute
+        val locale = Locale.getDefault()
+        val parsed = DateFormat.getTimeInstance(DateFormat.SHORT, locale).parse(time)
+            ?: DateFormat.getTimeInstance(DateFormat.SHORT, Locale.US).parse(time)
+        if (parsed != null) {
+            val calendar = Calendar.getInstance().apply { this.time = parsed }
+            calendar.get(Calendar.HOUR_OF_DAY) to calendar.get(Calendar.MINUTE)
+        } else {
+            9 to 0
+        }
     } catch (_: Exception) {
         9 to 0
     }
 }
 
-private fun formatTime(hour: Int, minute: Int): String {
-    val amPm = if (hour < 12) "AM" else "PM"
-    val normalizedHour = when {
-        hour == 0 -> 12
-        hour > 12 -> hour - 12
-        else -> hour
+private fun formatTime(hour: Int, minute: Int, locale: Locale = Locale.getDefault()): String {
+    val calendar = Calendar.getInstance(locale).apply {
+        set(Calendar.HOUR_OF_DAY, hour)
+        set(Calendar.MINUTE, minute)
+        set(Calendar.SECOND, 0)
+        set(Calendar.MILLISECOND, 0)
     }
-    return String.format(Locale.US, "%02d:%02d %s", normalizedHour, minute, amPm)
+    return DateFormat.getTimeInstance(DateFormat.SHORT, locale).format(calendar.time)
+}
+
+private fun localizedDayName(dayOfWeek: DayOfWeek, locale: Locale): String {
+    return dayOfWeek.getDisplayName(TextStyle.FULL, locale)
+}
+
+private fun defaultLocalizedTime(
+    hourOfDay: Int,
+    minute: Int,
+    locale: Locale = Locale.getDefault()
+): String {
+    val calendar = Calendar.getInstance(locale).apply {
+        set(Calendar.HOUR_OF_DAY, hourOfDay)
+        set(Calendar.MINUTE, minute)
+        set(Calendar.SECOND, 0)
+        set(Calendar.MILLISECOND, 0)
+    }
+    return DateFormat.getTimeInstance(DateFormat.SHORT, locale).format(calendar.time)
 }

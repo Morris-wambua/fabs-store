@@ -5,6 +5,7 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.lifecycle.lifecycleScope
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -30,6 +31,7 @@ import com.morrislabs.fabs_store.ui.screens.LoginScreen
 import com.morrislabs.fabs_store.ui.screens.RegisterScreen
 import com.morrislabs.fabs_store.ui.screens.ResetPasswordScreen
 import com.morrislabs.fabs_store.ui.screens.ReservationsScreen
+import com.morrislabs.fabs_store.ui.screens.PrivacyPolicyScreen
 import com.morrislabs.fabs_store.ui.screens.services.AddServiceScreen
 import com.morrislabs.fabs_store.ui.screens.services.ServiceDetailsScreen
 import com.morrislabs.fabs_store.ui.screens.services.ServicesManagementListScreen
@@ -39,6 +41,7 @@ import com.morrislabs.fabs_store.ui.screens.StoreProfileBusinessHoursScreen
 import com.morrislabs.fabs_store.ui.screens.StoreProfileEditorScreen
 import com.morrislabs.fabs_store.ui.screens.StoreProfileLocationEditorScreen
 import com.morrislabs.fabs_store.ui.screens.SetupChecklistScreen
+import com.morrislabs.fabs_store.ui.screens.TermsAndConditionsScreen
 import com.morrislabs.fabs_store.ui.screens.chat.ChatScreen
 import java.net.URLDecoder
 import java.net.URLEncoder
@@ -58,10 +61,12 @@ import com.morrislabs.fabs_store.ui.viewmodel.PostViewModel
 import com.morrislabs.fabs_store.ui.viewmodel.ReviewViewModel
 import com.morrislabs.fabs_store.ui.viewmodel.WalletViewModel
 import com.morrislabs.fabs_store.ui.screens.wallet.WalletScreen
+import com.morrislabs.fabs_store.localization.ExchangeRateManager
 import com.morrislabs.fabs_store.util.AuthenticationStateListener
 import com.morrislabs.fabs_store.util.ClientConfig
 import com.morrislabs.fabs_store.util.NotificationHelper
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 
 class MainActivity : ComponentActivity() {
@@ -69,6 +74,10 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         NotificationHelper.createNotificationChannels(this)
+        lifecycleScope.launch {
+            ExchangeRateManager.initialize(applicationContext)
+            ExchangeRateManager.refreshIfStale(applicationContext)
+        }
         setContent {
             FabsstoreTheme {
                 StoreApp()
@@ -128,6 +137,8 @@ fun StoreApp(
         composable("login") {
             LoginScreen(
                 onNavigateToRegister = { navController.navigate("register") },
+                onNavigateToTerms = { navController.navigate("terms_conditions") },
+                onNavigateToPrivacy = { navController.navigate("privacy_policy") },
                 onLoginSuccess = { userId ->
                     isLoggedIn = true
                     navController.navigate("home") {
@@ -143,6 +154,8 @@ fun StoreApp(
         composable("register") {
             RegisterScreen(
                 onNavigateToLogin = { navController.navigate("login") { popUpTo("register") { inclusive = true } } },
+                onNavigateToTerms = { navController.navigate("terms_conditions") },
+                onNavigateToPrivacy = { navController.navigate("privacy_policy") },
                 onRegisterSuccess = { userId ->
                     isLoggedIn = true
                     navController.navigate("home") {
@@ -375,6 +388,8 @@ fun StoreApp(
             SettingsScreen(
                 onNavigateBack = { navController.popBackStack() },
                 onNavigateToStoreProfile = { navController.navigate("store_profile_editor") },
+                onNavigateToTerms = { navController.navigate("terms_conditions") },
+                onNavigateToPrivacy = { navController.navigate("privacy_policy") },
                 onLogout = {
                     authViewModel.logout()
                     isLoggedIn = false
@@ -382,6 +397,18 @@ fun StoreApp(
                         popUpTo("home") { inclusive = true }
                     }
                 }
+            )
+        }
+
+        composable("terms_conditions") {
+            TermsAndConditionsScreen(
+                onNavigateBack = { navController.popBackStack() }
+            )
+        }
+
+        composable("privacy_policy") {
+            PrivacyPolicyScreen(
+                onNavigateBack = { navController.popBackStack() }
             )
         }
 

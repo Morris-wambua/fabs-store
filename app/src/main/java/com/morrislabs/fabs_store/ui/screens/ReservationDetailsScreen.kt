@@ -53,6 +53,8 @@ import androidx.compose.ui.unit.dp
 import com.morrislabs.fabs_store.data.model.ReservationFilter
 import com.morrislabs.fabs_store.data.model.ReservationStatus
 import com.morrislabs.fabs_store.data.model.ReservationWithPaymentDTO
+import com.morrislabs.fabs_store.localization.CurrencyFormatter
+import com.morrislabs.fabs_store.localization.LocaleManager
 
 @Composable
 @OptIn(ExperimentalFoundationApi::class)
@@ -65,6 +67,7 @@ fun ReservationDetailsScreen(
     onMessageCustomer: (userId: String, customerName: String) -> Unit = { _, _ -> }
 ) {
     val context = LocalContext.current
+    val locale = LocaleManager.getActiveLocale(context)
     val customerPhone = reservation.customerPhone.orEmpty().trim()
 
     Column(
@@ -249,11 +252,11 @@ fun ReservationDetailsScreen(
                         style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold),
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
-                    PaymentRow("Subtotal", "KES ${reservation.price.toInt()}")
-                    PaymentRow("Service Fee", "KES 0")
-                    PaymentRow("Tax (8%)", "KES 0")
+                    PaymentRow("Subtotal", CurrencyFormatter.format(reservation.price, locale))
+                    PaymentRow("Service Fee", CurrencyFormatter.format(0, locale))
+                    PaymentRow("Tax (8%)", CurrencyFormatter.format(0, locale))
                     HorizontalDivider()
-                    PaymentRow("Total", "KES ${reservation.price.toInt()}", bold = true)
+                    PaymentRow("Total", CurrencyFormatter.format(reservation.price, locale), bold = true)
                 }
             }
 

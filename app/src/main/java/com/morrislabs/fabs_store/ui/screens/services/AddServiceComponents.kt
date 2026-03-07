@@ -57,12 +57,16 @@ import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImage
 import com.morrislabs.fabs_store.data.model.MainCategory
 import com.morrislabs.fabs_store.data.model.SubCategory
+import com.morrislabs.fabs_store.localization.CurrencyFormatter
+import com.morrislabs.fabs_store.localization.LocaleManager
+import com.morrislabs.fabs_store.localization.MeasurementFormatter
 
 private val DurationOptions = listOf(30, 45, 60, 90, 120, 180, 240, 300, 360, 420, 480, 540)
 
@@ -176,13 +180,15 @@ internal fun PriceAndDurationRow(
     selectedDuration: Int,
     onDurationClick: () -> Unit
 ) {
+    val locale = LocaleManager.getActiveLocale(LocalContext.current)
+
     Row(
         modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.spacedBy(12.dp)
     ) {
         Column(modifier = Modifier.weight(1f)) {
             Text(
-                "Price (KES)",
+                "Price",
                 style = MaterialTheme.typography.titleSmall,
                 fontWeight = FontWeight.Bold
             )
@@ -191,7 +197,7 @@ internal fun PriceAndDurationRow(
                 value = price,
                 onValueChange = { if (it.all { c -> c.isDigit() }) onPriceChange(it) },
                 placeholder = { Text("0") },
-                prefix = { Text("KES ") },
+                prefix = { Text("${CurrencyFormatter.currencySymbol(locale)} ") },
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(12.dp),
                 singleLine = true,
@@ -225,7 +231,7 @@ internal fun PriceAndDurationRow(
                     )
                     Spacer(modifier = Modifier.width(8.dp))
                     Text(
-                        formatDuration(selectedDuration),
+                        formatDuration(selectedDuration, locale),
                         style = MaterialTheme.typography.bodyMedium
                     )
                 }
@@ -241,6 +247,8 @@ internal fun DurationPickerDialog(
     onDurationSelected: (Int) -> Unit,
     onDismiss: () -> Unit
 ) {
+    val locale = LocaleManager.getActiveLocale(LocalContext.current)
+
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text("Select Duration", fontWeight = FontWeight.Bold) },
@@ -265,7 +273,7 @@ internal fun DurationPickerDialog(
                             .padding(horizontal = 16.dp, vertical = 10.dp)
                     ) {
                         Text(
-                            text = formatDuration(duration),
+                            text = formatDuration(duration, locale),
                             style = MaterialTheme.typography.labelLarge,
                             color = if (isSelected) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurface,
                             fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal
@@ -455,7 +463,6 @@ private fun formatCategoryName(name: String): String {
     }
 }
 
-private fun formatDuration(minutes: Int): String {
-    return if (minutes < 120) "$minutes min"
-    else "${minutes / 60} hrs"
+private fun formatDuration(minutes: Int, locale: java.util.Locale): String {
+    return MeasurementFormatter.formatDurationMinutes(minutes, locale)
 }

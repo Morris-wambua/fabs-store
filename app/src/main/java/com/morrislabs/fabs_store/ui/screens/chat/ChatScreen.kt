@@ -1,4 +1,4 @@
-package com.morrislabs.fabs_store.ui.screens.chat
+﻿package com.morrislabs.fabs_store.ui.screens.chat
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -42,7 +42,7 @@ import com.google.firebase.Timestamp
 import com.morrislabs.fabs_store.data.model.ChatMessage
 import com.morrislabs.fabs_store.data.model.SenderType
 import com.morrislabs.fabs_store.ui.viewmodel.ChatViewModel
-import java.text.SimpleDateFormat
+import java.text.DateFormat
 import java.util.Locale
 
 @Composable
@@ -223,6 +223,6 @@ private fun MessageBubble(message: ChatMessage, isStoreMessage: Boolean) {
 
 private fun formatTimestamp(timestamp: Timestamp?): String {
     if (timestamp == null) return ""
-    val sdf = SimpleDateFormat("HH:mm", Locale.getDefault())
-    return sdf.format(timestamp.toDate())
+    return DateFormat.getTimeInstance(DateFormat.SHORT, Locale.getDefault()).format(timestamp.toDate())
 }
+

@@ -187,7 +187,7 @@ fun CaptionsTagsScreen(
                 colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF0CED5B), contentColor = Color(0xFF102216)),
                 shape = RoundedCornerShape(12.dp)
             ) {
-                Text("Publish Post", fontWeight = FontWeight.Bold)
+                Text("Preview Post", fontWeight = FontWeight.Bold)
                 Icon(Icons.Default.Send, contentDescription = null, modifier = Modifier.padding(start = 8.dp))
             }
         }
@@ -232,8 +232,11 @@ private fun VideoSummaryCard(draft: CreatePostDraft) {
                 overflow = TextOverflow.Ellipsis,
                 fontWeight = FontWeight.SemiBold
             )
+            val durationSec = (draft.trim.endMs - draft.trim.startMs) / 1000
+            val mins = durationSec / 60
+            val secs = durationSec % 60
             Text(
-                text = "0:15 • 1080p High Quality",
+                text = "%d:%02d • 1080p High Quality".format(mins, secs),
                 color = Color(0xFF94A3B8),
                 fontSize = 12.sp,
                 modifier = Modifier.padding(top = 2.dp)

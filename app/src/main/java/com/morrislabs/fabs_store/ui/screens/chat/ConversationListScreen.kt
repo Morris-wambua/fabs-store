@@ -1,4 +1,6 @@
-package com.morrislabs.fabs_store.ui.screens.chat
+﻿package com.morrislabs.fabs_store.ui.screens.chat
+
+import android.text.format.DateUtils
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -247,22 +249,14 @@ private fun ConversationCard(
 
 private fun formatTimestamp(timestamp: Timestamp?): String {
     if (timestamp == null) return ""
-    val now = System.currentTimeMillis()
+
     val millis = timestamp.toDate().time
-    val diff = now - millis
-
-    val minutes = TimeUnit.MILLISECONDS.toMinutes(diff)
-    val hours = TimeUnit.MILLISECONDS.toHours(diff)
-    val days = TimeUnit.MILLISECONDS.toDays(diff)
-
-    return when {
-        minutes < 1 -> "Just now"
-        minutes < 60 -> "${minutes}m ago"
-        hours < 24 -> "${hours}h ago"
-        days == 1L -> "Yesterday"
-        else -> {
-            val sdf = java.text.SimpleDateFormat("MMM d", java.util.Locale.getDefault())
-            sdf.format(timestamp.toDate())
-        }
-    }
+    return DateUtils.getRelativeTimeSpanString(
+        millis,
+        System.currentTimeMillis(),
+        DateUtils.MINUTE_IN_MILLIS,
+        DateUtils.FORMAT_ABBREV_RELATIVE
+    ).toString()
 }
+
+

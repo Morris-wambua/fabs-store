@@ -9,19 +9,25 @@ import com.morrislabs.fabs_store.data.api.StoreApiService
 import com.morrislabs.fabs_store.data.model.BusinessHourDTO
 import com.morrislabs.fabs_store.data.model.CreateStorePayload
 import com.morrislabs.fabs_store.data.model.LocationDTO
+import com.morrislabs.fabs_store.localization.PhoneNumberFormatter
 import com.morrislabs.fabs_store.util.TokenManager
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import java.text.DateFormat
+import java.time.DayOfWeek
+import java.time.format.TextStyle
+import java.util.Calendar
+import java.util.Locale
 import java.util.UUID
 
 data class DaySchedule(
     val dayName: String,
     val dayIndex: Int,
     val isOpen: Boolean = true,
-    val openTime: String = "09:00 AM",
-    val closeTime: String = "05:00 PM"
+    val openTime: String = defaultLocalizedTime(9, 0),
+    val closeTime: String = defaultLocalizedTime(17, 0)
 )
 
 data class StoreRegistrationState(
@@ -30,7 +36,7 @@ data class StoreRegistrationState(
     val contactNumber: String = "",
     val aboutStore: String = "",
     val storeLogoUri: Uri? = null,
-    val countryCode: String = "+254",
+    val countryCode: String = PhoneNumberFormatter.defaultCallingCode(Locale.getDefault()),
     val locationName: String = "",
     val locationDescription: String = "",
     val latitude: Double = 0.0,
@@ -42,15 +48,33 @@ data class StoreRegistrationState(
     val submitError: String? = null
 )
 
-fun defaultBusinessHours(): List<DaySchedule> = listOf(
-    DaySchedule(dayName = "Monday", dayIndex = 0, isOpen = true),
-    DaySchedule(dayName = "Tuesday", dayIndex = 1, isOpen = true),
-    DaySchedule(dayName = "Wednesday", dayIndex = 2, isOpen = true),
-    DaySchedule(dayName = "Thursday", dayIndex = 3, isOpen = true),
-    DaySchedule(dayName = "Friday", dayIndex = 4, isOpen = true),
-    DaySchedule(dayName = "Saturday", dayIndex = 5, isOpen = false),
-    DaySchedule(dayName = "Sunday", dayIndex = 6, isOpen = false)
+fun defaultBusinessHours(locale: Locale = Locale.getDefault()): List<DaySchedule> = listOf(
+    DaySchedule(dayName = localizedDayName(DayOfWeek.MONDAY, locale), dayIndex = 0, isOpen = true),
+    DaySchedule(dayName = localizedDayName(DayOfWeek.TUESDAY, locale), dayIndex = 1, isOpen = true),
+    DaySchedule(dayName = localizedDayName(DayOfWeek.WEDNESDAY, locale), dayIndex = 2, isOpen = true),
+    DaySchedule(dayName = localizedDayName(DayOfWeek.THURSDAY, locale), dayIndex = 3, isOpen = true),
+    DaySchedule(dayName = localizedDayName(DayOfWeek.FRIDAY, locale), dayIndex = 4, isOpen = true),
+    DaySchedule(dayName = localizedDayName(DayOfWeek.SATURDAY, locale), dayIndex = 5, isOpen = false),
+    DaySchedule(dayName = localizedDayName(DayOfWeek.SUNDAY, locale), dayIndex = 6, isOpen = false)
 )
+
+private fun localizedDayName(dayOfWeek: DayOfWeek, locale: Locale): String {
+    return dayOfWeek.getDisplayName(TextStyle.FULL, locale)
+}
+
+private fun defaultLocalizedTime(
+    hourOfDay: Int,
+    minute: Int,
+    locale: Locale = Locale.getDefault()
+): String {
+    val calendar = Calendar.getInstance(locale).apply {
+        set(Calendar.HOUR_OF_DAY, hourOfDay)
+        set(Calendar.MINUTE, minute)
+        set(Calendar.SECOND, 0)
+        set(Calendar.MILLISECOND, 0)
+    }
+    return DateFormat.getTimeInstance(DateFormat.SHORT, locale).format(calendar.time)
+}
 
 class CreateStoreWizardViewModel(application: Application) : AndroidViewModel(application) {
 

@@ -24,12 +24,12 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.CheckCircle
-import androidx.compose.material.icons.filled.Drafts
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.OpenInFull
 import androidx.compose.material.icons.filled.Palette
+import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.TextFields
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.OutlinedTextField
@@ -42,6 +42,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.onSizeChanged
@@ -97,11 +98,13 @@ fun VideoEditorPreview(
     player: ExoPlayer?,
     overlays: List<OverlayItem>,
     onOverlayMoved: (OverlayItem) -> Unit,
+    onOverlayDeleted: (String) -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     BoxWithConstraints(modifier = modifier) {
         val maxWidthPx = constraints.maxWidth.toFloat().coerceAtLeast(1f)
         val maxHeightPx = constraints.maxHeight.toFloat().coerceAtLeast(1f)
+        var selectedOverlayId by remember { mutableStateOf<String?>(null) }
 
         if (player != null) {
             AndroidView(
@@ -121,7 +124,10 @@ fun VideoEditorPreview(
                 overlay = overlay,
                 maxWidthPx = maxWidthPx,
                 maxHeightPx = maxHeightPx,
-                onOverlayMoved = onOverlayMoved
+                isSelected = overlay.id == selectedOverlayId,
+                onTap = { selectedOverlayId = if (selectedOverlayId == overlay.id) null else overlay.id },
+                onOverlayMoved = onOverlayMoved,
+                onDelete = { onOverlayDeleted(overlay.id) }
             )
         }
 
@@ -158,7 +164,10 @@ private fun DraggableOverlayItem(
     overlay: OverlayItem,
     maxWidthPx: Float,
     maxHeightPx: Float,
-    onOverlayMoved: (OverlayItem) -> Unit
+    isSelected: Boolean,
+    onTap: () -> Unit,
+    onOverlayMoved: (OverlayItem) -> Unit,
+    onDelete: () -> Unit
 ) {
     var itemWidthPx by remember(overlay.id) { mutableStateOf(1f) }
     var itemHeightPx by remember(overlay.id) { mutableStateOf(1f) }
@@ -189,68 +198,83 @@ private fun DraggableOverlayItem(
                     onOverlayMoved(updated)
                 }
             }
+            .clickable { onTap() }
     ) {
-        when (overlay) {
-            is OverlayItem.TextOverlay -> {
-                val styleWeight = when (overlay.style) {
-                    TextStyleType.MODERN -> FontWeight.Medium
-                    TextStyleType.CLASSIC -> FontWeight.Normal
-                    TextStyleType.BOLD -> FontWeight.Bold
-                    TextStyleType.SERIF -> FontWeight.SemiBold
+        Box(
+            modifier = if (isSelected) Modifier
+                .border(1.5.dp, StickerPrimaryGreen, RoundedCornerShape(10.dp))
+                .padding(6.dp)
+            else Modifier
+        ) {
+            when (overlay) {
+                is OverlayItem.TextOverlay -> {
+                    val styleWeight = when (overlay.style) {
+                        TextStyleType.MODERN -> FontWeight.Medium
+                        TextStyleType.CLASSIC -> FontWeight.Normal
+                        TextStyleType.BOLD -> FontWeight.Bold
+                        TextStyleType.SERIF -> FontWeight.SemiBold
+                    }
+                    Text(
+                        text = overlay.text,
+                        color = Color(overlay.color),
+                        fontWeight = styleWeight,
+                        fontSize = 22.sp,
+                        modifier = Modifier
+                            .background(Color(0x33000000), RoundedCornerShape(10.dp))
+                            .padding(horizontal = 10.dp, vertical = 6.dp)
+                    )
                 }
-                Text(
-                    text = overlay.text,
-                    color = Color(overlay.color),
-                    fontWeight = styleWeight,
-                    fontSize = 22.sp,
-                    modifier = Modifier
-                        .background(Color(0x33000000), RoundedCornerShape(10.dp))
-                        .padding(horizontal = 10.dp, vertical = 6.dp)
-                )
-            }
 
-            is OverlayItem.StickerOverlay -> {
-                val (icon, tint) = stickerUi(overlay.stickerType)
-                Box(
-                    modifier = Modifier
-                        .size(52.dp)
-                        .background(Color(0x33000000), RoundedCornerShape(14.dp)),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Icon(icon, contentDescription = overlay.stickerType.name, tint = tint, modifier = Modifier.size(26.dp))
+                is OverlayItem.StickerOverlay -> {
+                    val (icon, tint) = stickerUi(overlay.stickerType)
+                    Box(
+                        modifier = Modifier
+                            .size(52.dp)
+                            .background(Color(0x33000000), RoundedCornerShape(14.dp)),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(icon, contentDescription = overlay.stickerType.name, tint = tint, modifier = Modifier.size(26.dp))
+                    }
                 }
             }
         }
-    }
-}
 
-@Composable
-fun TextStickerTabs(
-    selectedTab: TextStickerTab,
-    onTabSelected: (TextStickerTab) -> Unit,
-    modifier: Modifier = Modifier
-) {
-    Row(
-        modifier = modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.spacedBy(20.dp)
-    ) {
-        listOf(TextStickerTab.STYLE to "Style", TextStickerTab.STICKERS to "Stickers").forEach { (tab, label) ->
-            Column(
-                horizontalAlignment = Alignment.CenterHorizontally,
-                modifier = Modifier.clickable { onTabSelected(tab) }
+        if (isSelected) {
+            Box(
+                modifier = Modifier
+                    .align(Alignment.TopEnd)
+                    .offset(x = 8.dp, y = (-8).dp)
+                    .size(24.dp)
+                    .clip(CircleShape)
+                    .background(StickerPrimaryGreen)
+                    .clickable { onDelete() },
+                contentAlignment = Alignment.Center
             ) {
-                Text(
-                    text = label,
-                    color = if (selectedTab == tab) Color.White else Color(0xFFA2B4A8),
-                    fontWeight = if (selectedTab == tab) FontWeight.Bold else FontWeight.Medium
-                )
-                Box(
-                    modifier = Modifier
-                        .padding(top = 6.dp)
-                        .height(2.dp)
-                        .width(32.dp)
-                        .background(if (selectedTab == tab) StickerPrimaryGreen else Color.Transparent)
-                )
+                Icon(Icons.Default.Close, contentDescription = "Delete", tint = Color.Black, modifier = Modifier.size(14.dp))
+            }
+
+            Box(
+                modifier = Modifier
+                    .align(Alignment.BottomStart)
+                    .offset(x = (-8).dp, y = 8.dp)
+                    .size(24.dp)
+                    .clip(CircleShape)
+                    .background(StickerPrimaryGreen),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(Icons.Default.Refresh, contentDescription = "Rotate", tint = Color.Black, modifier = Modifier.size(14.dp))
+            }
+
+            Box(
+                modifier = Modifier
+                    .align(Alignment.BottomEnd)
+                    .offset(x = 8.dp, y = 8.dp)
+                    .size(24.dp)
+                    .clip(CircleShape)
+                    .background(StickerPrimaryGreen),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(Icons.Default.OpenInFull, contentDescription = "Resize", tint = Color.Black, modifier = Modifier.size(14.dp))
             }
         }
     }
@@ -346,23 +370,17 @@ fun StyleEditorPanel(
 @Composable
 fun StickerGridPanel(onStickerSelected: (StickerType) -> Unit) {
     var query by remember { mutableStateOf("") }
-    val stickers = listOf(
-        StickerType.LOCATION,
-        StickerType.MENTION,
-        StickerType.HASHTAG,
-        StickerType.POLL,
-        StickerType.SHOPPING_CART,
-        StickerType.STAR,
-        StickerType.HEART,
-        StickerType.FIRE,
-        StickerType.NEW_RELEASES,
-        StickerType.SELL,
-        StickerType.CELEBRATION,
-        StickerType.STOREFRONT,
-        StickerType.ASK_ME_ANYTHING,
-        StickerType.LINK
+    val interactiveStickers = listOf(
+        StickerType.LOCATION, StickerType.MENTION, StickerType.HASHTAG,
+        StickerType.POLL, StickerType.ASK_ME_ANYTHING, StickerType.LINK
     )
-    val filtered = stickers.filter { it.name.contains(query, ignoreCase = true) }
+    val quickStickers = listOf(
+        StickerType.SHOPPING_CART, StickerType.STAR, StickerType.HEART,
+        StickerType.FIRE, StickerType.NEW_RELEASES, StickerType.SELL,
+        StickerType.CELEBRATION, StickerType.STOREFRONT
+    )
+    val allStickers = interactiveStickers + quickStickers
+    val filtered = allStickers.filter { it.name.contains(query, ignoreCase = true) }
 
     OutlinedTextField(
         value = query,
@@ -382,54 +400,77 @@ fun StickerGridPanel(onStickerSelected: (StickerType) -> Unit) {
         shape = RoundedCornerShape(14.dp)
     )
 
+    if (query.isBlank()) {
+        Text(
+            "Interactive Stickers",
+            color = Color.White,
+            fontWeight = FontWeight.SemiBold,
+            fontSize = 14.sp,
+            modifier = Modifier.padding(top = 14.dp, bottom = 8.dp)
+        )
+    }
+
     LazyVerticalGrid(
-        columns = GridCells.Fixed(4),
-        modifier = Modifier.fillMaxWidth().height(180.dp).padding(top = 12.dp),
-        horizontalArrangement = Arrangement.spacedBy(8.dp),
-        verticalArrangement = Arrangement.spacedBy(8.dp)
+        columns = GridCells.Fixed(if (query.isBlank()) 2 else 4),
+        modifier = Modifier.fillMaxWidth().height(180.dp),
+        horizontalArrangement = Arrangement.spacedBy(10.dp),
+        verticalArrangement = Arrangement.spacedBy(10.dp)
     ) {
-        items(filtered) { sticker ->
-            val (icon, tint) = stickerUi(sticker)
-            val isActiveGreen = sticker in GreenActiveSet
-            Box(
-                modifier = Modifier
-                    .size(70.dp)
-                    .background(Color(0x33000000), RoundedCornerShape(16.dp))
-                    .border(1.dp, DarkBorder, RoundedCornerShape(16.dp))
-                    .clickable { onStickerSelected(sticker) },
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(icon, contentDescription = sticker.name, tint = if (isActiveGreen) StickerPrimaryGreen else tint, modifier = Modifier.size(26.dp))
+        val displayList = if (query.isBlank()) interactiveStickers else filtered
+        items(displayList) { sticker ->
+            InteractiveStickerCard(sticker = sticker, onClick = { onStickerSelected(sticker) })
+        }
+        if (query.isNotBlank()) {
+            val quickFiltered = quickStickers.filter { it.name.contains(query, ignoreCase = true) }
+            items(quickFiltered) { sticker ->
+                val (icon, tint) = stickerUi(sticker)
+                Box(
+                    modifier = Modifier
+                        .size(70.dp)
+                        .background(Color(0x33000000), RoundedCornerShape(16.dp))
+                        .border(1.dp, DarkBorder, RoundedCornerShape(16.dp))
+                        .clickable { onStickerSelected(sticker) },
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(icon, contentDescription = sticker.name, tint = tint, modifier = Modifier.size(26.dp))
+                }
             }
         }
     }
 }
 
 @Composable
-fun ActionBar(
-    onSaveDraft: () -> Unit,
-    onSavePost: () -> Unit,
-    modifier: Modifier = Modifier
-) {
-    Row(modifier = modifier, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-        Button(
-            onClick = onSaveDraft,
-            modifier = Modifier.weight(1f),
-            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF102216), contentColor = Color.White),
-            shape = RoundedCornerShape(14.dp)
-        ) {
-            Icon(Icons.Default.Drafts, contentDescription = null)
-            Text(" Save Draft")
-        }
+private fun InteractiveStickerCard(sticker: StickerType, onClick: () -> Unit) {
+    val isHighlighted = sticker == StickerType.POLL || sticker == StickerType.ASK_ME_ANYTHING
+    val (iconColor, label) = interactiveStickerMeta(sticker)
 
-        Button(
-            onClick = onSavePost,
-            modifier = Modifier.weight(2f),
-            colors = ButtonDefaults.buttonColors(containerColor = StickerPrimaryGreen, contentColor = Color.Black),
-            shape = RoundedCornerShape(14.dp)
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(16.dp))
+            .background(Color(0x33000000))
+            .border(
+                1.dp,
+                if (isHighlighted) StickerPrimaryGreen else DarkBorder,
+                RoundedCornerShape(16.dp)
+            )
+            .clickable(onClick = onClick)
+            .padding(12.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(6.dp)
+    ) {
+        val (icon, _) = stickerUi(sticker)
+        Box(
+            modifier = Modifier
+                .size(36.dp)
+                .clip(CircleShape)
+                .background(iconColor),
+            contentAlignment = Alignment.Center
         ) {
-            Icon(Icons.Default.CheckCircle, contentDescription = null)
-            Text(" Save Post", fontWeight = FontWeight.Bold)
+            Icon(icon, contentDescription = null, tint = Color.White, modifier = Modifier.size(18.dp))
         }
+        Text(label, color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.Medium)
     }
 }
+
+

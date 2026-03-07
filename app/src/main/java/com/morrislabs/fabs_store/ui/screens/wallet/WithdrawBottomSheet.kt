@@ -38,10 +38,14 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.morrislabs.fabs_store.localization.CurrencyFormatter
+import com.morrislabs.fabs_store.localization.LocaleManager
+import com.morrislabs.fabs_store.localization.PhoneNumberFormatter
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -57,9 +61,10 @@ fun WithdrawBottomSheet(
         stripeConnectedAccountId: String?
     ) -> Unit
 ) {
+    val locale = LocaleManager.getActiveLocale(LocalContext.current)
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     var selectedMethod by rememberSaveable { mutableStateOf("MPESA") }
-    var countryCode by rememberSaveable { mutableStateOf("+254") }
+    var countryCode by rememberSaveable { mutableStateOf(PhoneNumberFormatter.defaultCallingCode(locale)) }
     var expanded by remember { mutableStateOf(false) }
     var phoneNumber by rememberSaveable { mutableStateOf("") }
     var stripeConnectedAccountId by rememberSaveable { mutableStateOf("") }
@@ -86,7 +91,7 @@ fun WithdrawBottomSheet(
             Spacer(modifier = Modifier.height(4.dp))
 
             Text(
-                text = "Available: $currency ${String.format("%,.2f", balance)}",
+                text = "Available: ${CurrencyFormatter.formatWithCurrencyCode(balance, currency, locale)}",
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
@@ -134,7 +139,10 @@ fun WithdrawBottomSheet(
                     modifier = Modifier.padding(bottom = 8.dp)
                 )
 
-                val selectedEntry = countryCodes.find { it.code == countryCode } ?: countryCodes.first()
+                val defaultCode = PhoneNumberFormatter.defaultCallingCode(locale)
+                val selectedEntry = countryCodes.find { it.code == countryCode }
+                    ?: countryCodes.find { it.code == defaultCode }
+                    ?: countryCodes.first()
 
                 Row(
                     modifier = Modifier.fillMaxWidth(),

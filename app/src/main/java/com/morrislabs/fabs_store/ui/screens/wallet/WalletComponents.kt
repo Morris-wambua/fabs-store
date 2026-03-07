@@ -26,12 +26,15 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.morrislabs.fabs_store.data.model.TransactionType
 import com.morrislabs.fabs_store.data.model.WalletTransactionDTO
+import com.morrislabs.fabs_store.localization.CurrencyFormatter
+import com.morrislabs.fabs_store.localization.LocaleManager
 
 @Composable
 fun WalletBalanceCard(
@@ -39,6 +42,7 @@ fun WalletBalanceCard(
     currency: String,
     modifier: Modifier = Modifier
 ) {
+    val locale = LocaleManager.getActiveLocale(LocalContext.current)
     Card(
         modifier = modifier.fillMaxWidth(),
         shape = RoundedCornerShape(20.dp),
@@ -57,7 +61,7 @@ fun WalletBalanceCard(
             )
             Spacer(modifier = Modifier.height(8.dp))
             Text(
-                text = "$currency ${String.format("%,.2f", balance)}",
+                text = CurrencyFormatter.formatWithCurrencyCode(balance, currency, locale),
                 style = MaterialTheme.typography.headlineLarge.copy(fontWeight = FontWeight.Bold),
                 color = MaterialTheme.colorScheme.onPrimary
             )
@@ -98,6 +102,7 @@ fun TransactionItem(
     transaction: WalletTransactionDTO,
     modifier: Modifier = Modifier
 ) {
+    val locale = LocaleManager.getActiveLocale(LocalContext.current)
     val isCredit = transaction.type == TransactionType.ESCROW_RELEASE ||
             transaction.type == TransactionType.TOP_UP ||
             transaction.type == TransactionType.REFUND
@@ -140,12 +145,12 @@ fun TransactionItem(
 
             Column(horizontalAlignment = Alignment.End) {
                 Text(
-                    text = "${amountPrefix}KES ${String.format("%,.2f", transaction.amount)}",
+                    text = "${amountPrefix}${CurrencyFormatter.format(transaction.amount, locale)}",
                     style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold),
                     color = amountColor
                 )
                 Text(
-                    text = "Bal: KES ${String.format("%,.2f", transaction.balanceAfter)}",
+                    text = "Bal: ${CurrencyFormatter.format(transaction.balanceAfter, locale)}",
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -158,7 +163,7 @@ private fun formatTransactionDate(dateString: String): String {
     return try {
         val instant = java.time.Instant.parse(dateString)
         val localDateTime = java.time.LocalDateTime.ofInstant(instant, java.time.ZoneId.systemDefault())
-        val formatter = java.time.format.DateTimeFormatter.ofPattern("dd MMM yyyy, HH:mm")
+        val formatter = java.time.format.DateTimeFormatter.ofLocalizedDateTime(java.time.format.FormatStyle.MEDIUM)
         localDateTime.format(formatter)
     } catch (e: Exception) {
         dateString

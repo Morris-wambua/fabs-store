@@ -1,6 +1,8 @@
-package com.morrislabs.fabs_store.data.model
+﻿package com.morrislabs.fabs_store.data.model
 
 import kotlinx.serialization.Serializable
+import java.util.Currency
+import java.util.Locale
 
 @Serializable
 enum class WalletType {
@@ -18,7 +20,7 @@ data class WalletDTO(
     val walletType: WalletType = WalletType.STORE,
     val ownerId: String = "",
     val balance: Double = 0.0,
-    val currency: String = "KES"
+    val currency: String = Currency.getInstance(Locale.getDefault()).currencyCode
 )
 
 @Serializable
@@ -50,3 +52,5 @@ data class WithdrawRequest(
     val disbursementMethod: String = "MPESA",
     val stripeConnectedAccountId: String? = null
 )
+
+

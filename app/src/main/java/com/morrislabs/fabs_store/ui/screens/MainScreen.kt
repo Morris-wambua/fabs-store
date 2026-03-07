@@ -58,8 +58,8 @@ private enum class BottomNavItem(
 ) {
     HOME("Home", Icons.Filled.Home, Icons.Outlined.Home),
     RESERVATIONS("Reservations", Icons.Filled.CalendarMonth, Icons.Outlined.CalendarMonth),
-    MESSAGES("Messages", Icons.Filled.ChatBubble, Icons.Outlined.ChatBubbleOutline),
     POSTS("Posts", Icons.Filled.GridView, Icons.Outlined.GridView),
+    MESSAGES("Messages", Icons.Filled.ChatBubble, Icons.Outlined.ChatBubbleOutline),
     EXPERTS("Experts", Icons.Filled.People, Icons.Outlined.People)
 }
 
@@ -206,20 +206,20 @@ fun MainScreen(
                     )
                 }
                 2 -> {
-                    ConversationListScreen(
-                        storeId = storeId,
-                        chatViewModel = chatViewModel,
-                        onConversationClick = onNavigateToChat,
-                        onNavigateBack = { selectedTab = 0 }
-                    )
-                }
-                3 -> {
                     StorePostsScreen(
                         posts = postsState,
                         isRefreshing = isPostsRefreshing,
                         onRefresh = { postViewModel.refreshPosts(storeId) },
                         onCreatePost = onNavigateToCreatePost,
                         onPostClick = onNavigateToPostDetail
+                    )
+                }
+                3 -> {
+                    ConversationListScreen(
+                        storeId = storeId,
+                        chatViewModel = chatViewModel,
+                        onConversationClick = onNavigateToChat,
+                        onNavigateBack = { selectedTab = 0 }
                     )
                 }
                 4 -> {
