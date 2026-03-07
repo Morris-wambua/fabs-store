@@ -82,7 +82,7 @@ internal fun TimerBottomSheet(
             )
             Spacer(Modifier.height(12.dp))
             Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                listOf(3, 10).forEach { s ->
+                listOf(0, 3, 10).forEach { s ->
                     val sel = selectedCountdown == s
                     Box(
                         Modifier.clip(RoundedCornerShape(50))
@@ -95,7 +95,7 @@ internal fun TimerBottomSheet(
                             .padding(horizontal = 24.dp, vertical = 10.dp)
                     ) {
                         Text(
-                            "${s}s",
+                            if (s == 0) "Off" else "${s}s",
                             color = if (sel) Color.Black else Color.White,
                             fontSize = 14.sp, fontWeight = FontWeight.SemiBold
                         )
@@ -117,7 +117,7 @@ internal fun TimerBottomSheet(
             Slider(
                 value = stopAt,
                 onValueChange = { stopAt = Math.round(it * 10) / 10f },
-                valueRange = 0f..15f, steps = 149,
+                valueRange = 0f..60f, steps = 599,
                 colors = SliderDefaults.colors(
                     thumbColor = Color.White,
                     activeTrackColor = RecordGreen,
@@ -126,7 +126,7 @@ internal fun TimerBottomSheet(
                 modifier = Modifier.fillMaxWidth()
             )
             Row(Modifier.fillMaxWidth(), Arrangement.SpaceBetween) {
-                listOf("0s", "5s", "10s", "15s").forEach {
+                listOf("0s", "15s", "30s", "60s").forEach {
                     Text(it, color = Color.White.copy(alpha = 0.4f), fontSize = 10.sp)
                 }
             }

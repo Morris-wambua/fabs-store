@@ -5,9 +5,12 @@ import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.camera.core.CameraSelector
+import androidx.camera.core.ImageCapture
+import androidx.camera.core.ImageCaptureException
 import androidx.camera.video.FileOutputOptions
 import androidx.camera.video.Recording
 import androidx.camera.video.VideoRecordEvent
+import androidx.camera.view.CameraController
 import androidx.camera.view.LifecycleCameraController
 import androidx.camera.view.PreviewView
 import androidx.camera.view.video.AudioConfig
@@ -94,9 +97,10 @@ fun RecordVideoScreen(
     val permissions = rememberMultiplePermissionsState(
         listOf(Manifest.permission.CAMERA, Manifest.permission.RECORD_AUDIO)
     )
+    val isPhotoMode = draft.durationMode == DurationMode.PHOTO
     val cameraController = remember {
         LifecycleCameraController(context).apply {
-            setEnabledUseCases(LifecycleCameraController.VIDEO_CAPTURE)
+            setEnabledUseCases(CameraController.VIDEO_CAPTURE)
         }
     }
     var isRecording by remember { mutableStateOf(false) }
@@ -105,11 +109,19 @@ fun RecordVideoScreen(
     var countdownJob by remember { mutableStateOf<Job?>(null) }
     var autoStopJob by remember { mutableStateOf<Job?>(null) }
     var showSpeedPopup by remember { mutableStateOf(false) }
+    var showFilterStrip by remember { mutableStateOf(false) }
     var showTimerSheet by remember { mutableStateOf(false) }
     val galleryLauncher = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri: Uri? ->
         uri?.let { viewModel.setMediaUri(it, PostType.VIDEO); onNavigateToTrimCrop() }
     }
 
+    DisposableEffect(isPhotoMode) {
+        cameraController.setEnabledUseCases(
+            if (isPhotoMode) CameraController.IMAGE_CAPTURE
+            else CameraController.VIDEO_CAPTURE
+        )
+        onDispose { }
+    }
     DisposableEffect(draft.useFrontCamera) {
         cameraController.cameraSelector = if (draft.useFrontCamera)
             CameraSelector.DEFAULT_FRONT_CAMERA else CameraSelector.DEFAULT_BACK_CAMERA
@@ -165,8 +177,14 @@ fun RecordVideoScreen(
                     )
                 }
             }
-            ToolRailBtn(Icons.Default.FilterList, "FILTERS") { }
-            ToolRailBtn(Icons.Default.Timer, "TIMER") { showTimerSheet = true }
+            ToolRailBtn(
+                Icons.Default.FilterList, "FILTERS",
+                tint = if (draft.filter.name != "Original") RecordGreen else Color.White
+            ) { showFilterStrip = !showFilterStrip }
+            ToolRailBtn(
+                Icons.Default.Timer, "TIMER",
+                tint = if (timerCountdownSec != null) RecordGreen else Color.White
+            ) { showTimerSheet = true }
             ToolRailBtn(
                 if (draft.flashEnabled) Icons.Default.FlashOn else Icons.Default.FlashOff, "FLASH"
             ) { viewModel.toggleFlash() }
@@ -176,7 +194,21 @@ fun RecordVideoScreen(
             draft = draft,
             isRecording = isRecording,
             onRecord = {
-                if (isRecording) {
+                if (isPhotoMode) {
+                    val file = File(context.cacheDir, "photo_${System.currentTimeMillis()}.jpg")
+                    val outputOpts = ImageCapture.OutputFileOptions.Builder(file).build()
+                    cameraController.takePicture(
+                        outputOpts,
+                        ContextCompat.getMainExecutor(context),
+                        object : ImageCapture.OnImageSavedCallback {
+                            override fun onImageSaved(output: ImageCapture.OutputFileResults) {
+                                viewModel.setMediaUri(Uri.fromFile(file), PostType.IMAGE)
+                                onNavigateToTrimCrop()
+                            }
+                            override fun onError(exc: ImageCaptureException) { }
+                        }
+                    )
+                } else if (isRecording) {
                     countdownJob?.cancel()
                     autoStopJob?.cancel()
                     activeRecording?.stop()
@@ -204,6 +236,11 @@ fun RecordVideoScreen(
                         isRecording = true
 
                         val stopAfter = timerStopAtSec
+                            ?: when (draft.durationMode) {
+                                DurationMode.S15 -> 15f
+                                DurationMode.S60 -> 60f
+                                DurationMode.PHOTO -> null
+                            }
                         if (stopAfter != null && stopAfter > 0f) {
                             autoStopJob?.cancel()
                             autoStopJob = scope.launch {
@@ -237,30 +274,26 @@ fun RecordVideoScreen(
 
         if (countdownDisplay > 0) {
             Box(
-                modifier = Modifier
-                    .align(Alignment.Center)
-                    .size(120.dp)
-                    .clip(CircleShape)
-                    .background(Color.Black.copy(alpha = 0.55f)),
+                modifier = Modifier.align(Alignment.Center),
                 contentAlignment = Alignment.Center
             ) {
                 Text(
                     text = countdownDisplay.toString(),
                     color = Color.White,
-                    fontWeight = FontWeight.Bold,
-                    fontSize = 52.sp
+                    fontWeight = FontWeight.ExtraBold,
+                    fontSize = 120.sp
                 )
             }
         }
 
         if (showTimerSheet) {
             TimerBottomSheet(
-                initialCountdown = timerCountdownSec ?: 3,
+                initialCountdown = timerCountdownSec ?: 0,
                 initialStopAt = timerStopAtSec ?: 6.5f,
                 onDismiss = { showTimerSheet = false },
                 onApply = { countdown, stopAt ->
-                    viewModel.setTimerCountdown(countdown)
-                    viewModel.setTimerStopAtSeconds(stopAt)
+                    viewModel.setTimerCountdown(if (countdown == 0) null else countdown)
+                    viewModel.setTimerStopAtSeconds(if (countdown == 0) null else stopAt)
                     showTimerSheet = false
                 }
             )
@@ -364,7 +397,7 @@ private fun BottomSection(
             Row(horizontalArrangement = Arrangement.spacedBy(24.dp), verticalAlignment = Alignment.CenterVertically) {
                 DurationChip("60s", draft.durationMode == DurationMode.S60) { onDurationChange(DurationMode.S60) }
                 DurationChip("15s", draft.durationMode == DurationMode.S15) { onDurationChange(DurationMode.S15) }
-                DurationChip("Templates", draft.durationMode == DurationMode.TEMPLATES) { onDurationChange(DurationMode.TEMPLATES) }
+                DurationChip("Photo", draft.durationMode == DurationMode.PHOTO) { onDurationChange(DurationMode.PHOTO) }
             }
             Spacer(Modifier.height(16.dp))
             Box(Modifier.width(32.dp).height(1.dp).clip(RoundedCornerShape(1.dp)).background(Color.White.copy(alpha = 0.4f)))
