@@ -78,6 +78,31 @@ object ExchangeRateManager {
         return converted.setScale(digits, RoundingMode.HALF_UP)
     }
 
+    fun convertCurrency(amount: Number, sourceCurrencyCode: String, targetCurrencyCode: String): BigDecimal {
+        val source = sourceCurrencyCode.uppercase(Locale.US)
+        val target = targetCurrencyCode.uppercase(Locale.US)
+        val rawAmount = amount.toString().toBigDecimalOrNull() ?: BigDecimal.ZERO
+        if (source == target) {
+            val targetDigits = runCatching { Currency.getInstance(target).defaultFractionDigits }.getOrDefault(2)
+            return rawAmount.setScale(maxOf(targetDigits, 0), RoundingMode.HALF_UP)
+        }
+
+        val sourceRate = rates[source] ?: 1.0
+        val targetRate = rates[target] ?: 1.0
+        val usdAmount = if (source == "USD" || sourceRate <= 0.0) {
+            rawAmount
+        } else {
+            rawAmount.divide(BigDecimal.valueOf(sourceRate), 8, RoundingMode.HALF_UP)
+        }
+        val converted = if (target == "USD" || targetRate <= 0.0) {
+            usdAmount
+        } else {
+            usdAmount.multiply(BigDecimal.valueOf(targetRate))
+        }
+        val targetDigits = runCatching { Currency.getInstance(target).defaultFractionDigits }.getOrDefault(2)
+        return converted.setScale(maxOf(targetDigits, 0), RoundingMode.HALF_UP)
+    }
+
     fun convertLocalToUsd(amount: Number, locale: Locale): BigDecimal {
         val localCurrency = runCatching { Currency.getInstance(locale) }.getOrElse { Currency.getInstance("USD") }
         val currencyCode = localCurrency.currencyCode

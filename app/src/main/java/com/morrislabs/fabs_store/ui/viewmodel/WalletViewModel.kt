@@ -13,6 +13,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import java.time.Instant
 
 class WalletViewModel(application: Application) : AndroidViewModel(application) {
     companion object {
@@ -60,7 +61,13 @@ class WalletViewModel(application: Application) : AndroidViewModel(application) 
             walletRepository.fetchStoreTransactions(storeId, page)
                 .onSuccess { pagedResponse ->
                     Log.d(TAG, "Transactions fetched: ${pagedResponse.content.size} items")
-                    _transactionsState.value = WalletLoadingState.Success(pagedResponse.content)
+                    _transactionsState.value = WalletLoadingState.Success(
+                        pagedResponse.content.sortedByDescending { transaction ->
+                            transaction.dateCreated
+                                ?.let { runCatching { Instant.parse(it).toEpochMilli() }.getOrNull() }
+                                ?: Long.MIN_VALUE
+                        }
+                    )
                 }
                 .onFailure { error ->
                     val errorMessage = error.message ?: "Failed to fetch transactions"

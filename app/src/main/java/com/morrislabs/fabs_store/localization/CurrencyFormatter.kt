@@ -29,6 +29,19 @@ object CurrencyFormatter {
         return formatter.format(amount)
     }
 
+    fun formatAmountFromCurrencyCode(amount: Number, sourceCurrencyCode: String, locale: Locale): String {
+        val targetCurrency = resolveCurrency(locale)
+        val converted = ExchangeRateManager.convertCurrency(
+            amount = amount,
+            sourceCurrencyCode = sourceCurrencyCode,
+            targetCurrencyCode = targetCurrency.currencyCode
+        )
+        val formatter = NumberFormat.getCurrencyInstance(locale).apply {
+            currency = targetCurrency
+        }
+        return formatter.format(converted)
+    }
+
     private fun resolveCurrency(locale: Locale): Currency {
         return runCatching { Currency.getInstance(locale) }
             .getOrElse { Currency.getInstance("USD") }

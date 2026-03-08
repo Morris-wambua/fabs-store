@@ -1,10 +1,12 @@
 package com.morrislabs.fabs_store.util
 
 import android.content.Context
+import android.util.Base64
 import android.util.Log
 import androidx.security.crypto.EncryptedSharedPreferences
 import androidx.security.crypto.MasterKey
 import androidx.core.content.edit
+import org.json.JSONObject
 
 class TokenManager private constructor(context: Context) {
     private val appContext = context.applicationContext
@@ -27,6 +29,8 @@ class TokenManager private constructor(context: Context) {
         private const val KEY_USER_ID = "user_id"
         private const val KEY_FIRST_NAME = "first_name"
         private const val KEY_LAST_NAME = "last_name"
+        private const val KEY_TOKEN_EXPIRY_MS = "token_expiry_ms"
+        private const val KEY_REFRESH_TOKEN_EXPIRY_MS = "refresh_token_expiry_ms"
         private const val TAG = "TokenManager"
 
         @Volatile
@@ -41,7 +45,11 @@ class TokenManager private constructor(context: Context) {
 
     fun saveToken(token: String) {
         Log.d(TAG, "Saving token")
-        sharedPreferences.edit() { putString(KEY_TOKEN, token) }
+        val expiry = extractExpiryMillis(token)
+        sharedPreferences.edit() {
+            putString(KEY_TOKEN, token)
+            if (expiry != null) putLong(KEY_TOKEN_EXPIRY_MS, expiry) else remove(KEY_TOKEN_EXPIRY_MS)
+        }
     }
 
     fun getToken(): String? {
@@ -52,7 +60,11 @@ class TokenManager private constructor(context: Context) {
 
     fun saveRefreshToken(refreshToken: String) {
         Log.d(TAG, "Saving refresh token")
-        sharedPreferences.edit() { putString(KEY_REFRESH_TOKEN, refreshToken) }
+        val expiry = extractExpiryMillis(refreshToken)
+        sharedPreferences.edit() {
+            putString(KEY_REFRESH_TOKEN, refreshToken)
+            if (expiry != null) putLong(KEY_REFRESH_TOKEN_EXPIRY_MS, expiry) else remove(KEY_REFRESH_TOKEN_EXPIRY_MS)
+        }
     }
 
     fun getRefreshToken(): String? {
@@ -90,6 +102,8 @@ class TokenManager private constructor(context: Context) {
             remove(KEY_USER_ID)
             remove(KEY_FIRST_NAME)
             remove(KEY_LAST_NAME)
+            remove(KEY_TOKEN_EXPIRY_MS)
+            remove(KEY_REFRESH_TOKEN_EXPIRY_MS)
         }
     }
 
@@ -104,5 +118,50 @@ class TokenManager private constructor(context: Context) {
             Log.w(TAG, "User ID mismatch! Expected: $expectedId, Found: $currentId")
         }
         return matches
+    }
+
+    fun getTokenExpiryMillis(): Long? {
+        if (!sharedPreferences.contains(KEY_TOKEN_EXPIRY_MS)) return null
+        return sharedPreferences.getLong(KEY_TOKEN_EXPIRY_MS, 0L)
+    }
+
+    fun getRefreshTokenExpiryMillis(): Long? {
+        if (!sharedPreferences.contains(KEY_REFRESH_TOKEN_EXPIRY_MS)) return null
+        return sharedPreferences.getLong(KEY_REFRESH_TOKEN_EXPIRY_MS, 0L)
+    }
+
+    fun isAccessTokenExpired(nowMs: Long = System.currentTimeMillis()): Boolean {
+        val expiry = getTokenExpiryMillis() ?: return false
+        return nowMs >= expiry
+    }
+
+    fun isAccessTokenExpiringWithin(windowMs: Long, nowMs: Long = System.currentTimeMillis()): Boolean {
+        val expiry = getTokenExpiryMillis() ?: return false
+        return expiry - nowMs <= windowMs
+    }
+
+    fun isRefreshTokenExpired(nowMs: Long = System.currentTimeMillis()): Boolean {
+        val expiry = getRefreshTokenExpiryMillis() ?: return false
+        return nowMs >= expiry
+    }
+
+    fun isRefreshTokenExpiringWithin(windowMs: Long, nowMs: Long = System.currentTimeMillis()): Boolean {
+        val expiry = getRefreshTokenExpiryMillis() ?: return false
+        return expiry - nowMs <= windowMs
+    }
+
+    private fun extractExpiryMillis(jwt: String): Long? {
+        return try {
+            val parts = jwt.split(".")
+            if (parts.size < 2) return null
+            val payloadBytes = Base64.decode(parts[1], Base64.URL_SAFE or Base64.NO_WRAP or Base64.NO_PADDING)
+            val payload = String(payloadBytes, Charsets.UTF_8)
+            val json = JSONObject(payload)
+            if (!json.has("exp")) return null
+            json.getLong("exp") * 1000L
+        } catch (e: Exception) {
+            Log.w(TAG, "Failed to parse JWT expiry", e)
+            null
+        }
     }
 }

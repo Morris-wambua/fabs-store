@@ -82,7 +82,7 @@ class AuthApiService {
                 Log.w(TAG, "Failed to parse error response, using generic message")
                 // Fallback for HTTP 401/400 specifically
                 when (e.response.status.value) {
-                    400, 401, 403 -> "Invalid email or password"
+                    400, 401 -> "Invalid email or password"
                     429 -> "Too many login attempts. Please wait and try again."
                     else -> "An error occurred. Please try again."
                 }

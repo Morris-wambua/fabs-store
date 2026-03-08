@@ -61,7 +61,7 @@ fun WalletBalanceCard(
             )
             Spacer(modifier = Modifier.height(8.dp))
             Text(
-                text = CurrencyFormatter.formatWithCurrencyCode(balance, currency, locale),
+                text = CurrencyFormatter.formatAmountFromCurrencyCode(balance, currency, locale),
                 style = MaterialTheme.typography.headlineLarge.copy(fontWeight = FontWeight.Bold),
                 color = MaterialTheme.colorScheme.onPrimary
             )
@@ -100,6 +100,7 @@ fun TransactionTypeIcon(
 @Composable
 fun TransactionItem(
     transaction: WalletTransactionDTO,
+    walletCurrencyCode: String,
     modifier: Modifier = Modifier
 ) {
     val locale = LocaleManager.getActiveLocale(LocalContext.current)
@@ -134,7 +135,7 @@ fun TransactionItem(
                 )
                 if (transaction.dateCreated != null) {
                     Text(
-                        text = formatTransactionDate(transaction.dateCreated),
+                        text = "At ${formatTransactionDate(transaction.dateCreated)}",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -145,12 +146,24 @@ fun TransactionItem(
 
             Column(horizontalAlignment = Alignment.End) {
                 Text(
-                    text = "${amountPrefix}${CurrencyFormatter.format(transaction.amount, locale)}",
+                    text = "${amountPrefix}${
+                        CurrencyFormatter.formatAmountFromCurrencyCode(
+                            transaction.amount,
+                            walletCurrencyCode,
+                            locale
+                        )
+                    }",
                     style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold),
                     color = amountColor
                 )
                 Text(
-                    text = "Bal: ${CurrencyFormatter.format(transaction.balanceAfter, locale)}",
+                    text = "Bal: ${
+                        CurrencyFormatter.formatAmountFromCurrencyCode(
+                            transaction.balanceAfter,
+                            walletCurrencyCode,
+                            locale
+                        )
+                    }",
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )

@@ -1,6 +1,7 @@
 package com.morrislabs.fabs_store.ui.screens.posts
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -17,11 +18,9 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.Comment
 import androidx.compose.material.icons.filled.Bookmark
-import androidx.compose.material.icons.filled.BookmarkBorder
-import androidx.compose.material.icons.filled.ChatBubbleOutline
 import androidx.compose.material.icons.filled.Favorite
-import androidx.compose.material.icons.filled.FavoriteBorder
 import androidx.compose.material.icons.filled.PlayCircleOutline
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.filled.Visibility
@@ -53,12 +52,13 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
@@ -81,6 +81,8 @@ import com.morrislabs.fabs_store.ui.viewmodel.StoreViewModel
 import com.morrislabs.fabs_store.util.AppConfig
 import com.morrislabs.fabs_store.util.formatTimeAgo
 import kotlinx.coroutines.delay
+
+private val FabsGreen = androidx.compose.ui.graphics.Color(0xFF22C55E)
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -191,13 +193,24 @@ fun PostDetailScreen(
                 pageCount = { queuedPosts.size }
             )
             var currentPagePostId by remember { mutableStateOf<String?>(null) }
+            var previouslyVisiblePostId by remember { mutableStateOf<String?>(null) }
+            DisposableEffect(Unit) {
+                onDispose {
+                    previouslyVisiblePostId?.let(postViewModel::cancelQueuedPostView)
+                }
+            }
 
             LaunchedEffect(pagerState.currentPage, queuedPosts) {
                 val currentPost = queuedPosts.getOrNull(pagerState.currentPage) ?: return@LaunchedEffect
                 val currentPostIdValue = currentPost.id ?: return@LaunchedEffect
                 if (currentPagePostId == currentPostIdValue) return@LaunchedEffect
+                previouslyVisiblePostId?.let(postViewModel::cancelQueuedPostView)
                 currentPagePostId = currentPostIdValue
-                postViewModel.fetchPostDetail(currentPostIdValue)
+                previouslyVisiblePostId = currentPostIdValue
+                postViewModel.queuePostView(
+                    postId = currentPostIdValue,
+                    isVideo = currentPost.type == PostType.VIDEO
+                )
                 postViewModel.fetchComments(currentPostIdValue)
             }
 
@@ -307,14 +320,6 @@ private fun PostQueuePage(
             modifier = Modifier
                 .fillMaxWidth()
                 .align(Alignment.BottomCenter)
-                .background(
-                    brush = Brush.verticalGradient(
-                        colors = listOf(
-                            androidx.compose.ui.graphics.Color.Transparent,
-                            MaterialTheme.colorScheme.surface.copy(alpha = 0.92f)
-                        )
-                    )
-                )
         ) {
             InteractionRail(
                 post = post,
@@ -324,7 +329,7 @@ private fun PostQueuePage(
                 onShareClick = onShareClick,
                 modifier = Modifier
                     .align(Alignment.BottomEnd)
-                    .padding(end = 12.dp, bottom = 14.dp)
+                    .padding(end = 12.dp, bottom = 150.dp)
             )
 
             Column(
@@ -540,41 +545,39 @@ private fun InteractionRail(
     onShareClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    val iconTint = MaterialTheme.colorScheme.onSurface
-
     Column(
         modifier = modifier,
         horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(8.dp)
+        verticalArrangement = Arrangement.spacedBy(20.dp)
     ) {
         RailItem(
-            icon = if (post.likedByCurrentUser) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
+            icon = Icons.Default.Favorite,
             count = post.likeCount.toString(),
-            iconTint = if (post.likedByCurrentUser) MaterialTheme.colorScheme.error else iconTint,
+            iconTint = if (post.likedByCurrentUser) FabsGreen else androidx.compose.ui.graphics.Color.White,
             onClick = onLikeClick
         )
         RailItem(
-            icon = Icons.Default.ChatBubbleOutline,
+            icon = Icons.AutoMirrored.Filled.Comment,
             count = post.totalComments.toString(),
-            iconTint = iconTint,
+            iconTint = androidx.compose.ui.graphics.Color.White,
             onClick = onCommentClick
         )
         RailItem(
-            icon = if (post.savedByCurrentUser) Icons.Default.Bookmark else Icons.Default.BookmarkBorder,
+            icon = Icons.Default.Bookmark,
             count = post.saveCount.toString(),
-            iconTint = if (post.savedByCurrentUser) MaterialTheme.colorScheme.primary else iconTint,
+            iconTint = if (post.savedByCurrentUser) FabsGreen else androidx.compose.ui.graphics.Color.White,
             onClick = onSaveClick
         )
         RailItem(
             icon = Icons.Default.Share,
             count = post.shareCount.toString(),
-            iconTint = iconTint,
+            iconTint = androidx.compose.ui.graphics.Color.White,
             onClick = onShareClick
         )
         RailItem(
             icon = Icons.Default.Visibility,
             count = post.viewCount.toString(),
-            iconTint = iconTint,
+            iconTint = androidx.compose.ui.graphics.Color.White,
             onClick = {}
         )
     }
@@ -587,27 +590,23 @@ private fun RailItem(
     iconTint: androidx.compose.ui.graphics.Color,
     onClick: () -> Unit
 ) {
-    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-        IconButton(
-            onClick = onClick,
-            modifier = Modifier
-                .size(40.dp)
-                .background(
-                    color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.88f),
-                    shape = CircleShape
-                )
-        ) {
-            Icon(
-                imageVector = icon,
-                contentDescription = null,
-                tint = iconTint,
-                modifier = Modifier.size(22.dp)
-            )
-        }
+    Column(
+        horizontalAlignment = Alignment.CenterHorizontally,
+        modifier = Modifier.clickable(onClick = onClick)
+    ) {
+        Icon(
+            imageVector = icon,
+            contentDescription = null,
+            tint = iconTint,
+            modifier = Modifier.size(28.dp)
+        )
+        Spacer(modifier = Modifier.height(4.dp))
         Text(
             text = count,
-            style = MaterialTheme.typography.labelSmall,
-            color = MaterialTheme.colorScheme.onSurface
+            fontSize = 12.sp,
+            fontWeight = FontWeight.Medium,
+            color = androidx.compose.ui.graphics.Color.White,
+            textAlign = TextAlign.Center
         )
     }
 }
