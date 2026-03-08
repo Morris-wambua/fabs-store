@@ -15,11 +15,6 @@ import io.ktor.http.HttpStatusCode
 import io.ktor.http.isSuccess
 import io.ktor.serialization.kotlinx.json.json
 import kotlinx.serialization.json.Json
-import io.ktor.client.plugins.api.createClientPlugin
-import io.ktor.client.request.HttpRequestPipeline
-import io.ktor.client.statement.HttpReceivePipeline
-import kotlinx.coroutines.sync.Mutex
-import kotlinx.coroutines.sync.withLock
 
 // Callback interface for authentication state changes
 fun interface AuthenticationStateListener {
@@ -91,6 +86,12 @@ class ClientConfig {
                             authStateListener?.onSessionExpired()
                             return@refreshTokens null
                         }
+                        if (tokenManager.isRefreshTokenExpired() || tokenManager.isRefreshTokenExpiringWithin(30_000L)) {
+                            Log.w("ClientConfig", "Refresh token expired or close to expiry window - forcing logout")
+                            tokenManager.clearToken()
+                            authStateListener?.onSessionExpired()
+                            return@refreshTokens null
+                        }
 
                         Log.d("ClientConfig", "Attempting automatic token refresh due to 401 response")
                         
@@ -135,45 +136,8 @@ class ClientConfig {
                         // 401 - Auth plugin will attempt refresh
                         Log.e("ClientConfig", "HTTP 401 Unauthorized - Auth plugin will attempt token refresh")
                         throw io.ktor.client.plugins.ClientRequestException(response, "Unauthorized")
-                    } else if (response.status == HttpStatusCode.Forbidden) {
-                        // 403 Forbidden - May be due to expired token or insufficient permissions
-                        // Check if we have a refresh token to attempt recovery
-                        val refreshToken = tokenManager.getRefreshToken()
-                        if (refreshToken == null) {
-                            Log.e("ClientConfig", "HTTP 403 Forbidden and no refresh token available - user must logout")
-                            tokenManager.clearToken()
-                            authStateListener?.onSessionExpired()
-                            throw io.ktor.client.plugins.ClientRequestException(response, "Authentication failed. Your session may have expired.")
-                        } else {
-                            // Have refresh token - attempt refresh in case token is expired
-                            Log.d("ClientConfig", "HTTP 403 received - attempting token refresh")
-                            try {
-                                val authService = com.morrislabs.fabs_store.data.api.AuthApiService()
-                                val result = authService.refreshToken(refreshToken)
-                                
-                                result.fold(
-                                    onSuccess = { refreshTokenDTO ->
-                                        Log.d("ClientConfig", "Token refreshed successfully - request will be retried")
-                                        refreshTokenDTO.accessToken?.let { tokenManager.saveToken(it) }
-                                        refreshTokenDTO.refreshToken?.let { tokenManager.saveRefreshToken(it) }
-                                    },
-                                    onFailure = { error ->
-                                        Log.e("ClientConfig", "Token refresh failed on 403 - refresh token may be invalid: ${error.message}")
-                                        tokenManager.clearToken()
-                                        authStateListener?.onSessionExpired()
-                                    }
-                                )
-                            } catch (e: Exception) {
-                                Log.e("ClientConfig", "Token refresh exception on 403: ${e.message}")
-                                tokenManager.clearToken()
-                                authStateListener?.onSessionExpired()
-                            }
-                            // Rethrow so request fails and user can retry
-                            throw io.ktor.client.plugins.ClientRequestException(response, "Forbidden - token refresh attempted")
-                        }
                     }
-                    // Only throw for auth errors (401/403), not for other errors like 400/404/500
-                    // Other errors should be handled by the caller
+                    // Only throw for 401; other errors should be handled by the caller
                 }
             }
 

@@ -25,6 +25,7 @@ import kotlinx.coroutines.launch
 class PostViewModel(application: Application) : AndroidViewModel(application) {
     companion object {
         private const val TAG = "PostViewModel"
+        private const val VIDEO_VIEW_THRESHOLD_MS = 4_000L
     }
 
     private val context = application.applicationContext
@@ -77,6 +78,7 @@ class PostViewModel(application: Application) : AndroidViewModel(application) {
     private var hasMoreCommentsInternal = false
     private var currentCommentsPage = 0
     private val viewedPostIds = mutableSetOf<String>()
+    private val pendingViewJobs = mutableMapOf<String, Job>()
     private var hashtagSearchJob: Job? = null
     private var soundSearchJob: Job? = null
 
@@ -124,7 +126,6 @@ class PostViewModel(application: Application) : AndroidViewModel(application) {
                 .onSuccess { post ->
                     logPostMediaDiagnostics("post_detail", listOf(post))
                     updatePostInState(post)
-                    maybeTrackView(postId)
                 }
                 .onFailure { error ->
                     _postDetailState.value = StoreViewModel.LoadingState.Error(error.message ?: "Failed to fetch post")
@@ -421,16 +422,50 @@ class PostViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     private fun updatePostInState(updatedPost: PostDTO) {
-        _postDetailState.value = StoreViewModel.LoadingState.Success(updatedPost)
+        val currentDetail = (_postDetailState.value as? StoreViewModel.LoadingState.Success)?.data
+        val detailPost = if (currentDetail?.id == updatedPost.id) {
+            currentDetail?.let { preserveMediaUrls(it, updatedPost) } ?: updatedPost
+        } else {
+            updatedPost
+        }
+        _postDetailState.value = StoreViewModel.LoadingState.Success(detailPost)
         val currentPosts = (_postsState.value as? StoreViewModel.LoadingState.Success)?.data
         if (currentPosts != null) {
             _postsState.value = StoreViewModel.LoadingState.Success(
-                currentPosts.map { if (it.id == updatedPost.id) updatedPost else it }
+                currentPosts.map { existing ->
+                    if (existing.id == updatedPost.id) preserveMediaUrls(existing, updatedPost) else existing
+                }
             )
         }
     }
 
-    private fun maybeTrackView(postId: String) {
+    private fun preserveMediaUrls(existing: PostDTO, incoming: PostDTO): PostDTO {
+        return incoming.copy(
+            mediaUrl = existing.mediaUrl,
+            presignedMediaUrl = existing.presignedMediaUrl,
+            thumbnailUrl = existing.thumbnailUrl,
+            previewAnimationUrl = existing.previewAnimationUrl
+        )
+    }
+
+    fun queuePostView(postId: String, isVideo: Boolean) {
+        if (viewedPostIds.contains(postId) || pendingViewJobs.containsKey(postId)) return
+        if (!isVideo) {
+            trackPostView(postId)
+            return
+        }
+        pendingViewJobs[postId] = viewModelScope.launch {
+            delay(VIDEO_VIEW_THRESHOLD_MS)
+            pendingViewJobs.remove(postId)
+            trackPostView(postId)
+        }
+    }
+
+    fun cancelQueuedPostView(postId: String) {
+        pendingViewJobs.remove(postId)?.cancel()
+    }
+
+    private fun trackPostView(postId: String) {
         if (viewedPostIds.contains(postId)) return
         viewedPostIds.add(postId)
         viewModelScope.launch {
@@ -440,6 +475,7 @@ class PostViewModel(application: Application) : AndroidViewModel(application) {
                     updatePostInState(updatedPost)
                 }
                 .onFailure { error ->
+                    viewedPostIds.remove(postId)
                     Log.e(TAG, "Increment view failed: ${error.message}", error)
                 }
         }
@@ -456,6 +492,12 @@ class PostViewModel(application: Application) : AndroidViewModel(application) {
         if (token == "#") return token
         val body = token.removePrefix("#")
         return if (body.all { it.isLetterOrDigit() || it == '_' }) token else null
+    }
+
+    override fun onCleared() {
+        pendingViewJobs.values.forEach { it.cancel() }
+        pendingViewJobs.clear()
+        super.onCleared()
     }
 
     sealed class CreatePostState {

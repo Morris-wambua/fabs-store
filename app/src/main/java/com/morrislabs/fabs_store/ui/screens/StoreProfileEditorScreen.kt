@@ -33,6 +33,7 @@ import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material.icons.filled.Phone
 import androidx.compose.material.icons.filled.Schedule
+import androidx.compose.material.icons.filled.Verified
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
@@ -59,12 +60,14 @@ import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.lifecycle.viewmodel.compose.viewModel
 import coil.compose.AsyncImage
+import com.morrislabs.fabs_store.data.model.Badge
 import com.morrislabs.fabs_store.data.model.FetchStoreResponse
 import com.morrislabs.fabs_store.data.model.UpdateStorePayload
 import com.morrislabs.fabs_store.localization.LocaleManager
@@ -465,8 +468,48 @@ private fun StoreHeaderSection(
                 .padding(top = 0.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            Text(store.name, style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold))
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(store.name, style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold))
+                if (store.isVerified) {
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Icon(
+                        imageVector = Icons.Default.Verified,
+                        contentDescription = "Rated store",
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(18.dp)
+                    )
+                }
+            }
             Text(store.username, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = 8.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.Center
+            ) {
+                Text(
+                    text = "${badgeEmoji(store.badge)} ${badgeLabel(store.badge)}",
+                    style = MaterialTheme.typography.labelLarge,
+                    fontWeight = FontWeight.Bold
+                )
+                Spacer(modifier = Modifier.width(12.dp))
+                Text(
+                    text = "\u2B50 ${String.format(Locale.US, "%.1f", store.ratings)}",
+                    style = MaterialTheme.typography.bodyMedium,
+                    fontWeight = FontWeight.Bold
+                )
+                store.locationDTO?.name?.takeIf { it.isNotBlank() }?.let { location ->
+                    Spacer(modifier = Modifier.width(12.dp))
+                    Text(
+                        text = location,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                }
+            }
         }
     }
 }
@@ -763,4 +806,20 @@ private fun summarizeHours(hours: List<com.morrislabs.fabs_store.data.model.Busi
     }
     val first = openDays.first()
     return "${openDays.size} days open, starts ${first.openTime ?: "--"}"
+}
+
+private fun badgeEmoji(badge: Badge): String = when (badge) {
+    Badge.SILVER -> "\uD83E\uDD48"
+    Badge.GOLD -> "\uD83E\uDD47"
+    Badge.PLATINUM -> "\uD83C\uDFC6"
+    Badge.PARTNER -> "\uD83E\uDD1D"
+    Badge.TOP_RATED -> "\u2B50"
+}
+
+private fun badgeLabel(badge: Badge): String = when (badge) {
+    Badge.SILVER -> "SILVER"
+    Badge.GOLD -> "GOLD"
+    Badge.PLATINUM -> "PLATINUM"
+    Badge.PARTNER -> "PARTNER"
+    Badge.TOP_RATED -> "TOP RATED"
 }

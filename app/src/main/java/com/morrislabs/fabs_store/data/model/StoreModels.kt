@@ -4,7 +4,7 @@ import kotlinx.serialization.Serializable
 
 @Serializable
 enum class Badge {
-    GOLD, SILVER, TOP_RATED, PLATINUM
+    GOLD, SILVER, PARTNER, PLATINUM, TOP_RATED
 }
 
 @Serializable

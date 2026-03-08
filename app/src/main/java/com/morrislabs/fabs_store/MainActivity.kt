@@ -8,13 +8,19 @@ import androidx.activity.enableEdgeToEdge
 import androidx.lifecycle.lifecycleScope
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalLifecycleOwner
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
@@ -65,9 +71,13 @@ import com.morrislabs.fabs_store.localization.ExchangeRateManager
 import com.morrislabs.fabs_store.util.AuthenticationStateListener
 import com.morrislabs.fabs_store.util.ClientConfig
 import com.morrislabs.fabs_store.util.NotificationHelper
+import com.morrislabs.fabs_store.util.SessionManager
+import com.morrislabs.fabs_store.util.TokenManager
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.runBlocking
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -91,6 +101,8 @@ class MainActivity : ComponentActivity() {
 fun StoreApp(
     authViewModel: AuthViewModel = viewModel()
 ) {
+    val context = LocalContext.current
+    val lifecycleOwner = LocalLifecycleOwner.current
     val navController = rememberNavController()
     val storeViewModel: com.morrislabs.fabs_store.ui.viewmodel.StoreViewModel = viewModel()
     val servicesViewModel: com.morrislabs.fabs_store.ui.viewmodel.ServicesViewModel = viewModel()
@@ -98,7 +110,22 @@ fun StoreApp(
     val reviewViewModel: ReviewViewModel = viewModel()
     val chatViewModel: ChatViewModel = viewModel()
     val walletViewModel: WalletViewModel = viewModel()
+    val uiScope = rememberCoroutineScope()
+    val tokenManager = remember(context) { TokenManager.getInstance(context) }
     var isLoggedIn by remember { mutableStateOf(authViewModel.isLoggedIn()) }
+    val sessionManager = remember(context) {
+        SessionManager(context) {
+            uiScope.launch(Dispatchers.Main) {
+                authViewModel.logout()
+                isLoggedIn = false
+                navController.navigate("login") {
+                    popUpTo(navController.graph.id) { inclusive = true }
+                    launchSingleTop = true
+                }
+            }
+        }
+    }
+    var sessionMonitorJob by remember { mutableStateOf<Job?>(null) }
 
     // Request POST_NOTIFICATIONS permission on Android 13+
     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
@@ -119,13 +146,56 @@ fun StoreApp(
         ClientConfig.authStateListener = AuthenticationStateListener {
             // User session has expired - log them out
             // This callback may be invoked from background network thread, must switch to Main dispatcher
-            runBlocking(Dispatchers.Main) {
+            uiScope.launch(Dispatchers.Main) {
                 authViewModel.logout()
                 isLoggedIn = false
                 navController.navigate("login") {
-                    popUpTo("home") { inclusive = true }
+                    popUpTo(navController.graph.id) { inclusive = true }
+                    launchSingleTop = true
                 }
             }
+        }
+    }
+
+    LaunchedEffect(isLoggedIn) {
+        if (!isLoggedIn) {
+            navController.navigate("login") {
+                popUpTo(navController.graph.id) { inclusive = true }
+                launchSingleTop = true
+            }
+        }
+    }
+
+    DisposableEffect(lifecycleOwner) {
+        val observer = LifecycleEventObserver { _, event ->
+            when (event) {
+                Lifecycle.Event.ON_START -> {
+                    sessionMonitorJob?.cancel()
+                    sessionMonitorJob = uiScope.launch {
+                        while (isActive) {
+                            val currentlyLoggedIn = tokenManager.isLoggedIn()
+                            if (isLoggedIn != currentlyLoggedIn) {
+                                isLoggedIn = currentlyLoggedIn
+                            }
+                            if (currentlyLoggedIn) {
+                                sessionManager.enforceSession()
+                            }
+                            delay(sessionManager.nextCheckDelayMs())
+                        }
+                    }
+                }
+                Lifecycle.Event.ON_STOP -> {
+                    sessionMonitorJob?.cancel()
+                    sessionMonitorJob = null
+                }
+                else -> Unit
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose {
+            sessionMonitorJob?.cancel()
+            sessionMonitorJob = null
+            lifecycleOwner.lifecycle.removeObserver(observer)
         }
     }
 

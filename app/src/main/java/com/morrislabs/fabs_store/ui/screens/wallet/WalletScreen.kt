@@ -290,7 +290,10 @@ private fun WalletContent(
             }
         } else {
             items(transactions, key = { it.id ?: it.hashCode().toString() }) { transaction ->
-                TransactionItem(transaction = transaction)
+                TransactionItem(
+                    transaction = transaction,
+                    walletCurrencyCode = wallet.currency
+                )
             }
         }
 
