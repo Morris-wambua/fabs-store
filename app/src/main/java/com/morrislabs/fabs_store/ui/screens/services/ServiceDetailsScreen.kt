@@ -39,11 +39,9 @@ import com.morrislabs.fabs_store.data.model.CreateServicePayload
 import com.morrislabs.fabs_store.data.model.SubCategory
 import com.morrislabs.fabs_store.data.model.TypeOfServiceDTO
 import com.morrislabs.fabs_store.data.model.toDisplayName
-import com.morrislabs.fabs_store.localization.ExchangeRateManager
 import com.morrislabs.fabs_store.localization.LocaleManager
 import com.morrislabs.fabs_store.ui.viewmodel.ServicesViewModel
 import com.morrislabs.fabs_store.ui.viewmodel.StoreViewModel
-import java.math.RoundingMode
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -103,16 +101,8 @@ fun ServiceDetailsScreen(
         }
     }
 
-    LaunchedEffect(Unit) {
-        ExchangeRateManager.initialize(context)
-        ExchangeRateManager.refreshIfStale(context)
-    }
-
-    LaunchedEffect(service.id, locale) {
-        price = ExchangeRateManager
-            .convertUsdToLocale(service.price, locale)
-            .setScale(0, RoundingMode.HALF_UP)
-            .toPlainString()
+    LaunchedEffect(service.id) {
+        price = service.price.toString()
     }
 
     DisposableEffect(Unit) {
@@ -201,11 +191,10 @@ fun ServiceDetailsScreen(
                         showErrorDialog = true
                         return@SaveButton
                     }
-                    val usdPrice = ExchangeRateManager
-                        .convertLocalToUsd(priceValue, locale)
-                        .setScale(0, RoundingMode.HALF_UP)
-                        .toInt()
-                        .coerceAtLeast(1)
+
+                    val currencyCode = runCatching {
+                        java.util.Currency.getInstance(locale).currencyCode
+                    }.getOrDefault("USD")
 
                     val derivedName = selectedSubCategory.name.lowercase().replace("_", " ")
 
@@ -214,7 +203,8 @@ fun ServiceDetailsScreen(
                             name = derivedName,
                             mainCategory = selectedMainCategory,
                             subCategory = selectedSubCategory,
-                            price = usdPrice,
+                            price = priceValue,
+                            currencyCode = currencyCode,
                             duration = selectedDuration,
                             description = description.ifBlank { null },
                             imageUrl = finalImageUrl.ifBlank { null }

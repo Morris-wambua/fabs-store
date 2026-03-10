@@ -79,6 +79,9 @@ fun TransactionTypeIcon(
         TransactionType.WITHDRAWAL -> Icons.Default.ArrowDownward to Color(0xFFF44336)
         TransactionType.REFUND -> Icons.Default.Replay to MaterialTheme.colorScheme.tertiary
         TransactionType.TOP_UP -> Icons.Default.Add to MaterialTheme.colorScheme.primary
+        TransactionType.WALLET_PAYMENT -> Icons.Default.ArrowDownward to Color(0xFFF44336)
+        TransactionType.FX_DEBIT -> Icons.Default.ArrowDownward to Color(0xFFFF9800)
+        TransactionType.FX_CREDIT -> Icons.Default.Add to Color(0xFF2196F3)
     }
 
     Surface(
@@ -106,7 +109,8 @@ fun TransactionItem(
     val locale = LocaleManager.getActiveLocale(LocalContext.current)
     val isCredit = transaction.type == TransactionType.ESCROW_RELEASE ||
             transaction.type == TransactionType.TOP_UP ||
-            transaction.type == TransactionType.REFUND
+            transaction.type == TransactionType.REFUND ||
+            transaction.type == TransactionType.FX_CREDIT
     val amountPrefix = if (isCredit) "+" else "-"
     val amountColor = if (isCredit) Color(0xFF4CAF50) else Color(0xFFF44336)
 
