@@ -284,7 +284,7 @@ private fun ServiceCard(
                 )
                 Spacer(modifier = Modifier.height(4.dp))
                 Text(
-                    text = "${localizedPrice(service.price)} \u2022 ${localizedDuration(service.duration ?: 60)}",
+                    text = "${localizedPrice(service.displayPrice ?: service.price, service.currencyCode)} \u2022 ${localizedDuration(service.duration ?: 60)}",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -379,9 +379,13 @@ private fun ServiceErrorState(errorMessage: String, onRetry: () -> Unit) {
 }
 
 @Composable
-private fun localizedPrice(price: Number): String {
+private fun localizedPrice(price: Number, currencyCode: String?): String {
     val locale = LocaleManager.getActiveLocale(LocalContext.current)
-    return CurrencyFormatter.format(price, locale)
+    return if (currencyCode != null) {
+        CurrencyFormatter.formatWithCurrencyCode(price, currencyCode, locale)
+    } else {
+        CurrencyFormatter.format(price, locale)
+    }
 }
 
 @Composable

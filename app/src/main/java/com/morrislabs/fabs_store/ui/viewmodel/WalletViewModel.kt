@@ -98,7 +98,8 @@ class WalletViewModel(application: Application) : AndroidViewModel(application) 
         amount: Double,
         disbursementMethod: String,
         phoneNumber: String? = null,
-        stripeConnectedAccountId: String? = null
+        stripeConnectedAccountId: String? = null,
+        currencyCode: String? = null
     ) {
         _withdrawState.value = WithdrawState.Loading
 
@@ -109,7 +110,8 @@ class WalletViewModel(application: Application) : AndroidViewModel(application) 
                 phoneNumber = phoneNumber,
                 amount = amount,
                 disbursementMethod = disbursementMethod,
-                stripeConnectedAccountId = stripeConnectedAccountId
+                stripeConnectedAccountId = stripeConnectedAccountId,
+                currencyCode = currencyCode
             )
             walletRepository.initiateWithdrawal(storeId, request)
                 .onSuccess { wallet ->
@@ -191,15 +193,17 @@ class WalletViewModel(application: Application) : AndroidViewModel(application) 
         storeId: String,
         sourceCurrencyCode: String,
         targetCurrencyCode: String,
-        amount: Double
+        amount: Double,
+        quoteId: String? = null
     ) {
         _exchangeState.value = ExchangeState.Loading
         viewModelScope.launch {
-            Log.d(TAG, "Exchanging: $amount $sourceCurrencyCode -> $targetCurrencyCode")
+            Log.d(TAG, "Exchanging: $amount $sourceCurrencyCode -> $targetCurrencyCode (quoteId=$quoteId)")
             val request = CurrencyExchangeRequest(
                 sourceCurrencyCode = sourceCurrencyCode,
                 targetCurrencyCode = targetCurrencyCode,
-                amount = amount
+                amount = amount,
+                quoteId = quoteId
             )
             walletRepository.exchangeCurrency(storeId, request)
                 .onSuccess { response ->

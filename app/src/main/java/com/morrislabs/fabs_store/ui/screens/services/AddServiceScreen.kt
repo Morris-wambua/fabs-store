@@ -195,7 +195,8 @@ fun AddServiceScreen(
                     price = price,
                     onPriceChange = { price = it },
                     selectedDuration = selectedDuration,
-                    onDurationClick = { showDurationPicker = true }
+                    onDurationClick = { showDurationPicker = true },
+                    currencyCode = existingService?.currencyCode
                 )
 
                 Spacer(modifier = Modifier.height(24.dp))
