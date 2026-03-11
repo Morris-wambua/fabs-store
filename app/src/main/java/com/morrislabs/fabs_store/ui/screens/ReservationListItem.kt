@@ -156,7 +156,7 @@ internal fun ReservationRow(
                 }
                 Spacer(modifier = Modifier.weight(1f))
                 Text(
-                    text = CurrencyFormatter.format(reservation.price, locale),
+                    text = CurrencyFormatter.formatAmountFromCurrencyCode(reservation.price, reservation.currencyCode ?: java.util.Currency.getInstance(locale).currencyCode, locale),
                     style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.ExtraBold)
                 )
             }
