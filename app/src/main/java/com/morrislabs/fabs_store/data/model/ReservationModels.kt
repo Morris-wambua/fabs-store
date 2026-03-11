@@ -36,6 +36,7 @@ data class ReservationWithPaymentDTO(
     val id: String = "",
     val name: String = "",
     val price: Double = 0.0,
+    val currencyCode: String? = null,
     val reservationDate: String = "",  // LocalDate as string
     val startTime: String = "",        // LocalTime as string
     val endTime: String = "",          // LocalTime as string
@@ -64,6 +65,7 @@ data class ReservationDTO(
     val userId: String,
     val name: String,
     val price: Double,
+    val currencyCode: String? = null,
     val reservationDate: String,
     val startTime: String,
     val endTime: String,

@@ -252,11 +252,12 @@ fun ReservationDetailsScreen(
                         style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold),
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
-                    PaymentRow("Subtotal", CurrencyFormatter.format(reservation.price, locale))
-                    PaymentRow("Service Fee", CurrencyFormatter.format(0, locale))
-                    PaymentRow("Tax (8%)", CurrencyFormatter.format(0, locale))
+                    val effectiveCurrency = reservation.currencyCode ?: java.util.Currency.getInstance(locale).currencyCode
+                    PaymentRow("Subtotal", CurrencyFormatter.formatAmountFromCurrencyCode(reservation.price, effectiveCurrency, locale))
+                    PaymentRow("Service Fee", CurrencyFormatter.formatAmountFromCurrencyCode(0, effectiveCurrency, locale))
+                    PaymentRow("Tax (8%)", CurrencyFormatter.formatAmountFromCurrencyCode(0, effectiveCurrency, locale))
                     HorizontalDivider()
-                    PaymentRow("Total", CurrencyFormatter.format(reservation.price, locale), bold = true)
+                    PaymentRow("Total", CurrencyFormatter.formatAmountFromCurrencyCode(reservation.price, effectiveCurrency, locale), bold = true)
                 }
             }
 

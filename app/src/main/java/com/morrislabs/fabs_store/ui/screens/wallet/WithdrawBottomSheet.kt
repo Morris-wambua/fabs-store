@@ -208,9 +208,12 @@ fun WithdrawBottomSheet(
 
                     OutlinedTextField(
                         value = phoneNumber,
-                        onValueChange = {
-                            phoneNumber = it
-                            phoneError = null
+                        onValueChange = { newValue ->
+                            val digitsOnly = newValue.filter { it.isDigit() }
+                            if (digitsOnly.length <= maxLocalDigits(countryCode)) {
+                                phoneNumber = digitsOnly
+                                phoneError = null
+                            }
                         },
                         placeholder = {
                             Text(
@@ -236,7 +239,7 @@ fun WithdrawBottomSheet(
                             unfocusedTextColor = MaterialTheme.colorScheme.onBackground,
                             cursorColor = MaterialTheme.colorScheme.primary
                         ),
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone),
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                         isError = phoneError != null,
                         supportingText = phoneError?.let { { Text(it) } },
                         singleLine = true,
@@ -339,6 +342,29 @@ fun WithdrawBottomSheet(
             }
         }
     }
+}
+
+private fun maxLocalDigits(countryCode: String): Int = when (countryCode) {
+    "+254" -> 9
+    "+255" -> 9
+    "+256" -> 9
+    "+251" -> 9
+    "+250" -> 9
+    "+233" -> 9
+    "+234" -> 10
+    "+27" -> 9
+    "+91" -> 10
+    "+1" -> 10
+    "+44" -> 10
+    "+971" -> 9
+    "+61" -> 9
+    "+49" -> 11
+    "+33" -> 9
+    "+55" -> 11
+    "+86" -> 11
+    "+81" -> 10
+    "+20" -> 10
+    else -> 12
 }
 
 private data class CountryCodeEntry(val flag: String, val code: String, val name: String)
