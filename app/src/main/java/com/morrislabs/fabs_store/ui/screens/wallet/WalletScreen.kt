@@ -234,9 +234,7 @@ private fun WalletContent(
                 balance = walletItem.balance,
                 currency = walletItem.currency
             )
-        }
-
-        items(wallets, key = { "withdraw-${it.id ?: it.currency}" }) { walletItem ->
+            Spacer(modifier = Modifier.height(8.dp))
             Button(
                 onClick = { onWithdrawClick(walletItem) },
                 modifier = Modifier
