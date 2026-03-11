@@ -107,6 +107,7 @@ fun TransactionItem(
     modifier: Modifier = Modifier
 ) {
     val locale = LocaleManager.getActiveLocale(LocalContext.current)
+    val effectiveCurrency = transaction.currencyCode ?: walletCurrencyCode
     val isCredit = transaction.type == TransactionType.ESCROW_RELEASE ||
             transaction.type == TransactionType.TOP_UP ||
             transaction.type == TransactionType.REFUND ||
@@ -153,7 +154,7 @@ fun TransactionItem(
                     text = "${amountPrefix}${
                         CurrencyFormatter.formatAmountFromCurrencyCode(
                             transaction.amount,
-                            walletCurrencyCode,
+                            effectiveCurrency,
                             locale
                         )
                     }",
@@ -164,7 +165,7 @@ fun TransactionItem(
                     text = "Bal: ${
                         CurrencyFormatter.formatAmountFromCurrencyCode(
                             transaction.balanceAfter,
-                            walletCurrencyCode,
+                            effectiveCurrency,
                             locale
                         )
                     }",

@@ -160,7 +160,8 @@ fun ServiceDetailsScreen(
                 price = price,
                 onPriceChange = { if (it.all { c -> c.isDigit() }) price = it },
                 description = description,
-                onDescriptionChange = { description = it }
+                onDescriptionChange = { description = it },
+                currencyCode = service.currencyCode
             )
 
             Spacer(modifier = Modifier.height(12.dp))

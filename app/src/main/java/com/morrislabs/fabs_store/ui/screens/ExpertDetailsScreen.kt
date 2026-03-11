@@ -611,7 +611,7 @@ private fun ServiceItem(service: TypeOfServiceDTO) {
         }
 
         Text(
-            text = localizedPrice(service.price),
+            text = localizedPrice(service.displayPrice ?: service.price, service.currencyCode),
             style = MaterialTheme.typography.bodyLarge,
             fontWeight = FontWeight.Bold,
             color = MaterialTheme.colorScheme.primary
@@ -620,7 +620,11 @@ private fun ServiceItem(service: TypeOfServiceDTO) {
 }
 
 @Composable
-private fun localizedPrice(price: Number): String {
+private fun localizedPrice(price: Number, currencyCode: String?): String {
     val locale = LocaleManager.getActiveLocale(LocalContext.current)
-    return CurrencyFormatter.format(price, locale)
+    return if (currencyCode != null) {
+        CurrencyFormatter.formatWithCurrencyCode(price, currencyCode, locale)
+    } else {
+        CurrencyFormatter.format(price, locale)
+    }
 }

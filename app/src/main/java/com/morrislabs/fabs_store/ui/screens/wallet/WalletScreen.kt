@@ -54,15 +54,17 @@ fun WalletScreen(
     onNavigateBack: () -> Unit
 ) {
     val walletState by walletViewModel.walletState.collectAsState()
+    val allWalletsState by walletViewModel.allWalletsState.collectAsState()
     val transactionsState by walletViewModel.transactionsState.collectAsState()
     val withdrawState by walletViewModel.withdrawState.collectAsState()
     val snackbarHostState = remember { SnackbarHostState() }
-    var showWithdrawSheet by remember { mutableStateOf(false) }
+    var selectedWalletForWithdraw by remember { mutableStateOf<WalletDTO?>(null) }
     var isRefreshing by remember { mutableStateOf(false) }
 
     LaunchedEffect(storeId) {
         if (storeId.isNotEmpty()) {
             walletViewModel.fetchWallet(storeId)
+            walletViewModel.fetchAllWallets(storeId)
             walletViewModel.fetchTransactions(storeId)
         }
     }
@@ -70,7 +72,7 @@ fun WalletScreen(
     LaunchedEffect(withdrawState) {
         when (withdrawState) {
             is WalletViewModel.WithdrawState.Success -> {
-                showWithdrawSheet = false
+                selectedWalletForWithdraw = null
                 snackbarHostState.showSnackbar("Withdrawal initiated successfully")
                 walletViewModel.resetWithdrawState()
             }
@@ -96,6 +98,7 @@ fun WalletScreen(
             if (storeId.isNotEmpty()) {
                 isRefreshing = true
                 walletViewModel.fetchWallet(storeId)
+                walletViewModel.fetchAllWallets(storeId)
                 walletViewModel.fetchTransactions(storeId)
             }
         }
@@ -166,6 +169,11 @@ fun WalletScreen(
 
                 is WalletViewModel.WalletLoadingState.Success -> {
                     val wallet = (walletState as WalletViewModel.WalletLoadingState.Success<WalletDTO>).data
+                    val allWallets = when (allWalletsState) {
+                        is WalletViewModel.WalletLoadingState.Success ->
+                            (allWalletsState as WalletViewModel.WalletLoadingState.Success<List<WalletDTO>>).data
+                        else -> listOf(wallet)
+                    }
                     val transactions = when (transactionsState) {
                         is WalletViewModel.WalletLoadingState.Success ->
                             (transactionsState as WalletViewModel.WalletLoadingState.Success<List<WalletTransactionDTO>>).data
@@ -173,10 +181,10 @@ fun WalletScreen(
                     }
 
                     WalletContent(
-                        wallet = wallet,
+                        wallets = allWallets,
                         transactions = transactions,
                         transactionsLoading = transactionsState is WalletViewModel.WalletLoadingState.Loading,
-                        onWithdrawClick = { showWithdrawSheet = true }
+                        onWithdrawClick = { walletItem -> selectedWalletForWithdraw = walletItem }
                     )
                 }
             }
@@ -189,57 +197,55 @@ fun WalletScreen(
         }
     }
 
-    if (showWithdrawSheet) {
-        val wallet = (walletState as? WalletViewModel.WalletLoadingState.Success<WalletDTO>)?.data
-        if (wallet != null) {
-            WithdrawBottomSheet(
-                balance = wallet.balance,
-                currency = wallet.currency,
-                isLoading = withdrawState is WalletViewModel.WithdrawState.Loading,
-                onDismiss = { showWithdrawSheet = false },
-                onWithdraw = { amount, method, phoneNumber, stripeConnectedAccountId ->
-                    walletViewModel.initiateWithdrawal(
-                        storeId = storeId,
-                        amount = amount,
-                        disbursementMethod = method,
-                        phoneNumber = phoneNumber,
-                        stripeConnectedAccountId = stripeConnectedAccountId
-                    )
-                }
-            )
-        }
+    selectedWalletForWithdraw?.let { selectedWallet ->
+        WithdrawBottomSheet(
+            balance = selectedWallet.balance,
+            currency = selectedWallet.currency,
+            isLoading = withdrawState is WalletViewModel.WithdrawState.Loading,
+            onDismiss = { selectedWalletForWithdraw = null },
+            onWithdraw = { amount, method, phoneNumber, stripeConnectedAccountId ->
+                walletViewModel.initiateWithdrawal(
+                    storeId = storeId,
+                    amount = amount,
+                    disbursementMethod = method,
+                    phoneNumber = phoneNumber,
+                    stripeConnectedAccountId = stripeConnectedAccountId,
+                    currencyCode = selectedWallet.currency
+                )
+            }
+        )
     }
 }
 
 @Composable
 private fun WalletContent(
-    wallet: WalletDTO,
+    wallets: List<WalletDTO>,
     transactions: List<WalletTransactionDTO>,
     transactionsLoading: Boolean,
-    onWithdrawClick: () -> Unit
+    onWithdrawClick: (WalletDTO) -> Unit
 ) {
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
         contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
-        item {
+        items(wallets, key = { it.id ?: it.currency }) { walletItem ->
             WalletBalanceCard(
-                balance = wallet.balance,
-                currency = wallet.currency
+                balance = walletItem.balance,
+                currency = walletItem.currency
             )
         }
 
-        item {
+        items(wallets, key = { "withdraw-${it.id ?: it.currency}" }) { walletItem ->
             Button(
-                onClick = onWithdrawClick,
+                onClick = { onWithdrawClick(walletItem) },
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(50.dp),
                 shape = RoundedCornerShape(12.dp)
             ) {
                 Text(
-                    text = "Withdraw",
+                    text = "Withdraw ${walletItem.currency}",
                     style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Bold)
                 )
             }
@@ -292,7 +298,7 @@ private fun WalletContent(
             items(transactions, key = { it.id ?: it.hashCode().toString() }) { transaction ->
                 TransactionItem(
                     transaction = transaction,
-                    walletCurrencyCode = wallet.currency
+                    walletCurrencyCode = wallets.firstOrNull()?.currency ?: ""
                 )
             }
         }

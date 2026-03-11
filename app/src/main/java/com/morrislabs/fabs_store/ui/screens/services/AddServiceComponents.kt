@@ -178,7 +178,8 @@ internal fun PriceAndDurationRow(
     price: String,
     onPriceChange: (String) -> Unit,
     selectedDuration: Int,
-    onDurationClick: () -> Unit
+    onDurationClick: () -> Unit,
+    currencyCode: String? = null
 ) {
     val locale = LocaleManager.getActiveLocale(LocalContext.current)
 
@@ -197,7 +198,14 @@ internal fun PriceAndDurationRow(
                 value = price,
                 onValueChange = { if (it.all { c -> c.isDigit() }) onPriceChange(it) },
                 placeholder = { Text("0") },
-                prefix = { Text("${CurrencyFormatter.currencySymbol(locale)} ") },
+                prefix = {
+                    val symbol = if (currencyCode != null) {
+                        runCatching { java.util.Currency.getInstance(currencyCode).symbol }.getOrDefault("$")
+                    } else {
+                        CurrencyFormatter.currencySymbol(locale)
+                    }
+                    Text("$symbol ")
+                },
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(12.dp),
                 singleLine = true,

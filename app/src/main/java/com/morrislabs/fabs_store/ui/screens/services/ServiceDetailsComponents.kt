@@ -176,7 +176,8 @@ internal fun GeneralInfoCard(
     price: String,
     onPriceChange: (String) -> Unit,
     description: String,
-    onDescriptionChange: (String) -> Unit
+    onDescriptionChange: (String) -> Unit,
+    currencyCode: String? = null
 ) {
     val locale = LocaleManager.getActiveLocale(LocalContext.current)
 
@@ -207,7 +208,14 @@ internal fun GeneralInfoCard(
             OutlinedTextField(
                 value = price,
                 onValueChange = onPriceChange,
-                prefix = { Text(CurrencyFormatter.currencySymbol(locale)) },
+                prefix = {
+                    val symbol = if (currencyCode != null) {
+                        runCatching { java.util.Currency.getInstance(currencyCode).symbol }.getOrDefault("$")
+                    } else {
+                        CurrencyFormatter.currencySymbol(locale)
+                    }
+                    Text(symbol)
+                },
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(12.dp),
                 singleLine = true,

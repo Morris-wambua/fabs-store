@@ -32,7 +32,8 @@ data class WalletTransactionDTO(
     val balanceAfter: Double = 0.0,
     val referenceId: String? = null,
     val description: String? = null,
-    val dateCreated: String? = null
+    val dateCreated: String? = null,
+    val currencyCode: String? = null
 )
 
 @Serializable
@@ -91,7 +92,8 @@ data class PagedPayoutResponse(
 data class CurrencyExchangeRequest(
     val sourceCurrencyCode: String,
     val targetCurrencyCode: String,
-    val amount: Double
+    val amount: Double,
+    val quoteId: String? = null
 )
 
 @Serializable
@@ -103,7 +105,9 @@ data class CurrencyExchangeResponse(
     val spreadFee: Double = 0.0,
     val targetAmount: Double = 0.0,
     val sourceBalanceAfter: Double = 0.0,
-    val targetBalanceAfter: Double = 0.0
+    val targetBalanceAfter: Double = 0.0,
+    val quoteId: String? = null,
+    val expiresAt: String? = null
 )
 
 
