@@ -4,6 +4,8 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectDragGestures
+import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.gestures.detectTransformGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -25,9 +27,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.OpenInFull
 import androidx.compose.material.icons.filled.Palette
-import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.TextFields
 import androidx.compose.material3.Icon
@@ -44,6 +44,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.text.font.FontWeight
@@ -172,6 +173,9 @@ private fun DraggableOverlayItem(
     var itemWidthPx by remember(overlay.id) { mutableStateOf(1f) }
     var itemHeightPx by remember(overlay.id) { mutableStateOf(1f) }
 
+    val currentOverlay by androidx.compose.runtime.rememberUpdatedState(overlay)
+    val currentCallback by androidx.compose.runtime.rememberUpdatedState(onOverlayMoved)
+
     val startX = (overlay.normalizedX * maxWidthPx) - (itemWidthPx / 2f)
     val startY = (overlay.normalizedY * maxHeightPx) - (itemHeightPx / 2f)
 
@@ -182,27 +186,40 @@ private fun DraggableOverlayItem(
                 itemWidthPx = it.width.toFloat().coerceAtLeast(1f)
                 itemHeightPx = it.height.toFloat().coerceAtLeast(1f)
             }
-            .pointerInput(overlay.id, maxWidthPx, maxHeightPx, itemWidthPx, itemHeightPx) {
-                detectDragGestures { change, dragAmount ->
-                    change.consume()
-                    val currentLeft = (overlay.normalizedX * maxWidthPx) - (itemWidthPx / 2f)
-                    val currentTop = (overlay.normalizedY * maxHeightPx) - (itemHeightPx / 2f)
-                    val newLeft = (currentLeft + dragAmount.x).coerceIn(0f, maxWidthPx - itemWidthPx)
-                    val newTop = (currentTop + dragAmount.y).coerceIn(0f, maxHeightPx - itemHeightPx)
+            .pointerInput(overlay.id) {
+                detectTransformGestures { _, pan, zoom, gestureRotation ->
+                    val o = currentOverlay
+                    val cLeft = (o.normalizedX * maxWidthPx) - (itemWidthPx / 2f)
+                    val cTop = (o.normalizedY * maxHeightPx) - (itemHeightPx / 2f)
+                    val newLeft = (cLeft + pan.x).coerceIn(0f, maxWidthPx - itemWidthPx)
+                    val newTop = (cTop + pan.y).coerceIn(0f, maxHeightPx - itemHeightPx)
                     val updatedX = ((newLeft + itemWidthPx / 2f) / maxWidthPx).coerceIn(0f, 1f)
                     val updatedY = ((newTop + itemHeightPx / 2f) / maxHeightPx).coerceIn(0f, 1f)
-                    val updated = when (overlay) {
-                        is OverlayItem.TextOverlay -> overlay.copy(normalizedX = updatedX, normalizedY = updatedY)
-                        is OverlayItem.StickerOverlay -> overlay.copy(normalizedX = updatedX, normalizedY = updatedY)
+                    val newScale = (o.scale * zoom).coerceIn(0.5f, 3f)
+                    val newRotation = o.rotation + gestureRotation
+                    val updated = when (o) {
+                        is OverlayItem.TextOverlay -> o.copy(
+                            normalizedX = updatedX, normalizedY = updatedY,
+                            scale = newScale, rotation = newRotation
+                        )
+                        is OverlayItem.StickerOverlay -> o.copy(
+                            normalizedX = updatedX, normalizedY = updatedY,
+                            scale = newScale, rotation = newRotation
+                        )
                     }
-                    onOverlayMoved(updated)
+                    currentCallback(updated)
                 }
             }
             .clickable { onTap() }
+            .graphicsLayer {
+                scaleX = overlay.scale
+                scaleY = overlay.scale
+                rotationZ = overlay.rotation
+            }
     ) {
         Box(
             modifier = if (isSelected) Modifier
-                .border(1.5.dp, StickerPrimaryGreen, RoundedCornerShape(10.dp))
+                .border(1.5.dp, Color(0xFF13EC5B), RoundedCornerShape(10.dp))
                 .padding(6.dp)
             else Modifier
         ) {
@@ -246,36 +263,48 @@ private fun DraggableOverlayItem(
                     .offset(x = 8.dp, y = (-8).dp)
                     .size(24.dp)
                     .clip(CircleShape)
-                    .background(StickerPrimaryGreen)
+                    .background(Color(0xFF13EC5B))
                     .clickable { onDelete() },
                 contentAlignment = Alignment.Center
             ) {
                 Icon(Icons.Default.Close, contentDescription = "Delete", tint = Color.Black, modifier = Modifier.size(14.dp))
             }
+        }
+    }
+}
 
-            Box(
-                modifier = Modifier
-                    .align(Alignment.BottomStart)
-                    .offset(x = (-8).dp, y = 8.dp)
-                    .size(24.dp)
-                    .clip(CircleShape)
-                    .background(StickerPrimaryGreen),
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(Icons.Default.Refresh, contentDescription = "Rotate", tint = Color.Black, modifier = Modifier.size(14.dp))
-            }
+@Composable
+fun ImageEditorPreview(
+    mediaUri: android.net.Uri?,
+    overlays: List<OverlayItem>,
+    onOverlayMoved: (OverlayItem) -> Unit,
+    onOverlayDeleted: (String) -> Unit = {},
+    modifier: Modifier = Modifier
+) {
+    BoxWithConstraints(modifier = modifier) {
+        val maxWidthPx = constraints.maxWidth.toFloat().coerceAtLeast(1f)
+        val maxHeightPx = constraints.maxHeight.toFloat().coerceAtLeast(1f)
+        var selectedOverlayId by remember { mutableStateOf<String?>(null) }
 
-            Box(
-                modifier = Modifier
-                    .align(Alignment.BottomEnd)
-                    .offset(x = 8.dp, y = 8.dp)
-                    .size(24.dp)
-                    .clip(CircleShape)
-                    .background(StickerPrimaryGreen),
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(Icons.Default.OpenInFull, contentDescription = "Resize", tint = Color.Black, modifier = Modifier.size(14.dp))
-            }
+        if (mediaUri != null) {
+            coil.compose.AsyncImage(
+                model = mediaUri,
+                contentDescription = "Image preview",
+                contentScale = androidx.compose.ui.layout.ContentScale.Crop,
+                modifier = Modifier.fillMaxSize()
+            )
+        }
+
+        overlays.forEach { overlay ->
+            DraggableOverlayItem(
+                overlay = overlay,
+                maxWidthPx = maxWidthPx,
+                maxHeightPx = maxHeightPx,
+                isSelected = overlay.id == selectedOverlayId,
+                onTap = { selectedOverlayId = if (selectedOverlayId == overlay.id) null else overlay.id },
+                onOverlayMoved = onOverlayMoved,
+                onDelete = { onOverlayDeleted(overlay.id) }
+            )
         }
     }
 }

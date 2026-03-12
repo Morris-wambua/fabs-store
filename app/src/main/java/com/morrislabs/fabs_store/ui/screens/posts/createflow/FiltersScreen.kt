@@ -39,9 +39,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.graphics.ColorMatrix
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
@@ -50,8 +48,7 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.media3.common.MediaItem
 import androidx.media3.exoplayer.ExoPlayer
-import androidx.media3.ui.AspectRatioFrameLayout
-import androidx.media3.ui.PlayerView
+
 import com.morrislabs.fabs_store.data.model.PostType
 
 private val FilterPanelBg = Color.Black
@@ -135,25 +132,6 @@ private fun buildColorMatrix(filterName: String, intensity: Float): ColorMatrix?
 }
 
 @Composable
-private fun FilteredPreviewBox(
-    colorMatrix: ColorMatrix?,
-    modifier: Modifier = Modifier,
-    content: @Composable () -> Unit
-) {
-    if (colorMatrix == null) {
-        Box(modifier = modifier) { content() }
-    } else {
-        val graphicsLayer = androidx.compose.ui.rememberGraphicsLayer()
-        Box(
-            modifier = modifier.drawWithContent {
-                graphicsLayer.record { this@drawWithContent.drawContent() }
-                drawLayer(graphicsLayer, colorFilter = ColorFilter.colorMatrix(colorMatrix))
-            }
-        ) { content() }
-    }
-}
-
-@Composable
 fun FiltersScreen(
     viewModel: CreatePostFlowViewModel,
     onBack: () -> Unit,
@@ -193,29 +171,37 @@ fun FiltersScreen(
             .fillMaxSize()
             .background(Color.Black)
     ) {
-        FilteredPreviewBox(
-            colorMatrix = colorMatrix,
-            modifier = Modifier.fillMaxSize()
-        ) {
-            if (isVideo && exoPlayer != null) {
-                AndroidView(
-                    factory = { ctx ->
-                        PlayerView(ctx).apply {
-                            this.player = exoPlayer
-                            resizeMode = AspectRatioFrameLayout.RESIZE_MODE_ZOOM
-                            useController = false
+        if (isVideo && exoPlayer != null) {
+            AndroidView(
+                factory = { ctx ->
+                    android.view.TextureView(ctx).also { tv ->
+                        exoPlayer.setVideoTextureView(tv)
+                    }
+                },
+                update = { tv ->
+                    val cm = colorMatrix
+                    if (cm != null) {
+                        val androidMatrix = android.graphics.ColorMatrix(cm.values)
+                        val paint = android.graphics.Paint().apply {
+                            colorFilter = android.graphics.ColorMatrixColorFilter(androidMatrix)
                         }
-                    },
-                    modifier = Modifier.fillMaxSize()
-                )
-            } else if (!isVideo && draft.mediaUri != null) {
-                coil.compose.AsyncImage(
-                    model = draft.mediaUri,
-                    contentDescription = "Image preview",
-                    contentScale = androidx.compose.ui.layout.ContentScale.Crop,
-                    modifier = Modifier.fillMaxSize()
-                )
-            }
+                        tv.setLayerType(android.view.View.LAYER_TYPE_HARDWARE, paint)
+                    } else {
+                        tv.setLayerType(android.view.View.LAYER_TYPE_NONE, null)
+                    }
+                },
+                modifier = Modifier.fillMaxSize()
+            )
+        } else if (!isVideo && draft.mediaUri != null) {
+            coil.compose.AsyncImage(
+                model = draft.mediaUri,
+                contentDescription = "Image preview",
+                contentScale = androidx.compose.ui.layout.ContentScale.Crop,
+                colorFilter = colorMatrix?.let {
+                    androidx.compose.ui.graphics.ColorFilter.colorMatrix(it)
+                },
+                modifier = Modifier.fillMaxSize()
+            )
         }
 
         // Top bar overlay

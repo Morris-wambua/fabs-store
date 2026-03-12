@@ -111,8 +111,14 @@ fun RecordVideoScreen(
     var showSpeedPopup by remember { mutableStateOf(false) }
     var showFilterStrip by remember { mutableStateOf(false) }
     var showTimerSheet by remember { mutableStateOf(false) }
+    val contentResolver = context.contentResolver
     val galleryLauncher = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri: Uri? ->
-        uri?.let { viewModel.setMediaUri(it, PostType.VIDEO); onNavigateToTrimCrop() }
+        uri?.let {
+            val mimeType = contentResolver.getType(it)
+            val type = if (mimeType?.startsWith("image/") == true) PostType.IMAGE else PostType.VIDEO
+            viewModel.setMediaUri(it, type)
+            onNavigateToTrimCrop()
+        }
     }
 
     DisposableEffect(isPhotoMode) {
@@ -268,7 +274,7 @@ fun RecordVideoScreen(
                     }
                 }
             },
-            onUpload = { galleryLauncher.launch("video/*") },
+            onUpload = { galleryLauncher.launch("*/*") },
             onDurationChange = { viewModel.setDurationMode(it) }
         )
 

@@ -99,23 +99,17 @@ fun TextStickersScreen(
                             .background(Color.Black)
                     )
                 } else {
-                    Box(
+                    ImageEditorPreview(
+                        mediaUri = draft.mediaUri,
+                        overlays = draft.overlays,
+                        onOverlayMoved = { viewModel.updateOverlay(it) },
+                        onOverlayDeleted = { viewModel.removeOverlay(it) },
                         modifier = Modifier
                             .fillMaxWidth()
                             .height(460.dp)
                             .clip(RoundedCornerShape(24.dp))
-                            .background(Color.Black),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        if (draft.mediaUri != null) {
-                            coil.compose.AsyncImage(
-                                model = draft.mediaUri,
-                                contentDescription = "Image preview",
-                                contentScale = androidx.compose.ui.layout.ContentScale.Crop,
-                                modifier = Modifier.fillMaxSize()
-                            )
-                        }
-                    }
+                            .background(Color.Black)
+                    )
                 }
             }
 
