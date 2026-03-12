@@ -25,6 +25,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import com.morrislabs.fabs_store.data.model.PostType
 import androidx.media3.common.MediaItem
 import androidx.media3.common.Player
 import androidx.media3.exoplayer.ExoPlayer
@@ -48,15 +49,19 @@ fun TextStickersScreen(
     var selectedTextStyle by remember { mutableStateOf(TextStyleType.MODERN) }
     var selectedTextColor by remember { mutableStateOf(0xFFFFFFFF) }
 
-    val player = remember(draft.mediaUri) {
-        draft.mediaUri?.let { uri ->
-            ExoPlayer.Builder(context).build().apply {
-                setMediaItem(MediaItem.fromUri(uri))
-                repeatMode = Player.REPEAT_MODE_ONE
-                prepare()
-                playWhenReady = true
+    val isVideo = draft.postType == PostType.VIDEO
+
+    val player = remember(draft.mediaUri, isVideo) {
+        if (isVideo) {
+            draft.mediaUri?.let { uri ->
+                ExoPlayer.Builder(context).build().apply {
+                    setMediaItem(MediaItem.fromUri(uri))
+                    repeatMode = Player.REPEAT_MODE_ONE
+                    prepare()
+                    playWhenReady = true
+                }
             }
-        }
+        } else null
     }
 
     DisposableEffect(player) {
@@ -81,17 +86,37 @@ fun TextStickersScreen(
                     .padding(horizontal = 16.dp, vertical = 12.dp),
                 contentAlignment = Alignment.Center
             ) {
-                VideoEditorPreview(
-                    player = player,
-                    overlays = draft.overlays,
-                    onOverlayMoved = { viewModel.updateOverlay(it) },
-                    onOverlayDeleted = { viewModel.removeOverlay(it) },
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(460.dp)
-                        .clip(RoundedCornerShape(24.dp))
-                        .background(Color.Black)
-                )
+                if (isVideo) {
+                    VideoEditorPreview(
+                        player = player,
+                        overlays = draft.overlays,
+                        onOverlayMoved = { viewModel.updateOverlay(it) },
+                        onOverlayDeleted = { viewModel.removeOverlay(it) },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(460.dp)
+                            .clip(RoundedCornerShape(24.dp))
+                            .background(Color.Black)
+                    )
+                } else {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(460.dp)
+                            .clip(RoundedCornerShape(24.dp))
+                            .background(Color.Black),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        if (draft.mediaUri != null) {
+                            coil.compose.AsyncImage(
+                                model = draft.mediaUri,
+                                contentDescription = "Image preview",
+                                contentScale = androidx.compose.ui.layout.ContentScale.Crop,
+                                modifier = Modifier.fillMaxSize()
+                            )
+                        }
+                    }
+                }
             }
 
             Column(

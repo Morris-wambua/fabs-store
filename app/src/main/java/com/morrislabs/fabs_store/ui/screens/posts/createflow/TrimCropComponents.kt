@@ -195,6 +195,38 @@ internal fun VideoPreview(
 }
 
 @Composable
+internal fun ImagePreview(
+    imageUri: android.net.Uri?,
+    aspectRatio: AspectRatioMode = AspectRatioMode.RATIO_9_16
+) {
+    val ratio = when (aspectRatio) {
+        AspectRatioMode.RATIO_9_16 -> 9f / 16f
+        AspectRatioMode.RATIO_1_1 -> 1f
+        AspectRatioMode.RATIO_4_5 -> 4f / 5f
+        AspectRatioMode.RATIO_16_9 -> 16f / 9f
+    }
+
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .aspectRatio(ratio)
+            .heightIn(max = 400.dp)
+            .clip(RoundedCornerShape(16.dp))
+            .background(Slate900),
+        contentAlignment = Alignment.Center
+    ) {
+        if (imageUri != null) {
+            coil.compose.AsyncImage(
+                model = imageUri,
+                contentDescription = "Image preview",
+                contentScale = ContentScale.Crop,
+                modifier = Modifier.fillMaxSize()
+            )
+        }
+    }
+}
+
+@Composable
 internal fun TrimDurationSection(
     trimStartMs: Long,
     trimEndMs: Long,

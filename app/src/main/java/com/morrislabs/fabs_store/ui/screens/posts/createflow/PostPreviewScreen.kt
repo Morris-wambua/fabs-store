@@ -43,6 +43,7 @@ import androidx.media3.common.Player
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.ui.AspectRatioFrameLayout
 import androidx.media3.ui.PlayerView
+import com.morrislabs.fabs_store.data.model.PostType
 
 private val PreviewPrimaryGreen = Color(0xFF13EC5B)
 
@@ -56,15 +57,19 @@ fun PostPreviewScreen(
     val draft by viewModel.draft.collectAsState()
     val context = LocalContext.current
 
-    val player = remember(draft.mediaUri) {
-        draft.mediaUri?.let { uri ->
-            ExoPlayer.Builder(context).build().apply {
-                setMediaItem(MediaItem.fromUri(uri))
-                repeatMode = Player.REPEAT_MODE_ONE
-                prepare()
-                playWhenReady = true
+    val isVideo = draft.postType == PostType.VIDEO
+
+    val player = remember(draft.mediaUri, isVideo) {
+        if (isVideo) {
+            draft.mediaUri?.let { uri ->
+                ExoPlayer.Builder(context).build().apply {
+                    setMediaItem(MediaItem.fromUri(uri))
+                    repeatMode = Player.REPEAT_MODE_ONE
+                    prepare()
+                    playWhenReady = true
+                }
             }
-        }
+        } else null
     }
 
     DisposableEffect(player) {
@@ -72,7 +77,7 @@ fun PostPreviewScreen(
     }
 
     Box(modifier = Modifier.fillMaxSize().background(Color.Black)) {
-        if (player != null) {
+        if (isVideo && player != null) {
             AndroidView(
                 factory = { ctx ->
                     PlayerView(ctx).apply {
@@ -81,6 +86,13 @@ fun PostPreviewScreen(
                         resizeMode = AspectRatioFrameLayout.RESIZE_MODE_ZOOM
                     }
                 },
+                modifier = Modifier.fillMaxSize()
+            )
+        } else if (!isVideo && draft.mediaUri != null) {
+            coil.compose.AsyncImage(
+                model = draft.mediaUri,
+                contentDescription = "Image preview",
+                contentScale = androidx.compose.ui.layout.ContentScale.Crop,
                 modifier = Modifier.fillMaxSize()
             )
         }
