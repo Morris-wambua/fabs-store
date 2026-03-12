@@ -39,7 +39,10 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.ColorFilter
+import androidx.compose.ui.graphics.ColorMatrix
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -49,6 +52,7 @@ import androidx.media3.common.MediaItem
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.ui.AspectRatioFrameLayout
 import androidx.media3.ui.PlayerView
+import com.morrislabs.fabs_store.data.model.PostType
 
 private val FilterPanelBg = Color.Black
 private val CloseButtonBg = Color(0xFF333333)
@@ -72,6 +76,83 @@ private val filterColors = mapOf(
     "Mono" to Color(0xFF7F8C8D)
 )
 
+private fun buildColorMatrix(filterName: String, intensity: Float): ColorMatrix? {
+    if (filterName == "Original" || intensity <= 0f) return null
+    val base = when (filterName) {
+        "Vibrant" -> ColorMatrix(floatArrayOf(
+            1.3f, 0f, 0f, 0f, 10f,
+            0f, 1.3f, 0f, 0f, 10f,
+            0f, 0f, 1.3f, 0f, 10f,
+            0f, 0f, 0f, 1f, 0f
+        ))
+        "Soft Glow" -> ColorMatrix(floatArrayOf(
+            1.1f, 0.05f, 0.05f, 0f, 15f,
+            0.05f, 1.1f, 0.05f, 0f, 15f,
+            0.05f, 0.05f, 1.05f, 0f, 20f,
+            0f, 0f, 0f, 1f, 0f
+        ))
+        "Professional" -> ColorMatrix(floatArrayOf(
+            0.95f, 0.05f, 0f, 0f, 0f,
+            0f, 0.95f, 0.1f, 0f, 0f,
+            0.05f, 0.05f, 1.1f, 0f, 5f,
+            0f, 0f, 0f, 1f, 0f
+        ))
+        "Bold" -> ColorMatrix(floatArrayOf(
+            1.4f, 0f, 0f, 0f, -20f,
+            0f, 1.1f, 0f, 0f, -10f,
+            0f, 0f, 1.0f, 0f, -10f,
+            0f, 0f, 0f, 1f, 0f
+        ))
+        "Warm" -> ColorMatrix(floatArrayOf(
+            1.2f, 0.1f, 0f, 0f, 10f,
+            0f, 1.05f, 0f, 0f, 5f,
+            0f, 0f, 0.9f, 0f, -10f,
+            0f, 0f, 0f, 1f, 0f
+        ))
+        "Cool" -> ColorMatrix(floatArrayOf(
+            0.9f, 0f, 0f, 0f, -10f,
+            0f, 1.0f, 0.05f, 0f, 0f,
+            0.05f, 0.1f, 1.2f, 0f, 15f,
+            0f, 0f, 0f, 1f, 0f
+        ))
+        "Mono" -> ColorMatrix(floatArrayOf(
+            0.33f, 0.59f, 0.11f, 0f, 0f,
+            0.33f, 0.59f, 0.11f, 0f, 0f,
+            0.33f, 0.59f, 0.11f, 0f, 0f,
+            0f, 0f, 0f, 1f, 0f
+        ))
+        else -> return null
+    }
+    if (intensity >= 1f) return base
+    val identity = ColorMatrix()
+    val result = FloatArray(20)
+    val bv = base.values
+    val iv = identity.values
+    for (i in 0 until 20) {
+        result[i] = iv[i] + (bv[i] - iv[i]) * intensity
+    }
+    return ColorMatrix(result)
+}
+
+@Composable
+private fun FilteredPreviewBox(
+    colorMatrix: ColorMatrix?,
+    modifier: Modifier = Modifier,
+    content: @Composable () -> Unit
+) {
+    if (colorMatrix == null) {
+        Box(modifier = modifier) { content() }
+    } else {
+        val graphicsLayer = androidx.compose.ui.rememberGraphicsLayer()
+        Box(
+            modifier = modifier.drawWithContent {
+                graphicsLayer.record { this@drawWithContent.drawContent() }
+                drawLayer(graphicsLayer, colorFilter = ColorFilter.colorMatrix(colorMatrix))
+            }
+        ) { content() }
+    }
+}
+
 @Composable
 fun FiltersScreen(
     viewModel: CreatePostFlowViewModel,
@@ -84,19 +165,27 @@ fun FiltersScreen(
         mutableFloatStateOf(draft.filter.intensity)
     }
 
-    val exoPlayer = remember(draft.mediaUri) {
-        draft.mediaUri?.let { uri ->
-            ExoPlayer.Builder(context).build().apply {
-                setMediaItem(MediaItem.fromUri(uri))
-                repeatMode = ExoPlayer.REPEAT_MODE_ONE
-                prepare()
-                playWhenReady = true
+    val isVideo = draft.postType == PostType.VIDEO
+
+    val exoPlayer = remember(draft.mediaUri, isVideo) {
+        if (isVideo) {
+            draft.mediaUri?.let { uri ->
+                ExoPlayer.Builder(context).build().apply {
+                    setMediaItem(MediaItem.fromUri(uri))
+                    repeatMode = ExoPlayer.REPEAT_MODE_ONE
+                    prepare()
+                    playWhenReady = true
+                }
             }
-        }
+        } else null
     }
 
     DisposableEffect(exoPlayer) {
         onDispose { exoPlayer?.release() }
+    }
+
+    val colorMatrix = remember(draft.filter.name, localIntensity) {
+        buildColorMatrix(draft.filter.name, localIntensity)
     }
 
     Box(
@@ -104,18 +193,29 @@ fun FiltersScreen(
             .fillMaxSize()
             .background(Color.Black)
     ) {
-        // Video preview - fills entire screen
-        if (exoPlayer != null) {
-            AndroidView(
-                factory = { ctx ->
-                    PlayerView(ctx).apply {
-                        this.player = exoPlayer
-                        resizeMode = AspectRatioFrameLayout.RESIZE_MODE_ZOOM
-                        useController = false
-                    }
-                },
-                modifier = Modifier.fillMaxSize()
-            )
+        FilteredPreviewBox(
+            colorMatrix = colorMatrix,
+            modifier = Modifier.fillMaxSize()
+        ) {
+            if (isVideo && exoPlayer != null) {
+                AndroidView(
+                    factory = { ctx ->
+                        PlayerView(ctx).apply {
+                            this.player = exoPlayer
+                            resizeMode = AspectRatioFrameLayout.RESIZE_MODE_ZOOM
+                            useController = false
+                        }
+                    },
+                    modifier = Modifier.fillMaxSize()
+                )
+            } else if (!isVideo && draft.mediaUri != null) {
+                coil.compose.AsyncImage(
+                    model = draft.mediaUri,
+                    contentDescription = "Image preview",
+                    contentScale = androidx.compose.ui.layout.ContentScale.Crop,
+                    modifier = Modifier.fillMaxSize()
+                )
+            }
         }
 
         // Top bar overlay

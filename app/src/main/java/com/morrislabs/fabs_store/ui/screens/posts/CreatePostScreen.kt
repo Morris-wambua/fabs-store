@@ -139,7 +139,13 @@ fun CreatePostScreen(
                 FiltersScreen(
                     viewModel = flowViewModel,
                     onBack = { currentRoute = CreatePostFlowRoutes.TRIM_CROP },
-                    onNext = { goToSounds(CreatePostFlowRoutes.TEXT_STICKERS) }
+                    onNext = {
+                        if (draft.postType == com.morrislabs.fabs_store.data.model.PostType.IMAGE) {
+                            currentRoute = CreatePostFlowRoutes.TEXT_STICKERS
+                        } else {
+                            goToSounds(CreatePostFlowRoutes.TEXT_STICKERS)
+                        }
+                    }
                 )
             }
 

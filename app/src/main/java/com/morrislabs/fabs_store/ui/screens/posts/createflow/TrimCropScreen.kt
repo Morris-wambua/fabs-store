@@ -43,6 +43,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.media3.common.MediaItem
 import androidx.media3.exoplayer.ExoPlayer
+import com.morrislabs.fabs_store.data.model.PostType
 import kotlinx.coroutines.delay
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -54,59 +55,64 @@ fun TrimCropScreen(
 ) {
     val draft by viewModel.draft.collectAsState()
     val context = LocalContext.current
+    val isVideo = draft.postType == PostType.VIDEO
 
     var isPlaying by remember { mutableStateOf(false) }
     var currentPositionMs by remember { mutableLongStateOf(draft.trim.startMs) }
     var videoDurationMs by remember { mutableLongStateOf(15_000L) }
 
-    val exoPlayer = remember(draft.mediaUri) {
-        draft.mediaUri?.let { uri ->
-            ExoPlayer.Builder(context).build().apply {
-                setMediaItem(MediaItem.fromUri(uri))
-                repeatMode = ExoPlayer.REPEAT_MODE_ONE
-                prepare()
-                playWhenReady = false
+    val exoPlayer = remember(draft.mediaUri, isVideo) {
+        if (isVideo) {
+            draft.mediaUri?.let { uri ->
+                ExoPlayer.Builder(context).build().apply {
+                    setMediaItem(MediaItem.fromUri(uri))
+                    repeatMode = ExoPlayer.REPEAT_MODE_ONE
+                    prepare()
+                    playWhenReady = false
+                }
             }
-        }
+        } else null
     }
 
     DisposableEffect(exoPlayer) {
         onDispose { exoPlayer?.release() }
     }
 
-    LaunchedEffect(exoPlayer) {
-        exoPlayer?.let { player ->
-            while (player.duration <= 0) delay(100)
-            videoDurationMs = player.duration
-            if (draft.trim.endMs == 15_000L || draft.trim.endMs > player.duration) {
-                viewModel.setTrimRange(draft.trim.startMs, player.duration)
+    if (isVideo) {
+        LaunchedEffect(exoPlayer) {
+            exoPlayer?.let { player ->
+                while (player.duration <= 0) delay(100)
+                videoDurationMs = player.duration
+                if (draft.trim.endMs == 15_000L || draft.trim.endMs > player.duration) {
+                    viewModel.setTrimRange(draft.trim.startMs, player.duration)
+                }
+            }
+        }
+
+        LaunchedEffect(draft.trim.startMs, draft.trim.endMs, exoPlayer) {
+            exoPlayer?.let { player ->
+                val pos = player.currentPosition
+                if (pos < draft.trim.startMs || pos > draft.trim.endMs) {
+                    player.seekTo(draft.trim.startMs)
+                    currentPositionMs = draft.trim.startMs
+                }
+            }
+        }
+
+        LaunchedEffect(isPlaying, exoPlayer, draft.trim) {
+            exoPlayer?.playWhenReady = isPlaying
+            while (isPlaying && exoPlayer != null) {
+                currentPositionMs = exoPlayer.currentPosition
+                if (currentPositionMs >= draft.trim.endMs) {
+                    exoPlayer.seekTo(draft.trim.startMs)
+                }
+                delay(100)
             }
         }
     }
 
-    LaunchedEffect(draft.trim.startMs, draft.trim.endMs, exoPlayer) {
-        exoPlayer?.let { player ->
-            val pos = player.currentPosition
-            if (pos < draft.trim.startMs || pos > draft.trim.endMs) {
-                player.seekTo(draft.trim.startMs)
-                currentPositionMs = draft.trim.startMs
-            }
-        }
-    }
-
-    LaunchedEffect(isPlaying, exoPlayer, draft.trim) {
-        exoPlayer?.playWhenReady = isPlaying
-        while (isPlaying && exoPlayer != null) {
-            currentPositionMs = exoPlayer.currentPosition
-            if (currentPositionMs >= draft.trim.endMs) {
-                exoPlayer.seekTo(draft.trim.startMs)
-            }
-            delay(100)
-        }
-    }
-
-    val thumbnails = remember(draft.mediaUri) {
-        extractThumbnails(draft.mediaUri?.toString(), 6)
+    val thumbnails = remember(draft.mediaUri, isVideo) {
+        if (isVideo) extractThumbnails(draft.mediaUri?.toString(), 6) else emptyList()
     }
 
     Column(
@@ -117,7 +123,7 @@ fun TrimCropScreen(
         TopAppBar(
             title = {
                 Text(
-                    "Edit Video",
+                    if (isVideo) "Edit Video" else "Edit Image",
                     fontWeight = FontWeight.Bold,
                     modifier = Modifier.fillMaxWidth(),
                     textAlign = TextAlign.Center
@@ -150,29 +156,36 @@ fun TrimCropScreen(
         ) {
             Spacer(Modifier.height(16.dp))
 
-            VideoPreview(
-                player = exoPlayer,
-                isPlaying = isPlaying,
-                currentPositionMs = currentPositionMs,
-                durationMs = videoDurationMs,
-                trimStartMs = draft.trim.startMs,
-                trimEndMs = draft.trim.endMs,
-                aspectRatio = draft.crop.aspectRatio,
-                onTogglePlay = {
-                    isPlaying = !isPlaying
-                    if (isPlaying) exoPlayer?.seekTo(draft.trim.startMs)
-                }
-            )
+            if (isVideo) {
+                VideoPreview(
+                    player = exoPlayer,
+                    isPlaying = isPlaying,
+                    currentPositionMs = currentPositionMs,
+                    durationMs = videoDurationMs,
+                    trimStartMs = draft.trim.startMs,
+                    trimEndMs = draft.trim.endMs,
+                    aspectRatio = draft.crop.aspectRatio,
+                    onTogglePlay = {
+                        isPlaying = !isPlaying
+                        if (isPlaying) exoPlayer?.seekTo(draft.trim.startMs)
+                    }
+                )
 
-            Spacer(Modifier.height(24.dp))
+                Spacer(Modifier.height(24.dp))
 
-            TrimDurationSection(
-                trimStartMs = draft.trim.startMs,
-                trimEndMs = draft.trim.endMs,
-                videoDurationMs = videoDurationMs,
-                thumbnails = thumbnails,
-                onTrimChanged = { start, end -> viewModel.setTrimRange(start, end) }
-            )
+                TrimDurationSection(
+                    trimStartMs = draft.trim.startMs,
+                    trimEndMs = draft.trim.endMs,
+                    videoDurationMs = videoDurationMs,
+                    thumbnails = thumbnails,
+                    onTrimChanged = { start, end -> viewModel.setTrimRange(start, end) }
+                )
+            } else {
+                ImagePreview(
+                    imageUri = draft.mediaUri,
+                    aspectRatio = draft.crop.aspectRatio
+                )
+            }
 
             Spacer(Modifier.height(24.dp))
 
@@ -201,7 +214,11 @@ fun TrimCropScreen(
                 modifier = Modifier.size(20.dp)
             )
             Spacer(Modifier.width(8.dp))
-            Text("Save Trim & Crop", color = Slate900, fontWeight = FontWeight.Bold)
+            Text(
+                if (isVideo) "Save Trim & Crop" else "Save Crop",
+                color = Slate900,
+                fontWeight = FontWeight.Bold
+            )
         }
     }
 }
