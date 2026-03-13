@@ -4,12 +4,14 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -17,6 +19,7 @@ import androidx.compose.material.ExperimentalMaterialApi
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AccountBalanceWallet
 import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.SwapHoriz
 import androidx.compose.material.pullrefresh.PullRefreshIndicator
 import androidx.compose.material.pullrefresh.pullRefresh
 import androidx.compose.material.pullrefresh.rememberPullRefreshState
@@ -26,15 +29,19 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.ScrollableTabRow
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.Tab
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -53,20 +60,35 @@ fun WalletScreen(
     walletViewModel: WalletViewModel,
     onNavigateBack: () -> Unit
 ) {
-    val walletState by walletViewModel.walletState.collectAsState()
     val allWalletsState by walletViewModel.allWalletsState.collectAsState()
-    val transactionsState by walletViewModel.transactionsState.collectAsState()
+    val walletTransactionsMap by walletViewModel.walletTransactionsMap.collectAsState()
     val withdrawState by walletViewModel.withdrawState.collectAsState()
+    val exchangeState by walletViewModel.exchangeState.collectAsState()
     val snackbarHostState = remember { SnackbarHostState() }
     var selectedWalletForWithdraw by remember { mutableStateOf<WalletDTO?>(null) }
+    var showExchangeSheet by remember { mutableStateOf(false) }
+    var selectedTabIndex by remember { mutableIntStateOf(0) }
     var isRefreshing by remember { mutableStateOf(false) }
 
     LaunchedEffect(storeId) {
         if (storeId.isNotEmpty()) {
-            walletViewModel.fetchWallet(storeId)
             walletViewModel.fetchAllWallets(storeId)
-            walletViewModel.fetchTransactions(storeId)
         }
+    }
+
+    val wallets = when (val state = allWalletsState) {
+        is WalletViewModel.WalletLoadingState.Success -> state.data
+        else -> emptyList()
+    }
+
+    LaunchedEffect(wallets) {
+        wallets.forEach { wallet ->
+            wallet.id?.let { walletViewModel.fetchTransactionsForWallet(it) }
+        }
+        if (selectedTabIndex >= wallets.size && wallets.isNotEmpty()) {
+            selectedTabIndex = 0
+        }
+        isRefreshing = false
     }
 
     LaunchedEffect(withdrawState) {
@@ -75,6 +97,7 @@ fun WalletScreen(
                 selectedWalletForWithdraw = null
                 snackbarHostState.showSnackbar("Withdrawal initiated successfully")
                 walletViewModel.resetWithdrawState()
+                walletViewModel.fetchAllWallets(storeId)
             }
             is WalletViewModel.WithdrawState.Error -> {
                 snackbarHostState.showSnackbar(
@@ -86,9 +109,21 @@ fun WalletScreen(
         }
     }
 
-    LaunchedEffect(walletState) {
-        if (walletState !is WalletViewModel.WalletLoadingState.Loading) {
-            isRefreshing = false
+    LaunchedEffect(exchangeState) {
+        when (exchangeState) {
+            is WalletViewModel.ExchangeState.Success -> {
+                showExchangeSheet = false
+                snackbarHostState.showSnackbar("Currency converted successfully")
+                walletViewModel.resetExchangeState()
+                walletViewModel.fetchAllWallets(storeId)
+            }
+            is WalletViewModel.ExchangeState.Error -> {
+                snackbarHostState.showSnackbar(
+                    (exchangeState as WalletViewModel.ExchangeState.Error).message
+                )
+                walletViewModel.resetExchangeState()
+            }
+            else -> {}
         }
     }
 
@@ -97,9 +132,7 @@ fun WalletScreen(
         onRefresh = {
             if (storeId.isNotEmpty()) {
                 isRefreshing = true
-                walletViewModel.fetchWallet(storeId)
                 walletViewModel.fetchAllWallets(storeId)
-                walletViewModel.fetchTransactions(storeId)
             }
         }
     )
@@ -110,9 +143,7 @@ fun WalletScreen(
                 title = {
                     Text(
                         text = "Wallet",
-                        style = MaterialTheme.typography.headlineSmall.copy(
-                            fontWeight = FontWeight.Bold
-                        )
+                        style = MaterialTheme.typography.headlineSmall.copy(fontWeight = FontWeight.Bold)
                     )
                 },
                 navigationIcon = {
@@ -134,58 +165,74 @@ fun WalletScreen(
                 .padding(paddingValues)
                 .pullRefresh(pullRefreshState)
         ) {
-            when (walletState) {
+            when (allWalletsState) {
                 is WalletViewModel.WalletLoadingState.Idle,
                 is WalletViewModel.WalletLoadingState.Loading -> {
-                    Box(
-                        modifier = Modifier.fillMaxSize(),
-                        contentAlignment = Alignment.Center
-                    ) {
+                    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                         CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
                     }
                 }
-
                 is WalletViewModel.WalletLoadingState.Error -> {
-                    Box(
-                        modifier = Modifier.fillMaxSize(),
-                        contentAlignment = Alignment.Center
-                    ) {
+                    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                         Column(horizontalAlignment = Alignment.CenterHorizontally) {
                             Text(
-                                text = (walletState as WalletViewModel.WalletLoadingState.Error).message,
+                                text = (allWalletsState as WalletViewModel.WalletLoadingState.Error).message,
                                 style = MaterialTheme.typography.bodyMedium,
                                 color = MaterialTheme.colorScheme.error
                             )
                             Spacer(modifier = Modifier.height(16.dp))
-                            Button(onClick = {
-                                walletViewModel.fetchWallet(storeId)
-                                walletViewModel.fetchTransactions(storeId)
-                            }) {
+                            Button(onClick = { walletViewModel.fetchAllWallets(storeId) }) {
                                 Text("Retry")
                             }
                         }
                     }
                 }
-
                 is WalletViewModel.WalletLoadingState.Success -> {
-                    val wallet = (walletState as WalletViewModel.WalletLoadingState.Success<WalletDTO>).data
-                    val allWallets = when (allWalletsState) {
-                        is WalletViewModel.WalletLoadingState.Success ->
-                            (allWalletsState as WalletViewModel.WalletLoadingState.Success<List<WalletDTO>>).data
-                        else -> listOf(wallet)
-                    }
-                    val transactions = when (transactionsState) {
-                        is WalletViewModel.WalletLoadingState.Success ->
-                            (transactionsState as WalletViewModel.WalletLoadingState.Success<List<WalletTransactionDTO>>).data
-                        else -> emptyList()
-                    }
+                    if (wallets.isEmpty()) {
+                        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                            Text("No wallets found", style = MaterialTheme.typography.bodyLarge)
+                        }
+                    } else {
+                        Column(modifier = Modifier.fillMaxSize()) {
+                            if (wallets.size > 1) {
+                                ScrollableTabRow(
+                                    selectedTabIndex = selectedTabIndex,
+                                    edgePadding = 16.dp,
+                                    divider = {}
+                                ) {
+                                    wallets.forEachIndexed { index, wallet ->
+                                        Tab(
+                                            selected = selectedTabIndex == index,
+                                            onClick = { selectedTabIndex = index },
+                                            text = {
+                                                Text(
+                                                    text = wallet.currency,
+                                                    fontWeight = if (selectedTabIndex == index) FontWeight.Bold else FontWeight.Normal
+                                                )
+                                            }
+                                        )
+                                    }
+                                }
+                            }
 
-                    WalletContent(
-                        wallets = allWallets,
-                        transactions = transactions,
-                        transactionsLoading = transactionsState is WalletViewModel.WalletLoadingState.Loading,
-                        onWithdrawClick = { walletItem -> selectedWalletForWithdraw = walletItem }
-                    )
+                            val selectedWallet = wallets.getOrNull(selectedTabIndex) ?: wallets.first()
+                            val txState = walletTransactionsMap[selectedWallet.id]
+                            val transactions = when (txState) {
+                                is WalletViewModel.WalletLoadingState.Success -> txState.data
+                                else -> emptyList()
+                            }
+                            val txLoading = txState is WalletViewModel.WalletLoadingState.Loading
+
+                            WalletTabContent(
+                                wallet = selectedWallet,
+                                transactions = transactions,
+                                transactionsLoading = txLoading,
+                                showTransferButton = wallets.size > 1,
+                                onWithdrawClick = { selectedWalletForWithdraw = selectedWallet },
+                                onTransferClick = { showExchangeSheet = true }
+                            )
+                        }
+                    }
                 }
             }
 
@@ -215,67 +262,90 @@ fun WalletScreen(
             }
         )
     }
+
+    if (showExchangeSheet && wallets.size > 1) {
+        val selectedWallet = wallets.getOrNull(selectedTabIndex) ?: wallets.first()
+        CurrencyExchangeBottomSheet(
+            wallets = wallets,
+            sourceWallet = selectedWallet,
+            exchangeState = exchangeState,
+            previewState = walletViewModel.previewState.collectAsState().value,
+            onPreview = { source, target, amount ->
+                walletViewModel.previewExchange(source, target, amount)
+            },
+            onExchange = { source, target, amount ->
+                walletViewModel.exchangeCurrency(storeId, source, target, amount)
+            },
+            onDismiss = {
+                showExchangeSheet = false
+                walletViewModel.resetPreviewState()
+            }
+        )
+    }
 }
 
 @Composable
-private fun WalletContent(
-    wallets: List<WalletDTO>,
+private fun WalletTabContent(
+    wallet: WalletDTO,
     transactions: List<WalletTransactionDTO>,
     transactionsLoading: Boolean,
-    onWithdrawClick: (WalletDTO) -> Unit
+    showTransferButton: Boolean,
+    onWithdrawClick: () -> Unit,
+    onTransferClick: () -> Unit
 ) {
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
         contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
-        items(wallets, key = { it.id ?: it.currency }) { walletItem ->
-            WalletBalanceCard(
-                balance = walletItem.balance,
-                currency = walletItem.currency
-            )
-            Spacer(modifier = Modifier.height(8.dp))
-            Button(
-                onClick = { onWithdrawClick(walletItem) },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(50.dp),
-                shape = RoundedCornerShape(12.dp)
+        item {
+            WalletBalanceCard(balance = wallet.balance, currency = wallet.currency)
+        }
+
+        item {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                Text(
-                    text = "Withdraw ${walletItem.currency}",
-                    style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Bold)
-                )
+                Button(
+                    onClick = onWithdrawClick,
+                    modifier = Modifier
+                        .weight(1f)
+                        .height(50.dp),
+                    shape = RoundedCornerShape(12.dp)
+                ) {
+                    Text("Withdraw", style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Bold))
+                }
+                if (showTransferButton) {
+                    OutlinedButton(
+                        onClick = onTransferClick,
+                        modifier = Modifier
+                            .weight(1f)
+                            .height(50.dp),
+                        shape = RoundedCornerShape(12.dp)
+                    ) {
+                        Icon(Icons.Default.SwapHoriz, contentDescription = null, modifier = Modifier.size(18.dp))
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text("Convert", style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Bold))
+                    }
+                }
             }
         }
 
         item {
             Spacer(modifier = Modifier.height(4.dp))
-            Text(
-                text = "Transaction History",
-                style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold)
-            )
+            Text("Transaction History", style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold))
         }
 
         if (transactionsLoading) {
             item {
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(100.dp),
-                    contentAlignment = Alignment.Center
-                ) {
+                Box(modifier = Modifier.fillMaxWidth().height(100.dp), contentAlignment = Alignment.Center) {
                     CircularProgressIndicator(modifier = Modifier.size(24.dp))
                 }
             }
         } else if (transactions.isEmpty()) {
             item {
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(vertical = 32.dp),
-                    contentAlignment = Alignment.Center
-                ) {
+                Box(modifier = Modifier.fillMaxWidth().padding(vertical = 32.dp), contentAlignment = Alignment.Center) {
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
                         Icon(
                             imageVector = Icons.Default.AccountBalanceWallet,
@@ -284,25 +354,16 @@ private fun WalletContent(
                             tint = MaterialTheme.colorScheme.outline.copy(alpha = 0.5f)
                         )
                         Spacer(modifier = Modifier.height(12.dp))
-                        Text(
-                            text = "No transactions yet",
-                            style = MaterialTheme.typography.bodyLarge,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
+                        Text("No transactions yet", style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
                 }
             }
         } else {
             items(transactions, key = { it.id ?: it.hashCode().toString() }) { transaction ->
-                TransactionItem(
-                    transaction = transaction,
-                    walletCurrencyCode = wallets.firstOrNull()?.currency ?: ""
-                )
+                TransactionItem(transaction = transaction, walletCurrencyCode = wallet.currency)
             }
         }
 
-        item {
-            Spacer(modifier = Modifier.height(16.dp))
-        }
+        item { Spacer(modifier = Modifier.height(16.dp)) }
     }
 }

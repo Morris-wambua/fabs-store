@@ -49,6 +49,12 @@ class WalletViewModel(application: Application) : AndroidViewModel(application) 
     private val _allWalletsState = MutableStateFlow<WalletLoadingState<List<WalletDTO>>>(WalletLoadingState.Idle)
     val allWalletsState: StateFlow<WalletLoadingState<List<WalletDTO>>> = _allWalletsState.asStateFlow()
 
+    private val _walletTransactionsMap = MutableStateFlow<Map<String, WalletLoadingState<List<WalletTransactionDTO>>>>(emptyMap())
+    val walletTransactionsMap: StateFlow<Map<String, WalletLoadingState<List<WalletTransactionDTO>>>> = _walletTransactionsMap.asStateFlow()
+
+    private val _previewState = MutableStateFlow<ExchangeState>(ExchangeState.Idle)
+    val previewState: StateFlow<ExchangeState> = _previewState.asStateFlow()
+
     fun fetchWallet(storeId: String) {
         _walletState.value = WalletLoadingState.Loading
 
@@ -229,6 +235,42 @@ class WalletViewModel(application: Application) : AndroidViewModel(application) 
 
     fun resetWithdrawState() {
         _withdrawState.value = WithdrawState.Idle
+    }
+
+    fun fetchTransactionsForWallet(walletId: String, page: Int = 0) {
+        _walletTransactionsMap.value = _walletTransactionsMap.value + (walletId to WalletLoadingState.Loading)
+        viewModelScope.launch {
+            walletRepository.fetchWalletTransactions(walletId, page)
+                .onSuccess { pagedResponse ->
+                    _walletTransactionsMap.value = _walletTransactionsMap.value + (walletId to WalletLoadingState.Success(
+                        pagedResponse.content.sortedByDescending { transaction ->
+                            transaction.dateCreated
+                                ?.let { runCatching { Instant.parse(it).toEpochMilli() }.getOrNull() }
+                                ?: Long.MIN_VALUE
+                        }
+                    ))
+                }
+                .onFailure { error ->
+                    _walletTransactionsMap.value = _walletTransactionsMap.value + (walletId to WalletLoadingState.Error(error.message ?: "Failed to fetch transactions"))
+                }
+        }
+    }
+
+    fun previewExchange(sourceCurrency: String, targetCurrency: String, amount: Double) {
+        _previewState.value = ExchangeState.Loading
+        viewModelScope.launch {
+            walletRepository.previewExchange(sourceCurrency, targetCurrency, amount)
+                .onSuccess { response ->
+                    _previewState.value = ExchangeState.Success(response)
+                }
+                .onFailure { error ->
+                    _previewState.value = ExchangeState.Error(error.message ?: "Preview failed")
+                }
+        }
+    }
+
+    fun resetPreviewState() {
+        _previewState.value = ExchangeState.Idle
     }
 
     sealed class WalletLoadingState<out T> {
