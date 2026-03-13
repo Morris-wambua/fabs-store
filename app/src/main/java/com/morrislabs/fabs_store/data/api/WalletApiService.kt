@@ -227,6 +227,33 @@ class WalletApiService(private val context: Context, private val tokenManager: T
         }
     }
 
+    suspend fun fetchWalletTransactions(walletId: String, page: Int = 0, size: Int = 20): Result<PagedWalletTransactionResponse> {
+        return try {
+            val client = clientConfig.createAuthenticatedClient(context, tokenManager)
+            val response = client.get("$baseUrl/api/wallets/$walletId/transactions") {
+                parameter("page", page)
+                parameter("size", size)
+            }
+            val responseText = response.bodyAsText()
+            Log.d(TAG, "Fetch wallet transactions response: $responseText")
+            try {
+                val json = Json { ignoreUnknownKeys = true }
+                val pagedResponse = json.decodeFromString<PagedWalletTransactionResponse>(responseText)
+                Result.success(pagedResponse)
+            } catch (e: Exception) {
+                Log.e(TAG, "Failed to parse wallet transactions response", e)
+                Result.failure(Exception("Failed to parse transactions"))
+            }
+        } catch (e: ClientRequestException) {
+            val errorBody = try { e.response.bodyAsText() } catch (ex: Exception) { "Unable to parse error body" }
+            Log.e(TAG, "Failed to fetch wallet transactions - Status: ${e.response.status.value}, Body: $errorBody")
+            Result.failure(Exception("Failed to fetch transactions: ${e.response.status.value}"))
+        } catch (e: Exception) {
+            Log.e(TAG, "Fetch wallet transactions failed: ${e.message}", e)
+            Result.failure(Exception("Failed to fetch transactions: ${e.message}"))
+        }
+    }
+
     suspend fun previewExchange(
         sourceCurrency: String,
         targetCurrency: String,

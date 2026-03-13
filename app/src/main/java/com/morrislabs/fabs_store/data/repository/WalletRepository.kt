@@ -40,6 +40,9 @@ class WalletRepository(context: Context, tokenManager: TokenManager) {
     suspend fun exchangeCurrency(storeId: String, request: CurrencyExchangeRequest): Result<CurrencyExchangeResponse> =
         walletApiService.exchangeCurrency(storeId, request)
 
+    suspend fun fetchWalletTransactions(walletId: String, page: Int = 0, size: Int = 20): Result<PagedWalletTransactionResponse> =
+        walletApiService.fetchWalletTransactions(walletId, page, size)
+
     suspend fun previewExchange(
         sourceCurrency: String,
         targetCurrency: String,

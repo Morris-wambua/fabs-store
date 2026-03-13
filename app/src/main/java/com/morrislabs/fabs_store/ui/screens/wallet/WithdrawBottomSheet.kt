@@ -292,8 +292,12 @@ fun WithdrawBottomSheet(
                     var hasError = false
 
                     if (selectedMethod == "MPESA") {
+                        val requiredDigits = maxLocalDigits(countryCode)
                         if (phoneNumber.isBlank()) {
                             phoneError = "Phone number is required"
+                            hasError = true
+                        } else if (phoneNumber.length < requiredDigits) {
+                            phoneError = "Enter $requiredDigits digits"
                             hasError = true
                         }
                     } else {
@@ -325,7 +329,7 @@ fun WithdrawBottomSheet(
                     .fillMaxWidth()
                     .height(50.dp),
                 shape = RoundedCornerShape(8.dp),
-                enabled = !isLoading
+                enabled = !isLoading && (selectedMethod != "MPESA" || phoneNumber.length == maxLocalDigits(countryCode))
             ) {
                 if (isLoading) {
                     CircularProgressIndicator(
