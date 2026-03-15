@@ -26,6 +26,8 @@ import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.CalendarToday
 import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.Search
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FilterChipDefaults
@@ -38,6 +40,7 @@ import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -71,9 +74,12 @@ internal fun ReservationsTabContent(
     var searchQuery by remember { mutableStateOf("") }
     var selectedReservation by remember { mutableStateOf<ReservationWithPaymentDTO?>(null) }
     var showWalkInBooking by remember { mutableStateOf(false) }
+    var showWaitingForCustomerDialog by remember { mutableStateOf(false) }
+    var lastTransitionAction by remember { mutableStateOf<ReservationTransitionAction?>(null) }
     val chatRepository = remember { ChatRepository() }
     val scope = rememberCoroutineScope()
     val currentFilterStatus = selectedFilter.toBackendStatus()
+    val reservationTransitionState by storeViewModel.reservationTransitionState.collectAsState()
     val pullRefreshState = rememberPullRefreshState(
         refreshing = isRefreshing,
         onRefresh = {
@@ -92,6 +98,21 @@ internal fun ReservationsTabContent(
         delay(300)
         val query = searchQuery.trim().ifBlank { null }
         storeViewModel.fetchReservations(storeId, currentFilterStatus, query)
+    }
+
+    LaunchedEffect(reservationTransitionState) {
+        when (reservationTransitionState) {
+            is StoreViewModel.ReservationTransitionState.Success -> {
+                if (lastTransitionAction == ReservationTransitionAction.STORE_COMPLETE_SERVICE) {
+                    showWaitingForCustomerDialog = true
+                }
+                storeViewModel.resetReservationTransitionState()
+            }
+            is StoreViewModel.ReservationTransitionState.Error -> {
+                storeViewModel.resetReservationTransitionState()
+            }
+            else -> {}
+        }
     }
 
     val handleMessageCustomer: (String, String) -> Unit = { userId, customerName ->
@@ -113,6 +134,7 @@ internal fun ReservationsTabContent(
             reservation = selectedReservation!!,
             selectedFilter = selectedFilter,
             onApproveReservation = { reservationId ->
+                lastTransitionAction = ReservationTransitionAction.STORE_APPROVE_BOOKING
                 storeViewModel.transitionReservation(
                     reservationId = reservationId,
                     action = ReservationTransitionAction.STORE_APPROVE_BOOKING,
@@ -122,6 +144,7 @@ internal fun ReservationsTabContent(
                 )
             },
             onRejectReservation = { reservationId ->
+                lastTransitionAction = ReservationTransitionAction.CANCEL
                 storeViewModel.transitionReservation(
                     reservationId = reservationId,
                     action = ReservationTransitionAction.CANCEL,
@@ -186,6 +209,7 @@ internal fun ReservationsTabContent(
                             selectedFilter = selectedFilter,
                             onDetailsClick = { selectedReservation = it },
                             onTransition = { reservationId, action ->
+                                lastTransitionAction = action
                                 storeViewModel.transitionReservation(
                                     reservationId = reservationId,
                                     action = action,
@@ -246,6 +270,19 @@ internal fun ReservationsTabContent(
                 modifier = Modifier.size(30.dp)
             )
         }
+    }
+
+    if (showWaitingForCustomerDialog) {
+        AlertDialog(
+            onDismissRequest = { showWaitingForCustomerDialog = false },
+            title = { Text("Service Completed", fontWeight = FontWeight.Bold) },
+            text = { Text("Waiting for customer to accept completion") },
+            confirmButton = {
+                Button(onClick = { showWaitingForCustomerDialog = false }) {
+                    Text("OK")
+                }
+            }
+        )
     }
 }
 
