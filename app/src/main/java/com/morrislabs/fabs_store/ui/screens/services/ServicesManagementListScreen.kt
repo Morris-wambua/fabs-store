@@ -335,20 +335,6 @@ private fun ServiceEmptyState(onAddService: () -> Unit) {
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
-            Spacer(modifier = Modifier.height(24.dp))
-            Box(
-                modifier = Modifier
-                    .clip(RoundedCornerShape(12.dp))
-                    .background(GreenAccent)
-                    .clickable(onClick = onAddService)
-                    .padding(horizontal = 24.dp, vertical = 12.dp)
-            ) {
-                Text(
-                    "Add Service",
-                    color = Color.White,
-                    fontWeight = FontWeight.Bold
-                )
-            }
         }
     }
 }

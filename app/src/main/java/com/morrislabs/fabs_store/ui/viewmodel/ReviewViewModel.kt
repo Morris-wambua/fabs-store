@@ -40,8 +40,15 @@ class ReviewViewModel(application: Application) : AndroidViewModel(application) 
                 .onSuccess { pagedResponse ->
                     val reviews = pagedResponse.content
                     Log.d(TAG, "Reviews fetched: ${reviews.size} items")
-                    val summary = calculateSummary(reviews)
-                    _reviewsState.value = ReviewsState.Success(reviews, summary)
+
+                    reviewApiService.getReviewSummary(storeId)
+                        .onSuccess { summary ->
+                            _reviewsState.value = ReviewsState.Success(reviews, summary)
+                        }
+                        .onFailure {
+                            val summary = calculateSummary(reviews)
+                            _reviewsState.value = ReviewsState.Success(reviews, summary)
+                        }
                 }
                 .onFailure { error ->
                     val errorMessage = error.message ?: "Failed to fetch reviews"

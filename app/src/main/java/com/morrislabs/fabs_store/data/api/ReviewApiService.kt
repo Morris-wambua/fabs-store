@@ -5,6 +5,7 @@ import android.util.Log
 import com.morrislabs.fabs_store.data.model.PagedReviewResponse
 import com.morrislabs.fabs_store.data.model.ReplyRequest
 import com.morrislabs.fabs_store.data.model.ReviewDTO
+import com.morrislabs.fabs_store.data.model.ReviewSummaryDTO
 import com.morrislabs.fabs_store.util.AppConfig
 import com.morrislabs.fabs_store.util.ClientConfig
 import com.morrislabs.fabs_store.util.TokenManager
@@ -84,6 +85,29 @@ class ReviewApiService(private val context: Context, private val tokenManager: T
         } catch (e: Exception) {
             Log.e(TAG, "Exception replying to review $reviewId", e)
             Result.failure(Exception("Failed to reply: ${e.message}"))
+        }
+    }
+
+    suspend fun getReviewSummary(storeId: String): Result<ReviewSummaryDTO> {
+        return try {
+            val client = clientConfig.createAuthenticatedClient(context, tokenManager)
+
+            val response = client.get("$baseUrl/api/reviews/store/$storeId/summary")
+
+            val responseText = response.bodyAsText()
+            Log.d(TAG, "Fetch review summary response status: ${response.status}")
+
+            if (response.status == HttpStatusCode.OK) {
+                val summary = json.decodeFromString<ReviewSummaryDTO>(responseText)
+                Log.d(TAG, "Fetched review summary for store $storeId: avg=${summary.averageRating}, total=${summary.totalReviews}")
+                Result.success(summary)
+            } else {
+                Log.e(TAG, "Failed to fetch review summary: ${response.status}")
+                Result.failure(Exception("Failed to fetch review summary: ${response.status}"))
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Exception fetching review summary for store $storeId", e)
+            Result.failure(Exception("Failed to fetch review summary: ${e.message}"))
         }
     }
 
