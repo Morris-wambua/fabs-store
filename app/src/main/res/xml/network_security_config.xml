@@ -5,6 +5,7 @@
         <domain includeSubdomains="true">localhost</domain>
         <domain includeSubdomains="true">10.0.2.2</domain>
         <domain includeSubdomains="true">192.168.100.253</domain>
+        <domain includeSubdomains="true">192.168.100.3</domain>
     </domain-config>
     <domain-config cleartextTrafficPermitted="false">
         <domain includeSubdomains="true">https://fabs-production.up.railway.app</domain>

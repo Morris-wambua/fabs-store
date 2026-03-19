@@ -82,6 +82,8 @@ fun TransactionTypeIcon(
         TransactionType.WALLET_PAYMENT -> Icons.Default.ArrowDownward to Color(0xFFF44336)
         TransactionType.FX_DEBIT -> Icons.Default.ArrowDownward to Color(0xFFFF9800)
         TransactionType.FX_CREDIT -> Icons.Default.Add to Color(0xFF2196F3)
+        TransactionType.COMMISSION -> Icons.Default.ArrowDownward to Color(0xFFF44336)
+        TransactionType.PLATFORM_FEE -> Icons.Default.ArrowDownward to Color(0xFFF44336)
     }
 
     Surface(

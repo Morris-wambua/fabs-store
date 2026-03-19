@@ -6,12 +6,12 @@ import java.util.Locale
 
 @Serializable
 enum class WalletType {
-    CUSTOMER, STORE
+    CUSTOMER, STORE, PLATFORM
 }
 
 @Serializable
 enum class TransactionType {
-    TOP_UP, REFUND, ESCROW_RELEASE, WITHDRAWAL, WALLET_PAYMENT, FX_DEBIT, FX_CREDIT
+    TOP_UP, REFUND, ESCROW_RELEASE, WITHDRAWAL, WALLET_PAYMENT, FX_DEBIT, FX_CREDIT, COMMISSION, PLATFORM_FEE
 }
 
 @Serializable

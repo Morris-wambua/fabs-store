@@ -261,6 +261,49 @@ fun ReservationDetailsScreen(
                 }
             }
 
+            reservation.pricingSnapshot?.let { snapshot ->
+                val payoutCurrency = snapshot.currencyCode
+                    ?: reservation.currencyCode
+                    ?: java.util.Currency.getInstance(locale).currencyCode
+
+                Card(
+                    shape = RoundedCornerShape(16.dp),
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
+                ) {
+                    Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                        Text(
+                            "PAYOUT BREAKDOWN",
+                            style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold),
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        PaymentRow(
+                            "Gross Service Price",
+                            CurrencyFormatter.formatAmountFromCurrencyCode(snapshot.baseServicePrice, payoutCurrency, locale)
+                        )
+                        PaymentRow(
+                            "Commission (${formatPercent(snapshot.commissionRate)})",
+                            "- ${CurrencyFormatter.formatAmountFromCurrencyCode(snapshot.commissionAmount, payoutCurrency, locale)}"
+                        )
+                        PaymentRow(
+                            "Platform Fee (${formatPercent(snapshot.platformFeeRate)})",
+                            "- ${CurrencyFormatter.formatAmountFromCurrencyCode(snapshot.platformFeeAmount, payoutCurrency, locale)}"
+                        )
+                        if (snapshot.facilitationFeeAmount > 0) {
+                            PaymentRow(
+                                "Facilitation Fee",
+                                "+ ${CurrencyFormatter.formatAmountFromCurrencyCode(snapshot.facilitationFeeAmount, payoutCurrency, locale)}"
+                            )
+                        }
+                        HorizontalDivider()
+                        PaymentRow(
+                            "Net Payout",
+                            CurrencyFormatter.formatAmountFromCurrencyCode(snapshot.storePayoutAmount, payoutCurrency, locale),
+                            bold = true
+                        )
+                    }
+                }
+            }
+
             Spacer(modifier = Modifier.height(8.dp))
 
             when {
@@ -443,6 +486,11 @@ private fun openDialer(context: Context, phone: String) {
     context.startActivity(
         Intent(Intent.ACTION_DIAL, Uri.parse("tel:${Uri.encode(cleanedPhone)}"))
     )
+}
+
+private fun formatPercent(rate: Double): String {
+    val pct = rate * 100
+    return if (pct == pct.toLong().toDouble()) "${pct.toLong()}%" else "${"%.1f".format(pct)}%"
 }
 
 private fun copyPhoneToClipboard(context: Context, phone: String) {

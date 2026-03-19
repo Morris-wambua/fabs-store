@@ -9,7 +9,7 @@ object AppConfig {
 
         const val EMULATOR_BASE_URL = "http://10.0.2.2:8080/fabs/app"
         const val ADB_REVERSE_LOCALHOST_URL = "http://127.0.0.1:8080/fabs/app"
-        const val LOCAL_NETWORK_URL = "http://192.168.100.253:8080/fabs/app"
+        const val LOCAL_NETWORK_URL = "http://192.168.100.3:8082/fabs/app"
 
         val BASE_URL = if (BuildConfig.DEBUG) ADB_REVERSE_LOCALHOST_URL else ADB_REVERSE_LOCALHOST_URL
     }

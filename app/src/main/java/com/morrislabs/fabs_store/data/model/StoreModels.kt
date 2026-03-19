@@ -193,7 +193,9 @@ data class TypeOfServiceDTO(
     val ratings: Double,
     val duration: Int? = null,
     val description: String? = null,
-    val imageUrl: String? = null
+    val imageUrl: String? = null,
+    val serviceCategory: String? = null,
+    val isTaxable: Boolean? = null
 )
 
 @Serializable
@@ -476,5 +478,24 @@ data class PostSoundData(
     val audioUrl: String? = null,
     val startMs: Long = 0,
     val endMs: Long = 0
+)
+
+@Serializable
+data class PricingSnapshotDTO(
+    val baseServicePrice: Double = 0.0,
+    val currencyCode: String? = null,
+    val serviceCategory: String? = null,
+    val taxable: Boolean? = null,
+    val regionCode: String? = null,
+    val commissionRate: Double = 0.0,
+    val commissionAmount: Double = 0.0,
+    val platformFeeRate: Double = 0.0,
+    val platformFeeAmount: Double = 0.0,
+    val facilitationFeeAmount: Double = 0.0,
+    val vatRate: Double = 0.0,
+    val vatAmount: Double = 0.0,
+    val customerTotalAmount: Double = 0.0,
+    val storePayoutAmount: Double = 0.0,
+    val platformRevenueAmount: Double = 0.0
 )
 

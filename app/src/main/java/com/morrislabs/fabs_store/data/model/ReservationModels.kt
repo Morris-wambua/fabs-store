@@ -56,7 +56,8 @@ data class ReservationWithPaymentDTO(
     val outstandingBalance: Double? = null,
     val minimumPaymentMet: Boolean? = null,
     val paymentRequestId: String? = null,
-    val transactionReference: String? = null
+    val transactionReference: String? = null,
+    val pricingSnapshot: PricingSnapshotDTO? = null
 )
 
 @Serializable
