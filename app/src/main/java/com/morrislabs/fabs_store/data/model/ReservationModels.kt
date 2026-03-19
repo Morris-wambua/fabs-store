@@ -56,7 +56,12 @@ data class ReservationWithPaymentDTO(
     val outstandingBalance: Double? = null,
     val minimumPaymentMet: Boolean? = null,
     val paymentRequestId: String? = null,
-    val transactionReference: String? = null
+    val transactionReference: String? = null,
+    val pricingSnapshot: PricingSnapshotDTO? = null,
+    val customerLocationName: String? = null,
+    val customerLocationDescription: String? = null,
+    val customerLatitude: Double? = null,
+    val customerLongitude: Double? = null
 )
 
 @Serializable
@@ -74,7 +79,14 @@ data class ReservationDTO(
     val createdBy: ReservationCreatedBy? = null,
     val store: String,
     val typeOfService: String,
-    val reservationExpert: String
+    val reservationExpert: String,
+    val facilitationFeeAmount: Double? = null,
+    val regionCode: String? = null,
+    val distanceKm: Double? = null,
+    val customerLocationName: String? = null,
+    val customerLocationDescription: String? = null,
+    val customerLatitude: Double? = null,
+    val customerLongitude: Double? = null
 )
 
 @Serializable

@@ -6,6 +6,7 @@ import android.content.Context
 import android.content.Intent
 import android.net.Uri
 import android.widget.Toast
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.background
@@ -30,6 +31,7 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Call
 import androidx.compose.material.icons.filled.ChatBubble
 import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Spa
 import androidx.compose.material3.Button
@@ -202,6 +204,55 @@ fun ReservationDetailsScreen(
                 subtitle = "Service Expert"
             )
 
+            val isHomeCall = reservation.pricingSnapshot?.serviceCategory == "HOME_CALL"
+            val hasHomeLocation = reservation.customerLatitude != null &&
+                reservation.customerLongitude != null
+            if (isHomeCall && (hasHomeLocation || !reservation.customerLocationDescription.isNullOrBlank())) {
+                Card(
+                    shape = RoundedCornerShape(16.dp),
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                    elevation = CardDefaults.cardElevation(defaultElevation = 3.dp)
+                ) {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(16.dp),
+                        verticalArrangement = Arrangement.spacedBy(10.dp)
+                    ) {
+                        Text(
+                            "HOME CALL LOCATION",
+                            style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold),
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        Text(
+                            text = reservation.customerLocationDescription
+                                ?: reservation.customerLocationName
+                                ?: "Location provided",
+                            style = MaterialTheme.typography.bodyMedium,
+                            fontWeight = FontWeight.SemiBold
+                        )
+                        if (hasHomeLocation) {
+                            val lat = reservation.customerLatitude!!
+                            val lon = reservation.customerLongitude!!
+                            Text(
+                                text = "Lat ${"%.4f".format(lat)}, Lng ${"%.4f".format(lon)}",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                            OutlinedButton(
+                                onClick = { openMaps(context, lat, lon) },
+                                modifier = Modifier.fillMaxWidth(),
+                                border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary)
+                            ) {
+                                Icon(Icons.Default.LocationOn, contentDescription = null, modifier = Modifier.size(16.dp))
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Text("Open in Maps")
+                            }
+                        }
+                    }
+                }
+            }
+
             Text(
                 "BOOKING TIMELINE",
                 style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold),
@@ -258,6 +309,49 @@ fun ReservationDetailsScreen(
                     PaymentRow("Tax (8%)", CurrencyFormatter.formatAmountFromCurrencyCode(0, effectiveCurrency, locale))
                     HorizontalDivider()
                     PaymentRow("Total", CurrencyFormatter.formatAmountFromCurrencyCode(reservation.price, effectiveCurrency, locale), bold = true)
+                }
+            }
+
+            reservation.pricingSnapshot?.let { snapshot ->
+                val payoutCurrency = snapshot.currencyCode
+                    ?: reservation.currencyCode
+                    ?: java.util.Currency.getInstance(locale).currencyCode
+
+                Card(
+                    shape = RoundedCornerShape(16.dp),
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
+                ) {
+                    Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                        Text(
+                            "PAYOUT BREAKDOWN",
+                            style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold),
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        PaymentRow(
+                            "Gross Service Price",
+                            CurrencyFormatter.formatAmountFromCurrencyCode(snapshot.baseServicePrice, payoutCurrency, locale)
+                        )
+                        PaymentRow(
+                            "Commission (${formatPercent(snapshot.commissionRate)})",
+                            "- ${CurrencyFormatter.formatAmountFromCurrencyCode(snapshot.commissionAmount, payoutCurrency, locale)}"
+                        )
+                        PaymentRow(
+                            "Platform Fee (${formatPercent(snapshot.platformFeeRate)})",
+                            "- ${CurrencyFormatter.formatAmountFromCurrencyCode(snapshot.platformFeeAmount, payoutCurrency, locale)}"
+                        )
+                        if (snapshot.facilitationFeeAmount > 0) {
+                            PaymentRow(
+                                "Facilitation Fee",
+                                "+ ${CurrencyFormatter.formatAmountFromCurrencyCode(snapshot.facilitationFeeAmount, payoutCurrency, locale)}"
+                            )
+                        }
+                        HorizontalDivider()
+                        PaymentRow(
+                            "Net Payout",
+                            CurrencyFormatter.formatAmountFromCurrencyCode(snapshot.storePayoutAmount, payoutCurrency, locale),
+                            bold = true
+                        )
+                    }
                 }
             }
 
@@ -443,6 +537,16 @@ private fun openDialer(context: Context, phone: String) {
     context.startActivity(
         Intent(Intent.ACTION_DIAL, Uri.parse("tel:${Uri.encode(cleanedPhone)}"))
     )
+}
+
+private fun openMaps(context: Context, latitude: Double, longitude: Double) {
+    val uri = Uri.parse("https://www.google.com/maps/search/?api=1&query=$latitude,$longitude")
+    context.startActivity(Intent(Intent.ACTION_VIEW, uri))
+}
+
+private fun formatPercent(rate: Double): String {
+    val pct = rate * 100
+    return if (pct == pct.toLong().toDouble()) "${pct.toLong()}%" else "${"%.1f".format(pct)}%"
 }
 
 private fun copyPhoneToClipboard(context: Context, phone: String) {
