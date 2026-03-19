@@ -18,7 +18,9 @@ enum class MainCategory {
     MAKEUP_AND_COSMETICS,
     NAIL_SERVICES,
     SKINCARE_SERVICES,
-    WELLNESS_AND_SPA
+    WELLNESS_AND_SPA,
+    VIP,
+    HOME_CALL
 }
 
 @Serializable
@@ -498,4 +500,3 @@ data class PricingSnapshotDTO(
     val storePayoutAmount: Double = 0.0,
     val platformRevenueAmount: Double = 0.0
 )
-

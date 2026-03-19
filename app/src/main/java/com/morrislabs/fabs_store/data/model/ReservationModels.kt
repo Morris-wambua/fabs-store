@@ -75,7 +75,10 @@ data class ReservationDTO(
     val createdBy: ReservationCreatedBy? = null,
     val store: String,
     val typeOfService: String,
-    val reservationExpert: String
+    val reservationExpert: String,
+    val facilitationFeeAmount: Double? = null,
+    val regionCode: String? = null,
+    val distanceKm: Double? = null
 )
 
 @Serializable

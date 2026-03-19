@@ -11,7 +11,7 @@ enum class WalletType {
 
 @Serializable
 enum class TransactionType {
-    TOP_UP, REFUND, ESCROW_RELEASE, WITHDRAWAL, WALLET_PAYMENT, FX_DEBIT, FX_CREDIT, COMMISSION, PLATFORM_FEE
+    TOP_UP, REFUND, ESCROW_RELEASE, WITHDRAWAL, WALLET_PAYMENT, FX_DEBIT, FX_CREDIT, COMMISSION, PLATFORM_FEE, VAT
 }
 
 @Serializable
@@ -109,5 +109,4 @@ data class CurrencyExchangeResponse(
     val quoteId: String? = null,
     val expiresAt: String? = null
 )
-
 

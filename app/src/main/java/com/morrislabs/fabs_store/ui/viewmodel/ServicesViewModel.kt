@@ -19,6 +19,13 @@ import kotlinx.coroutines.launch
 class ServicesViewModel(application: Application) : AndroidViewModel(application) {
     companion object {
         private const val TAG = "ServicesViewModel"
+        private val HOME_CALL_DISALLOWED = setOf(
+            SubCategory.HYDROTHERAPY,
+            SubCategory.JACUZZI_TREATMENTS,
+            SubCategory.SAUNA_SESSIONS,
+            SubCategory.STEAM_TREATMENTS,
+            SubCategory.MUD_BATHS
+        )
     }
 
     private val context = application.applicationContext
@@ -140,7 +147,13 @@ class ServicesViewModel(application: Application) : AndroidViewModel(application
     }
 
     fun getSubCategoriesForMain(mainCategory: MainCategory): List<SubCategory> {
-        return SubCategory.entries.filter { it.toMainCategory() == mainCategory }
+        return when (mainCategory) {
+            MainCategory.HOME_CALL -> SubCategory.entries
+                .filter { !HOME_CALL_DISALLOWED.contains(it) }
+                .filter { it.toMainCategory() != MainCategory.WELLNESS_AND_SPA }
+            MainCategory.VIP -> SubCategory.entries
+            else -> SubCategory.entries.filter { it.toMainCategory() == mainCategory }
+        }
     }
 
     sealed class ServicesState {
@@ -163,4 +176,5 @@ class ServicesViewModel(application: Application) : AndroidViewModel(application
         data object Success : DeleteServiceState()
         data class Error(val message: String) : DeleteServiceState()
     }
+
 }
