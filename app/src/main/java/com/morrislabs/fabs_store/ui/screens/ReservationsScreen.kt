@@ -29,12 +29,13 @@ import com.morrislabs.fabs_store.ui.viewmodel.StoreViewModel
 @Composable
 fun ReservationsScreen(
     onNavigateBack: () -> Unit,
+    initialFilter: ReservationFilter = ReservationFilter.PENDING_APPROVAL,
     storeViewModel: StoreViewModel = viewModel()
 ) {
     val storeState by storeViewModel.storeState.collectAsState()
     val reservationsState by storeViewModel.reservationsState.collectAsState()
     val isRefreshing by storeViewModel.isRefreshing.collectAsState()
-    var selectedFilter by remember { mutableStateOf(ReservationFilter.PENDING_APPROVAL) }
+    var selectedFilter by remember(initialFilter) { mutableStateOf(initialFilter) }
 
     LaunchedEffect(Unit) {
         storeViewModel.fetchUserStore()
