@@ -22,7 +22,7 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
         private const val TAG = "ChatViewModel"
     }
 
-    private val chatRepository = ChatRepository()
+    private val chatRepository = ChatRepository(application.applicationContext)
     private val tokenManager = TokenManager.getInstance(application.applicationContext)
 
     private val _conversationsState = MutableStateFlow<ConversationsState>(ConversationsState.Idle)
