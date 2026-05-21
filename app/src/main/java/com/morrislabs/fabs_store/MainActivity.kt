@@ -1,5 +1,6 @@
 package com.morrislabs.fabs_store
 
+import android.content.Intent
 import android.os.Build
 import android.os.Bundle
 import androidx.activity.ComponentActivity
@@ -26,6 +27,8 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.navigation
 import androidx.navigation.compose.rememberNavController
+import androidx.navigation.NavType
+import androidx.navigation.navArgument
 import com.google.accompanist.permissions.ExperimentalPermissionsApi
 import com.google.accompanist.permissions.isGranted
 import com.morrislabs.fabs_store.ui.screens.EmployeesScreen
@@ -38,6 +41,7 @@ import com.morrislabs.fabs_store.ui.screens.RegisterScreen
 import com.morrislabs.fabs_store.ui.screens.ResetPasswordScreen
 import com.morrislabs.fabs_store.ui.screens.ReservationsScreen
 import com.morrislabs.fabs_store.ui.screens.PrivacyPolicyScreen
+import com.morrislabs.fabs_store.data.model.ReservationFilter
 import com.morrislabs.fabs_store.ui.screens.services.AddServiceScreen
 import com.morrislabs.fabs_store.ui.screens.services.ServiceDetailsScreen
 import com.morrislabs.fabs_store.ui.screens.services.ServicesManagementListScreen
@@ -80,25 +84,46 @@ import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 
 class MainActivity : ComponentActivity() {
+    private val pendingDeepLinkRoute = mutableStateOf<String?>(null)
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         NotificationHelper.createNotificationChannels(this)
+        handleDeepLinkIntent(intent)
         lifecycleScope.launch {
             ExchangeRateManager.initialize(applicationContext)
             ExchangeRateManager.refreshIfStale(applicationContext)
         }
         setContent {
             FabsstoreTheme {
-                StoreApp()
+                StoreApp(
+                    initialDeepLinkRoute = pendingDeepLinkRoute.value,
+                    onDeepLinkConsumed = { pendingDeepLinkRoute.value = null }
+                )
             }
         }
+    }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        handleDeepLinkIntent(intent)
+    }
+
+    private fun handleDeepLinkIntent(intent: Intent?) {
+        val uri = intent?.data ?: return
+        if (uri.scheme != "fabs-store" || uri.host != "reservations") return
+        val filter = uri.getQueryParameter("filter")?.takeIf { it.isNotBlank() } ?: ReservationFilter.PENDING_APPROVAL.name
+        pendingDeepLinkRoute.value = "reservations?filter=$filter"
     }
 }
 
 @OptIn(ExperimentalPermissionsApi::class)
 @Composable
 fun StoreApp(
+    initialDeepLinkRoute: String? = null,
+    onDeepLinkConsumed: () -> Unit = {},
     authViewModel: AuthViewModel = viewModel()
 ) {
     val context = LocalContext.current
@@ -163,6 +188,15 @@ fun StoreApp(
                 popUpTo(navController.graph.id) { inclusive = true }
                 launchSingleTop = true
             }
+        }
+    }
+
+    LaunchedEffect(isLoggedIn, initialDeepLinkRoute) {
+        if (isLoggedIn && !initialDeepLinkRoute.isNullOrBlank()) {
+            navController.navigate(initialDeepLinkRoute) {
+                launchSingleTop = true
+            }
+            onDeepLinkConsumed()
         }
     }
 
@@ -368,8 +402,23 @@ fun StoreApp(
             )
         }
 
-        composable("reservations") {
-            ReservationsScreen(onNavigateBack = { navController.popBackStack() })
+        composable(
+            route = "reservations?filter={filter}",
+            arguments = listOf(
+                navArgument("filter") {
+                    type = NavType.StringType
+                    defaultValue = ReservationFilter.PENDING_APPROVAL.name
+                }
+            )
+        ) { backStackEntry ->
+            val initialFilter = backStackEntry.arguments
+                ?.getString("filter")
+                ?.let { runCatching { ReservationFilter.valueOf(it) }.getOrNull() }
+                ?: ReservationFilter.PENDING_APPROVAL
+            ReservationsScreen(
+                initialFilter = initialFilter,
+                onNavigateBack = { navController.popBackStack() }
+            )
         }
 
         composable("employees") {
