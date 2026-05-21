@@ -1,20 +1,35 @@
 package com.morrislabs.fabs_store.data.repository
 
+import android.content.Context
+import android.util.Log
 import com.google.firebase.Timestamp
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.Query
 import com.morrislabs.fabs_store.data.model.ChatMessage
 import com.morrislabs.fabs_store.data.model.Conversation
 import com.morrislabs.fabs_store.data.model.SenderType
+import com.morrislabs.fabs_store.util.AppConfig
+import com.morrislabs.fabs_store.util.ClientConfig
+import io.ktor.client.request.post
+import io.ktor.client.request.setBody
+import io.ktor.http.ContentType
+import io.ktor.http.contentType
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.callbackFlow
 import kotlinx.coroutines.tasks.await
+import kotlinx.coroutines.withTimeout
 
-class ChatRepository {
+class ChatRepository(context: Context) {
+
+    companion object {
+        private const val TAG = "ChatRepository"
+    }
 
     private val db = FirebaseFirestore.getInstance()
     private val conversationsRef = db.collection("conversations")
+    private val notificationClient = ClientConfig().createUnAuthenticatedClient()
+    private val baseUrl = AppConfig.Api.BASE_URL
 
     fun observeConversations(storeId: String): Flow<List<Conversation>> = callbackFlow {
         val listener = conversationsRef
@@ -64,7 +79,7 @@ class ChatRepository {
             "read" to false
         )
 
-        conversationsRef
+        val messageRef = conversationsRef
             .document(conversationId)
             .collection("messages")
             .add(message)
@@ -79,6 +94,14 @@ class ChatRepository {
                 )
             )
             .await()
+
+        syncChatNotification(
+            conversationId = conversationId,
+            messageId = messageRef.id,
+            senderId = senderId,
+            senderType = SenderType.STORE.toString(),
+            text = text
+        )
     }
 
     suspend fun getOrCreateConversation(
@@ -138,5 +161,40 @@ class ChatRepository {
             "name" to storeName
         )
         db.collection("stores").document(storeId).set(storeData).await()
+    }
+
+    private suspend fun syncChatNotification(
+        conversationId: String,
+        messageId: String,
+        senderId: String,
+        senderType: String,
+        text: String
+    ) {
+        runCatching {
+            withTimeout(5_000) {
+                val conversation = conversationsRef.document(conversationId).get().await()
+                val participants = conversation.get("participants") as? List<*> ?: emptyList<Any>()
+                val participantNames = conversation.get("participantNames") as? Map<*, *> ?: emptyMap<Any, Any>()
+                val recipientId = participants.firstOrNull { it is String && it != senderId } as? String ?: return@withTimeout
+                val senderName = participantNames[senderId] as? String ?: "Store"
+
+                notificationClient.post("$baseUrl/api/notifications/sync/chat-message") {
+                    contentType(ContentType.Application.Json)
+                    setBody(
+                        mapOf(
+                            "conversationId" to conversationId,
+                            "messageId" to messageId,
+                            "senderId" to senderId,
+                            "senderType" to senderType,
+                            "senderName" to senderName,
+                            "text" to text,
+                            "recipientId" to recipientId
+                        )
+                    )
+                }
+            }
+        }.onFailure { error ->
+            Log.w(TAG, "Failed to sync chat notification", error)
+        }
     }
 }

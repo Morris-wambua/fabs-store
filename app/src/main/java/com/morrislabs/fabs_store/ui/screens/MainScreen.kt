@@ -107,6 +107,7 @@ fun MainScreen(
 
     LaunchedEffect(storeId) {
         if (storeId.isNotEmpty()) {
+            chatViewModel.registerFcmToken(storeId, store.name)
             expertViewModel.getExpertsByStoreId(storeId)
             postViewModel.fetchStorePosts(storeId)
             reviewViewModel.fetchStoreReviews(storeId)

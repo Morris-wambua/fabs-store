@@ -72,6 +72,7 @@ class ClientConfig {
 
             install(Auth) {
                 bearer {
+                    sendWithoutRequest { true }
                     loadTokens {
                         tokenManager.getToken()?.let {
                             BearerTokens(it, "")

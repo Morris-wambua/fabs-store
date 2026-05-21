@@ -48,6 +48,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.morrislabs.fabs_store.data.model.ReservationFilter
@@ -76,7 +77,8 @@ internal fun ReservationsTabContent(
     var showWalkInBooking by remember { mutableStateOf(false) }
     var showWaitingForCustomerDialog by remember { mutableStateOf(false) }
     var lastTransitionAction by remember { mutableStateOf<ReservationTransitionAction?>(null) }
-    val chatRepository = remember { ChatRepository() }
+    val context = LocalContext.current
+    val chatRepository = remember(context) { ChatRepository(context.applicationContext) }
     val scope = rememberCoroutineScope()
     val currentFilterStatus = selectedFilter.toBackendStatus()
     val reservationTransitionState by storeViewModel.reservationTransitionState.collectAsState()
